@@ -1,0 +1,214 @@
+Downloading/unpacking build
+  Getting page http://pypi.python.org/simple/build
+  Could not fetch URL http://pypi.python.org/simple/build: HTTP Error 403: SSL is required
+  Will skip URL http://pypi.python.org/simple/build when looking for download links for build
+  Getting page http://pypi.python.org/simple/
+  Could not fetch URL http://pypi.python.org/simple/: HTTP Error 403: SSL is required
+  Will skip URL http://pypi.python.org/simple/ when looking for download links for build
+  Cannot fetch index base URL http://pypi.python.org/simple/
+Cannot find requirement build, nor fetch index URL http://pypi.python.org/simple/
+Exception information:
+Traceback (most recent call last):
+  File "/usr/lib/python2.6/dist-packages/pip.py", line 252, in main
+    self.run(options, args)
+  File "/usr/lib/python2.6/dist-packages/pip.py", line 408, in run
+    requirement_set.install_files(finder, force_root_egg_info=self.bundle)
+  File "/usr/lib/python2.6/dist-packages/pip.py", line 1750, in install_files
+    url = finder.find_requirement(req_to_install, upgrade=self.upgrade)
+  File "/usr/lib/python2.6/dist-packages/pip.py", line 996, in find_requirement
+    url_name = self._find_url_name(Link(self.index_urls[0]), url_name, req)
+  File "/usr/lib/python2.6/dist-packages/pip.py", line 1073, in _find_url_name
+    raise DistributionNotFound('Cannot find requirement %s, nor fetch index URL %s' % (req, index_url))
+DistributionNotFound: Cannot find requirement build, nor fetch index URL http://pypi.python.org/simple/
+------------------------------------------------------------
+/usr/bin/pip run on Tue Jan 21 03:30:24 2025
+Downloading/unpacking Build
+  Getting page http://pypi.python.org/simple/Build
+  Could not fetch URL http://pypi.python.org/simple/Build: HTTP Error 403: SSL is required
+  Will skip URL http://pypi.python.org/simple/Build when looking for download links for Build
+  Getting page http://pypi.python.org/simple/
+  Could not fetch URL http://pypi.python.org/simple/: HTTP Error 403: SSL is required
+  Will skip URL http://pypi.python.org/simple/ when looking for download links for Build
+  Cannot fetch index base URL http://pypi.python.org/simple/
+Cannot find requirement Build, nor fetch index URL http://pypi.python.org/simple/
+Exception information:
+Traceback (most recent call last):
+  File "/usr/lib/python2.6/dist-packages/pip.py", line 252, in main
+    self.run(options, args)
+  File "/usr/lib/python2.6/dist-packages/pip.py", line 408, in run
+    requirement_set.install_files(finder, force_root_egg_info=self.bundle)
+  File "/usr/lib/python2.6/dist-packages/pip.py", line 1750, in install_files
+    url = finder.find_requirement(req_to_install, upgrade=self.upgrade)
+  File "/usr/lib/python2.6/dist-packages/pip.py", line 996, in find_requirement
+    url_name = self._find_url_name(Link(self.index_urls[0]), url_name, req)
+  File "/usr/lib/python2.6/dist-packages/pip.py", line 1073, in _find_url_name
+    raise DistributionNotFound('Cannot find requirement %s, nor fetch index URL %s' % (req, index_url))
+DistributionNotFound: Cannot find requirement Build, nor fetch index URL http://pypi.python.org/simple/
+------------------------------------------------------------
+/usr/lib/python2.6/dist-packages/pip.py run on Tue Jan 21 03:31:52 2025
+Downloading/unpacking pip
+  Getting page http://pypi.python.org/simple/pip
+  Could not fetch URL http://pypi.python.org/simple/pip: HTTP Error 403: SSL is required
+  Will skip URL http://pypi.python.org/simple/pip when looking for download links for pip
+  Getting page http://pypi.python.org/simple/
+  Could not fetch URL http://pypi.python.org/simple/: HTTP Error 403: SSL is required
+  Will skip URL http://pypi.python.org/simple/ when looking for download links for pip
+  Cannot fetch index base URL http://pypi.python.org/simple/
+Cannot find requirement pip, nor fetch index URL http://pypi.python.org/simple/
+Exception information:
+Traceback (most recent call last):
+  File "/usr/lib/python2.6/dist-packages/pip.py", line 252, in main
+    self.run(options, args)
+  File "/usr/lib/python2.6/dist-packages/pip.py", line 408, in run
+    requirement_set.install_files(finder, force_root_egg_info=self.bundle)
+  File "/usr/lib/python2.6/dist-packages/pip.py", line 1750, in install_files
+    url = finder.find_requirement(req_to_install, upgrade=self.upgrade)
+  File "/usr/lib/python2.6/dist-packages/pip.py", line 996, in find_requirement
+    url_name = self._find_url_name(Link(self.index_urls[0]), url_name, req)
+  File "/usr/lib/python2.6/dist-packages/pip.py", line 1073, in _find_url_name
+    raise DistributionNotFound('Cannot find requirement %s, nor fetch index URL %s' % (req, index_url))
+DistributionNotFound: Cannot find requirement pip, nor fetch index URL http://pypi.python.org/simple/
+------------------------------------------------------------
+/usr/bin/pip run on Tue Jan 21 03:39:37 2025
+Downloading/unpacking setuptools
+  Getting page http://pypi.python.org/simple/setuptools
+  Could not fetch URL http://pypi.python.org/simple/setuptools: HTTP Error 403: SSL is required
+  Will skip URL http://pypi.python.org/simple/setuptools when looking for download links for setuptools
+  Getting page http://pypi.python.org/simple/
+  Could not fetch URL http://pypi.python.org/simple/: HTTP Error 403: SSL is required
+  Will skip URL http://pypi.python.org/simple/ when looking for download links for setuptools
+  Cannot fetch index base URL http://pypi.python.org/simple/
+Cannot find requirement setuptools, nor fetch index URL http://pypi.python.org/simple/
+Exception information:
+Traceback (most recent call last):
+  File "/usr/lib/python2.6/dist-packages/pip.py", line 252, in main
+    self.run(options, args)
+  File "/usr/lib/python2.6/dist-packages/pip.py", line 408, in run
+    requirement_set.install_files(finder, force_root_egg_info=self.bundle)
+  File "/usr/lib/python2.6/dist-packages/pip.py", line 1750, in install_files
+    url = finder.find_requirement(req_to_install, upgrade=self.upgrade)
+  File "/usr/lib/python2.6/dist-packages/pip.py", line 996, in find_requirement
+    url_name = self._find_url_name(Link(self.index_urls[0]), url_name, req)
+  File "/usr/lib/python2.6/dist-packages/pip.py", line 1073, in _find_url_name
+    raise DistributionNotFound('Cannot find requirement %s, nor fetch index URL %s' % (req, index_url))
+DistributionNotFound: Cannot find requirement setuptools, nor fetch index URL http://pypi.python.org/simple/
+------------------------------------------------------------
+/usr/bin/pip run on Tue Jan 21 03:39:59 2025
+Downloading/unpacking setuptools
+  Getting page http://pypi.python.org/simple/setuptools
+  Could not fetch URL http://pypi.python.org/simple/setuptools: HTTP Error 403: SSL is required
+  Will skip URL http://pypi.python.org/simple/setuptools when looking for download links for setuptools
+  Getting page http://pypi.python.org/simple/
+  Could not fetch URL http://pypi.python.org/simple/: HTTP Error 403: SSL is required
+  Will skip URL http://pypi.python.org/simple/ when looking for download links for setuptools
+  Cannot fetch index base URL http://pypi.python.org/simple/
+Cannot find requirement setuptools, nor fetch index URL http://pypi.python.org/simple/
+Exception information:
+Traceback (most recent call last):
+  File "/usr/lib/python2.6/dist-packages/pip.py", line 252, in main
+    self.run(options, args)
+  File "/usr/lib/python2.6/dist-packages/pip.py", line 408, in run
+    requirement_set.install_files(finder, force_root_egg_info=self.bundle)
+  File "/usr/lib/python2.6/dist-packages/pip.py", line 1750, in install_files
+    url = finder.find_requirement(req_to_install, upgrade=self.upgrade)
+  File "/usr/lib/python2.6/dist-packages/pip.py", line 996, in find_requirement
+    url_name = self._find_url_name(Link(self.index_urls[0]), url_name, req)
+  File "/usr/lib/python2.6/dist-packages/pip.py", line 1073, in _find_url_name
+    raise DistributionNotFound('Cannot find requirement %s, nor fetch index URL %s' % (req, index_url))
+DistributionNotFound: Cannot find requirement setuptools, nor fetch index URL http://pypi.python.org/simple/
+------------------------------------------------------------
+/usr/bin/pip run on Tue Jan 21 03:44:03 2025
+Downloading/unpacking setuptools
+  Getting page http://pypi.python.org/simple/setuptools
+  Could not fetch URL http://pypi.python.org/simple/setuptools: HTTP Error 403: SSL is required
+  Will skip URL http://pypi.python.org/simple/setuptools when looking for download links for setuptools
+  Getting page http://pypi.python.org/simple/
+  Could not fetch URL http://pypi.python.org/simple/: HTTP Error 403: SSL is required
+  Will skip URL http://pypi.python.org/simple/ when looking for download links for setuptools
+  Cannot fetch index base URL http://pypi.python.org/simple/
+Cannot find requirement setuptools, nor fetch index URL http://pypi.python.org/simple/
+Exception information:
+Traceback (most recent call last):
+  File "/usr/lib/python2.6/dist-packages/pip.py", line 252, in main
+    self.run(options, args)
+  File "/usr/lib/python2.6/dist-packages/pip.py", line 408, in run
+    requirement_set.install_files(finder, force_root_egg_info=self.bundle)
+  File "/usr/lib/python2.6/dist-packages/pip.py", line 1750, in install_files
+    url = finder.find_requirement(req_to_install, upgrade=self.upgrade)
+  File "/usr/lib/python2.6/dist-packages/pip.py", line 996, in find_requirement
+    url_name = self._find_url_name(Link(self.index_urls[0]), url_name, req)
+  File "/usr/lib/python2.6/dist-packages/pip.py", line 1073, in _find_url_name
+    raise DistributionNotFound('Cannot find requirement %s, nor fetch index URL %s' % (req, index_url))
+DistributionNotFound: Cannot find requirement setuptools, nor fetch index URL http://pypi.python.org/simple/
+------------------------------------------------------------
+/usr/lib/python2.6/dist-packages/pip.py run on Tue Jan 21 04:22:25 2025
+Downloading/unpacking build
+  Getting page http://pypi.python.org/simple/build
+  Could not fetch URL http://pypi.python.org/simple/build: HTTP Error 403: SSL is required
+  Will skip URL http://pypi.python.org/simple/build when looking for download links for build
+  Getting page http://pypi.python.org/simple/
+  Could not fetch URL http://pypi.python.org/simple/: HTTP Error 403: SSL is required
+  Will skip URL http://pypi.python.org/simple/ when looking for download links for build
+  Cannot fetch index base URL http://pypi.python.org/simple/
+Cannot find requirement build, nor fetch index URL http://pypi.python.org/simple/
+Exception information:
+Traceback (most recent call last):
+  File "/usr/lib/python2.6/dist-packages/pip.py", line 252, in main
+    self.run(options, args)
+  File "/usr/lib/python2.6/dist-packages/pip.py", line 408, in run
+    requirement_set.install_files(finder, force_root_egg_info=self.bundle)
+  File "/usr/lib/python2.6/dist-packages/pip.py", line 1750, in install_files
+    url = finder.find_requirement(req_to_install, upgrade=self.upgrade)
+  File "/usr/lib/python2.6/dist-packages/pip.py", line 996, in find_requirement
+    url_name = self._find_url_name(Link(self.index_urls[0]), url_name, req)
+  File "/usr/lib/python2.6/dist-packages/pip.py", line 1073, in _find_url_name
+    raise DistributionNotFound('Cannot find requirement %s, nor fetch index URL %s' % (req, index_url))
+DistributionNotFound: Cannot find requirement build, nor fetch index URL http://pypi.python.org/simple/
+------------------------------------------------------------
+/usr/lib/python2.6/dist-packages/pip.py run on Tue Jan 21 04:24:36 2025
+Downloading/unpacking build
+  Getting page http://pypi.python.org/simple/build
+  Could not fetch URL http://pypi.python.org/simple/build: HTTP Error 403: SSL is required
+  Will skip URL http://pypi.python.org/simple/build when looking for download links for build
+  Getting page http://pypi.python.org/simple/
+  Could not fetch URL http://pypi.python.org/simple/: HTTP Error 403: SSL is required
+  Will skip URL http://pypi.python.org/simple/ when looking for download links for build
+  Cannot fetch index base URL http://pypi.python.org/simple/
+Cannot find requirement build, nor fetch index URL http://pypi.python.org/simple/
+Exception information:
+Traceback (most recent call last):
+  File "/usr/lib/python2.6/dist-packages/pip.py", line 252, in main
+    self.run(options, args)
+  File "/usr/lib/python2.6/dist-packages/pip.py", line 408, in run
+    requirement_set.install_files(finder, force_root_egg_info=self.bundle)
+  File "/usr/lib/python2.6/dist-packages/pip.py", line 1750, in install_files
+    url = finder.find_requirement(req_to_install, upgrade=self.upgrade)
+  File "/usr/lib/python2.6/dist-packages/pip.py", line 996, in find_requirement
+    url_name = self._find_url_name(Link(self.index_urls[0]), url_name, req)
+  File "/usr/lib/python2.6/dist-packages/pip.py", line 1073, in _find_url_name
+    raise DistributionNotFound('Cannot find requirement %s, nor fetch index URL %s' % (req, index_url))
+DistributionNotFound: Cannot find requirement build, nor fetch index URL http://pypi.python.org/simple/
+------------------------------------------------------------
+/usr/lib/python2.6/dist-packages/pip.py run on Tue Jan 21 04:26:36 2025
+Downloading/unpacking build
+  Getting page http://pypi.python.org/simple/build
+  Could not fetch URL http://pypi.python.org/simple/build: HTTP Error 403: SSL is required
+  Will skip URL http://pypi.python.org/simple/build when looking for download links for build
+  Getting page http://pypi.python.org/simple/
+  Could not fetch URL http://pypi.python.org/simple/: HTTP Error 403: SSL is required
+  Will skip URL http://pypi.python.org/simple/ when looking for download links for build
+  Cannot fetch index base URL http://pypi.python.org/simple/
+Cannot find requirement build, nor fetch index URL http://pypi.python.org/simple/
+Exception information:
+Traceback (most recent call last):
+  File "/usr/lib/python2.6/dist-packages/pip.py", line 252, in main
+    self.run(options, args)
+  File "/usr/lib/python2.6/dist-packages/pip.py", line 408, in run
+    requirement_set.install_files(finder, force_root_egg_info=self.bundle)
+  File "/usr/lib/python2.6/dist-packages/pip.py", line 1750, in install_files
+    url = finder.find_requirement(req_to_install, upgrade=self.upgrade)
+  File "/usr/lib/python2.6/dist-packages/pip.py", line 996, in find_requirement
+    url_name = self._find_url_name(Link(self.index_urls[0]), url_name, req)
+  File "/usr/lib/python2.6/dist-packages/pip.py", line 1073, in _find_url_name
+    raise DistributionNotFound('Cannot find requirement %s, nor fetch index URL %s' % (req, index_url))
+DistributionNotFound: Cannot find requirement build, nor fetch index URL http://pypi.python.org/simple/
