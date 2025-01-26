@@ -1,2 +1,2 @@
-You can see E-manual for DARwIn at below link.
-http://darwin-op.springnote.com/
+You can see E-manual for ROBOTIS-OP at below link.
+http://support.robotis.com/en/techsupport_eng.htm#product/darwin-op.htm

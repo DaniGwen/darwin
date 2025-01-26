@@ -30,7 +30,7 @@ int main(void)
     printf( "\n===== Head tracking Tutorial for DARwIn =====\n\n");
 
     change_current_dir();
-    
+
     minIni* ini = new minIni(INI_FILE_PATH);
     Image* rgb_ball = new Image(Camera::WIDTH, Camera::HEIGHT, Image::RGB_PIXEL_SIZE);
 

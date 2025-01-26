@@ -1,7 +1,7 @@
 10
 
 dir
-86
+96
 svn://svn.code.sf.net/p/darwinop/code/trunk/darwin/Data/mp3
 svn://svn.code.sf.net/p/darwinop/code
 
@@ -230,40 +230,6 @@ has-props
 
 19676
 
-Left kick.mp3
-file
-
-
-
-
-2014-01-07T10:21:00.317644Z
-5436bc94a818a90e4f1cf8798c527c6d
-2011-02-16T05:53:17.953343Z
-3
-robotis
-has-props
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-17586
-
 Shoot.mp3
 file
 
@@ -297,6 +263,40 @@ has-props
 
 
 15914
+
+Left kick.mp3
+file
+
+
+
+
+2014-01-07T10:21:00.317644Z
+5436bc94a818a90e4f1cf8798c527c6d
+2011-02-16T05:53:17.953343Z
+3
+robotis
+has-props
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+17586
 
 Yes.mp3
 file
@@ -434,40 +434,6 @@ has-props
 
 30543
 
-Vision processing mode.mp3
-file
-
-
-
-
-2014-01-07T10:21:00.327641Z
-40c0ada0f3bf8eb11a365a424a832c0c
-2011-02-16T05:53:17.953343Z
-3
-robotis
-has-props
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-28871
-
 Clap please.mp3
 file
 
@@ -501,6 +467,40 @@ has-props
 
 
 20929
+
+Vision processing mode.mp3
+file
+
+
+
+
+2014-01-07T10:21:00.327641Z
+40c0ada0f3bf8eb11a365a424a832c0c
+2011-02-16T05:53:17.953343Z
+3
+robotis
+has-props
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+28871
 
 Sensor calibration complete.mp3
 file
