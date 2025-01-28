@@ -47,9 +47,11 @@
 #define ID_18_ROW	17
 #define ID_19_ROW	18
 #define ID_20_ROW	19
-#define PAUSE_ROW	20
-#define SPEED_ROW	21
-#define CMD_ROW		23
+#define ID_21_ROW   20
+#define ID_22_row   21
+#define PAUSE_ROW	22
+#define SPEED_ROW	23
+#define CMD_ROW		24
 #define NAME_ROW		0
 #define PAGENUM_ROW		1
 #define ADDR_ROW		2

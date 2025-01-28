@@ -66,7 +66,7 @@ void set_stdin(void)
 {
 	tcgetattr(0,&oldterm);
 	new_term = oldterm;
-	new_term.c_lflag &= ~(ICANON | ECHO | ISIG); // ÀÇ¹Ì´Â struct termios¸¦ Ã£À¸¸é µÊ.
+	new_term.c_lflag &= ~(ICANON | ECHO | ISIG); // ï¿½Ç¹Ì´ï¿½ struct termiosï¿½ï¿½ Ã£ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½.
 	new_term.c_cc[VMIN] = 1;
 	new_term.c_cc[VTIME] = 0;
 	tcsetattr(0, TCSANOW, &new_term);
@@ -82,7 +82,7 @@ void ReadStep(CM730 *cm730)
 	int value;
 	for(int id=0; id<31; id++)
 	{
-		if(id >= JointData::ID_R_SHOULDER_PITCH && id <= JointData::ID_HEAD_TILT)
+		if(id >= JointData::ID_R_SHOULDER_PITCH && id < JointData::NUMBER_OF_JOINTS)
 		{
 			if(cm730->ReadByte(id, MX28::P_TORQUE_ENABLE, &value, 0) == CM730::SUCCESS)
 			{
@@ -321,7 +321,9 @@ void DrawPage()
 	printf( "ID:18(L_ANK_ROLL) [    ]                                                       \n" );//7
 	printf( "ID:19(HEAD_PAN)   [    ]                                                       \n" );//8
 	printf( "ID:20(HEAD_TILT)  [    ]                                                       \n" );//9
-	printf( "   PauseTime      [    ]                                                       \n" );//0
+	printf( "ID:21(R_WRIST) [    ]                                                          \n" );//0
+	printf( "ID:22(R_GRIPPER)[    ]                                                         \n" );//1
+	printf( "   PauseTime      [    ]                                                       \n" );//2
 
 	if( Page.header.schedule == Action::SPEED_BASE_SCHEDULE )
 		printf( "   Speed          [    ]                                                       \n" );//1
