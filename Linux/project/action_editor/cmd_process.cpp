@@ -321,8 +321,8 @@ void DrawPage()
 	printf( "ID:18(L_ANK_ROLL) [    ]                                                       \n" );//7
 	printf( "ID:19(HEAD_PAN)   [    ]                                                       \n" );//8
 	printf( "ID:20(HEAD_TILT)  [    ]                                                       \n" );//9
-	printf( "ID:21(R_WRIST) [    ]                                                          \n" );//0
-	printf( "ID:22(R_GRIPPER)[    ]                                                         \n" );//1
+	printf( "ID:21(R_WRIST)    [    ]                                                       \n" );//0
+	printf( "ID:22(R_GRIPPER)  [    ]                                                       \n" );//1
 	printf( "   PauseTime      [    ]                                                       \n" );//2
 
 	if( Page.header.schedule == Action::SPEED_BASE_SCHEDULE )
@@ -1125,7 +1125,7 @@ void OnOffCmd(CM730 *cm730, bool on, int num_param, int *list)
 	{
 		for(int i=0; i<num_param; i++)
 		{
-			if(list[i] >= JointData::ID_R_SHOULDER_PITCH && list[i] <= JointData::ID_HEAD_TILT)
+			if(list[i] >= JointData::ID_R_SHOULDER_PITCH && list[i] <= JointData::NUMBER_OF_JOINTS)
 				cm730->WriteByte(list[i], MX28::P_TORQUE_ENABLE, (int)on, 0);
 		}
 	}
