@@ -156,7 +156,7 @@ void MoveDownCursor()
 	}
 	else if(Col <= CCWSLOPE_COL)
 	{
-		if( Row < ID_20_ROW )
+		if( Row < ID_22_ROW )
 			GoToCursor(Col, Row+1);
 	}
 	else
@@ -839,7 +839,7 @@ void SetValue(CM730 *cm730, int value)
 
 void ToggleTorque(CM730 *cm730)
 {
-	if(Col != STP7_COL || Row > ID_20_ROW)
+	if(Col != STP7_COL || Row > ID_22_ROW)
 		return;
 
 	int id = Row + 1;

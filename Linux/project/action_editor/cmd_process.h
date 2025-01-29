@@ -48,7 +48,7 @@
 #define ID_19_ROW	18
 #define ID_20_ROW	19
 #define ID_21_ROW   20
-#define ID_22_row   21
+#define ID_22_ROW   21
 #define PAUSE_ROW	22
 #define SPEED_ROW	23
 #define CMD_ROW		24
