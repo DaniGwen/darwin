@@ -10,13 +10,12 @@ using namespace Robot;
 #define ID_22_MAX_CW_LIMIT 1450
 #define ID_22_MAX_CCW_LIMIT 2270
 
-
 void OpenGripper(CM730 &cm730);
 void CloseGripper(CM730 &cm730);
 void DefaultGripperPosition(CM730 &cm730);
 void RotateWristRight(CM730 &cm730);
 void RotateWristLeft(CM730 &cm730);
-
+bool IsServoMoving(CM730 &cm730, int servo_id);
 
 int main()
 {
@@ -74,7 +73,7 @@ int main()
 		}
 
 		usleep(50000);
-		count --;
+		count--;
 	}
 
 	return 0;
@@ -82,55 +81,115 @@ int main()
 
 void OpenGripper(CM730 &cm730)
 {
-	int value;
 	printf(" ID[%d]:", JointData::ID_R_GRIPPER);
-	if (cm730.ReadWord(JointData::ID_R_GRIPPER, MX28::P_PRESENT_POSITION_L, &value, 0) == CM730::SUCCESS)
+	cm730.WriteWord(JointData::ID_R_GRIPPER, MX28::P_GOAL_POSITION_L, ID_22_MAX_CW_LIMIT, 0);
+
+	int timeout = 100; // 1 second timeout
+	while (IsServoMoving(cm730, JointData::ID_R_GRIPPER) && timeout-- > 0)
 	{
-		printf("%4d", value);
-		cm730.WriteWord(JointData::ID_R_GRIPPER, MX28::P_GOAL_POSITION_L, ID_22_MAX_CW_LIMIT, 0);
+		usleep(10000);
+	}
+
+	if (timeout <= 0)
+	{
+		printf("\nTimeout: Gripper did not reach goal!\n");
+	}
+	else
+	{
+		printf("\nGripper fully opened.\n");
 	}
 }
 
 void CloseGripper(CM730 &cm730)
 {
-	int value;
 	printf(" ID[%d]:", JointData::ID_R_GRIPPER);
-	if (cm730.ReadWord(JointData::ID_R_GRIPPER, MX28::P_PRESENT_POSITION_L, &value, 0) == CM730::SUCCESS)
+	cm730.WriteWord(JointData::ID_R_GRIPPER, MX28::P_GOAL_POSITION_L, ID_22_MAX_CCW_LIMIT, 0);
+
+	int timeout = 100; // 1 second timeout
+	while (IsServoMoving(cm730, JointData::ID_R_GRIPPER) && timeout-- > 0)
 	{
-		printf("%4d", value);
-		cm730.WriteWord(JointData::ID_R_GRIPPER, MX28::P_GOAL_POSITION_L, ID_22_MAX_CCW_LIMIT, 0);
+		usleep(10000);
+	}
+
+	if (timeout <= 0)
+	{
+		printf("\nTimeout: Gripper did not reach goal!\n");
+	}
+	else
+	{
+		printf("\nGripper fully closed.\n");
 	}
 }
 
 void DefaultGripperPosition(CM730 &cm730)
 {
-	int value;
 	printf(" ID[%d]:", JointData::ID_R_GRIPPER);
-	if (cm730.ReadWord(JointData::ID_R_GRIPPER, MX28::P_PRESENT_POSITION_L, &value, 0) == CM730::SUCCESS)
+	cm730.WriteWord(JointData::ID_R_GRIPPER, MX28::P_GOAL_POSITION_L, MX28::CENTER_VALUE, 0);
+
+	int timeout = 100; // 1 second timeout
+	while (IsServoMoving(cm730, JointData::ID_R_GRIPPER) && timeout-- > 0)
 	{
-		printf("%4d", value);
-		cm730.WriteWord(JointData::ID_R_GRIPPER, MX28::P_GOAL_POSITION_L, MX28::CENTER_VALUE, 0);
+		usleep(10000);
+	}
+
+	if (timeout <= 0)
+	{
+		printf("\nTimeout: Gripper did not reach goal!\n");
+	}
+	else
+	{
+		printf("\nGripper is at default position.\n");
 	}
 }
 
 void RotateWristRight(CM730 &cm730)
 {
-    printf(" ID[%d]:", JointData::ID_R_WRIST);
-    int value;
-    if (cm730.ReadWord(JointData::ID_R_WRIST, MX28::P_PRESENT_POSITION_L, &value, 0) == CM730::SUCCESS)
-    {
-        printf("%4d", value);
-        cm730.WriteWord(JointData::ID_R_WRIST, MX28::P_GOAL_POSITION_L, ID_21_MAX_CW_LIMIT, 0);
-    }
+	printf(" ID[%d]:", JointData::ID_R_WRIST);
+	cm730.WriteWord(JointData::ID_R_WRIST, MX28::P_GOAL_POSITION_L, ID_21_MAX_CW_LIMIT, 0);
+
+	int timeout = 100; // 1 second timeout
+	while (IsServoMoving(cm730, JointData::ID_R_WRIST) && timeout-- > 0)
+	{
+		usleep(10000);
+	}
+
+	if (timeout <= 0)
+	{
+		printf("\nTimeout: Wrist did not reach goal!\n");
+	}
+	else
+	{
+		printf("\nWrist rotated right.\n");
+	}
 }
 
 void RotateWristLeft(CM730 &cm730)
 {
-    printf(" ID[%d]:", JointData::ID_R_WRIST);
-    int value;
-    if (cm730.ReadWord(JointData::ID_R_WRIST, MX28::P_PRESENT_POSITION_L, &value, 0) == CM730::SUCCESS)
-    {
-        printf("%4d", value);
-        cm730.WriteWord(JointData::ID_R_WRIST, MX28::P_GOAL_POSITION_L, ID_21_MAX_CCW_LIMIT, 0);
-    }
+	printf(" ID[%d]:", JointData::ID_R_WRIST);
+	cm730.WriteWord(JointData::ID_R_WRIST, MX28::P_GOAL_POSITION_L, ID_21_MAX_CCW_LIMIT, 0);
+
+	int timeout = 100; // 1 second timeout
+	while (IsServoMoving(cm730, JointData::ID_R_WRIST) && timeout-- > 0)
+	{
+		usleep(10000);
+	}
+
+	if (timeout <= 0)
+	{
+		printf("\nTimeout: Wrist did not reach goal!\n");
+	}
+	else
+	{
+		printf("\nWrist rotated left.\n");
+	}
+}
+
+bool IsServoMoving(CM730 &cm730, int servo_id)
+{
+	int moving_status;
+	if (cm730.ReadByte(servo_id, MX28::P_MOVING, &moving_status, 0) == CM730::SUCCESS)
+	{
+		return (moving_status == 1);
+	}
+	return false; // Error reading status
 }
