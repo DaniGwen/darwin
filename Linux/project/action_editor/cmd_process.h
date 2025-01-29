@@ -7,7 +7,7 @@
 
 #define PROGRAM_VERSION		"v1.00"
 #define SCREEN_COL			80
-#define SCREEN_ROW			24
+#define SCREEN_ROW			25
 
 // Position of Column
 #define CMD_COL			2
@@ -51,7 +51,7 @@
 #define ID_22_ROW   21
 #define PAUSE_ROW	22
 #define SPEED_ROW	23
-#define CMD_ROW		24
+#define CMD_ROW		25
 #define NAME_ROW		0
 #define PAGENUM_ROW		1
 #define ADDR_ROW		2
