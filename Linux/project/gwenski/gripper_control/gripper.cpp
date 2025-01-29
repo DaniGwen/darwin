@@ -53,6 +53,7 @@ int main()
 		printf("\rClose gripper");
 		CloseGripper(cm730);
 		RotateWristRight(cm730);
+		CenterWrist(cm730);
 
 		if (cm730.ReadWord(CM730::ID_CM, CM730::P_LED_HEAD_L, &value, 0) == CM730::SUCCESS)
 		{
