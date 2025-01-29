@@ -16,6 +16,8 @@ void DefaultGripperPosition(CM730 &cm730);
 void RotateWristRight(CM730 &cm730);
 void RotateWristLeft(CM730 &cm730);
 bool IsServoMoving(CM730 &cm730, int servo_id);
+void CenterWrist(CM730 &cm730);
+
 
 int main()
 {
@@ -34,8 +36,8 @@ int main()
 	int value;
 	cm730.WriteWord(JointData::ID_R_WRIST, MX28::P_TORQUE_ENABLE, 1, 0);
 	cm730.WriteWord(JointData::ID_R_GRIPPER, MX28::P_TORQUE_ENABLE, 1, 0);
-	cm730.WriteByte(JointData::ID_R_WRIST, MX28::P_P_GAIN, 6, 0);
-	cm730.WriteByte(JointData::ID_R_GRIPPER, MX28::P_P_GAIN, 6, 0);
+	cm730.WriteByte(JointData::ID_R_WRIST, MX28::P_P_GAIN, 4, 0);
+	cm730.WriteByte(JointData::ID_R_GRIPPER, MX28::P_P_GAIN, 4, 0);
 
 	printf("\rOpen gripper");
 	DefaultGripperPosition(cm730);
@@ -190,7 +192,7 @@ void RotateWristLeft(CM730 &cm730)
 void CenterWrist(CM730 &cm730)
 {
 	printf(" ID[%d]:", JointData::ID_R_WRIST);
-	cm730.WriteWord(JointData::ID_R_WRIST, MX28::P_GOAL_POSITION_L, MX28::CENTER_VALUE, 0);
+	cm730.WriteWord(JointData::ID_R_WRIST, MX28::P_GOAL_POSITION_L, 2000, 0);
 
 	int timeout = 100; // 1 second timeout
 	while (IsServoMoving(cm730, JointData::ID_R_WRIST) && timeout-- > 0)
