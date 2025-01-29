@@ -46,11 +46,13 @@ int main()
 	{
 		printf("\rOpen gripper");
 		OpenGripper(cm730);
+		RotateWristLeft(cm730);
 
 		usleep(50000);
 
 		printf("\rClose gripper");
 		CloseGripper(cm730);
+		RotateWristRight(cm730);
 
 		if (cm730.ReadWord(CM730::ID_CM, CM730::P_LED_HEAD_L, &value, 0) == CM730::SUCCESS)
 		{
@@ -181,6 +183,27 @@ void RotateWristLeft(CM730 &cm730)
 	else
 	{
 		printf("\nWrist rotated left.\n");
+	}
+}
+
+void CenterWrist(CM730 &cm730)
+{
+	printf(" ID[%d]:", JointData::ID_R_WRIST);
+	cm730.WriteWord(JointData::ID_R_WRIST, MX28::P_GOAL_POSITION_L, MX28::CENTER_VALUE, 0);
+
+	int timeout = 100; // 1 second timeout
+	while (IsServoMoving(cm730, JointData::ID_R_WRIST) && timeout-- > 0)
+	{
+		usleep(10000);
+	}
+
+	if (timeout <= 0)
+	{
+		printf("\nTimeout: Wrist did not reach goal!\n");
+	}
+	else
+	{
+		printf("\nWrist centered.\n");
 	}
 }
 
