@@ -12,7 +12,8 @@
 #define COLOR_SAT 45
 #define COLOR_VALUE 50
 
-#define INI_FILE_PATH "config.ini"
+#define INI_FILE_PATH          "config.ini"
+#define INI_FILE_PATH_MOTION   "../../../../Data/config.ini"
 
 // Movement parameters
 #define APPROACH_SPEED -0.5
@@ -25,8 +26,9 @@
 ColorFinder *color_finder = NULL;
 Point2D target_position;
 
-void InitializeVision(minIni *ini)
+void InitializeVision()
 {
+    minIni *ini = new minIni(INI_FILE_PATH);
     LinuxCamera::GetInstance()->Initialize(0);
     LinuxCamera::GetInstance()->SetCameraSettings(CameraSettings());
     LinuxCamera::GetInstance()->LoadINISettings(ini);
@@ -40,7 +42,7 @@ void InitializeVision(minIni *ini)
         0.3,          // Minimum probability
         50.0          // Distance penalty
     );
-    color_finder->LoadINISettings(ini, "TARGET");
+    color_finder->LoadINISettings(ini);
 }
 
 double CalculateObjectArea(Image *result_image)
@@ -60,7 +62,7 @@ double CalculateObjectArea(Image *result_image)
 bool LocateColoredObject(CM730 &cm730, int &detected_color)
 {
     LinuxCamera::GetInstance()->CaptureFrame();
-    Image* hsv_frame = LinuxCamera::GetInstance()->fbuffer->m_HSVFrame;
+    Image *hsv_frame = LinuxCamera::GetInstance()->fbuffer->m_HSVFrame;
 
     // Configure color finder for red detection
     color_finder->m_hue = RED_HUE;
@@ -85,21 +87,21 @@ bool LocateColoredObject(CM730 &cm730, int &detected_color)
     {
         max_area = red_area;
         detected_color = 1;
-        target_position = red_pos;  // Use already captured position
+        target_position = red_pos; // Use already captured position
     }
 
     if (yellow_area > max_area && yellow_area > MIN_OBJECT_AREA)
     {
         max_area = yellow_area;
         detected_color = 2;
-        target_position = yellow_pos;  // Use already captured position
+        target_position = yellow_pos; // Use already captured position
     }
 
     if (blue_area > max_area && blue_area > MIN_OBJECT_AREA)
     {
         max_area = blue_area;
         detected_color = 3;
-        target_position = blue_pos;  // Use already captured position
+        target_position = blue_pos; // Use already captured position
     }
 
     return (max_area > MIN_OBJECT_AREA && max_area < MAX_OBJECT_AREA);
@@ -168,7 +170,7 @@ int main()
 {
     LinuxCM730 linux_cm730("/dev/ttyUSB0");
     CM730 cm730(&linux_cm730);
-    minIni* ini = new minIni(INI_FILE_PATH);
+     minIni* ini = new minIni(INI_FILE_PATH_MOTION);
 
     // Initialize systems
     if (!cm730.Connect())
@@ -177,9 +179,17 @@ int main()
         return 1;
     }
 
-    InitializeGripper(cm730);
-    InitializeVision(&ini);
     MotionManager::GetInstance()->Initialize(&cm730);
+    MotionManager::GetInstance()->LoadINISettings(ini);
+    Walking::GetInstance()->LoadINISettings(ini);
+
+    MotionManager::GetInstance()->AddModule((MotionModule *)Head::GetInstance());
+    MotionManager::GetInstance()->AddModule((MotionModule *)Walking::GetInstance());
+    LinuxMotionTimer *motion_timer = new LinuxMotionTimer(MotionManager::GetInstance());
+    motion_timer->Start();
+
+    InitializeGripper(cm730);
+    InitializeVision();
 
     // Main detection loop
     int detected_color = 0;
