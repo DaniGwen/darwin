@@ -22,13 +22,16 @@ int main() {
     while (count-- > 0) {
         OpenGripper(cm730);
         RotateWristLeft(cm730);
+        
         usleep(50000);
 
         CloseGripper(cm730);
         RotateWristRight(cm730);
-        CenterWrist(cm730);
+      
         usleep(50000);
     }
 
+	CenterWrist(cm730);
+	CenterGripperPosition(cm730);
     return 0;
 }

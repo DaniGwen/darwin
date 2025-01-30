@@ -44,7 +44,7 @@ int main()
                 center.Y = (green.Y + blue.Y) / 2;
             // calculate center of blue and green
 
-            marker_tracker.Process(center);
+            marker_tracker.process(center);
             // use camera tracking
         }
     }

@@ -69,10 +69,10 @@ const char *GetIDString(int id)
 
 	case JointData::ID_HEAD_TILT:
 		return "HEAD_TILT";
-
+		
 	case JointData::ID_R_WRIST:
 		return "R_WRIST";
-
+		
 	case JointData::ID_R_GRIPPER:
 		return "R_GRIPPER";
 
