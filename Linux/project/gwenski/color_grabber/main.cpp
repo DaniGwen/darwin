@@ -10,7 +10,6 @@
 #include "Camera.h"
 #include "mjpg_streamer.h"
 #include "LinuxDARwIn.h"
-#include "Arm.h"  // Make sure this header exists for arm control
 
 #define INI_FILE_PATH       "../../../../Data/config.ini"
 #define U2D_DEV_NAME        "/dev/ttyUSB0"
@@ -96,7 +95,6 @@ int main(void)
 
     MotionManager::GetInstance()->AddModule((MotionModule*)Head::GetInstance());
     MotionManager::GetInstance()->AddModule((MotionModule*)Walking::GetInstance());
-    MotionManager::GetInstance()->AddModule((MotionModule*)Arm::GetInstance());
 
     LinuxMotionTimer *motion_timer = new LinuxMotionTimer(MotionManager::GetInstance());
     motion_timer->Start();
@@ -110,7 +108,6 @@ int main(void)
     
     Head::GetInstance()->m_Joint.SetEnableHeadOnly(true, true);
     Walking::GetInstance()->m_Joint.SetEnableBodyWithoutHead(true, true);
-    Arm::GetInstance()->m_Joint.SetEnableBodyWithoutHead(true, true);
     MotionManager::GetInstance()->SetEnable(true);
 
     bool isGrabbing = false;
