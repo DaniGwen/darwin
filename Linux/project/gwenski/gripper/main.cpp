@@ -14,7 +14,8 @@ int main()
         return 0;
     }
 
-	cm730.WriteWord(CM730::ID_CM, CM730::P_LED_EYE_L, cm730.MakeColor(255, 0, 0), 0);
+    // Change Eyes color to red
+    cm730.WriteWord(CM730::ID_CM, CM730::P_LED_EYE_L, cm730.MakeColor(255, 0, 0), 0);
 
     InitializeGripper(cm730, 5, 5, true);
     PositionRightArm(cm730);

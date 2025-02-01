@@ -22,6 +22,8 @@ void InitializeGripper(CM730 &cm730, int p_gain ,int p_gain_gripper, bool comple
 
     cm730.WriteWord(JointData::ID_R_GRIPPER, MX28::P_TORQUE_ENABLE, 1, 0);
     cm730.WriteByte(JointData::ID_R_GRIPPER, MX28::P_P_GAIN, p_gain_gripper, 0);
+    
+    LinuxActionScript::PlayMP3("../../../Data/mp3/activation-finished.mp3");
 }
 
 // Gripper Functions
