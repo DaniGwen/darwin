@@ -3,22 +3,25 @@
 #include <unistd.h>
 
 // Initialize servo torque and gains
-void InitializeGripper(CM730 &cm730)
+void InitializeGripper(CM730 &cm730, int p_gain ,int p_gain_gripper, bool complete_arm = false)
 {
+    if (complete_arm)
+    {
+        cm730.WriteByte(JointData::ID_R_SHOULDER_PITCH, MX28::P_TORQUE_ENABLE, 1, 0);
+        cm730.WriteByte(JointData::ID_R_SHOULDER_PITCH, MX28::P_I_GAIN, p_gain, 0);
+
+        cm730.WriteByte(JointData::ID_R_SHOULDER_ROLL, MX28::P_TORQUE_ENABLE, 1, 0);
+        cm730.WriteByte(JointData::ID_R_SHOULDER_ROLL, MX28::P_P_GAIN, p_gain, 0);
+
+        cm730.WriteByte(JointData::ID_R_ELBOW, MX28::P_TORQUE_ENABLE, 1, 0);
+        cm730.WriteByte(JointData::ID_R_ELBOW, MX28::P_P_GAIN, p_gain, 0);
+    }
+
     cm730.WriteWord(JointData::ID_R_WRIST, MX28::P_TORQUE_ENABLE, 1, 0);
-    cm730.WriteByte(JointData::ID_R_WRIST, MX28::P_P_GAIN, 4, 0);
+    cm730.WriteByte(JointData::ID_R_WRIST, MX28::P_P_GAIN, p_gain_gripper, 0);
 
     cm730.WriteWord(JointData::ID_R_GRIPPER, MX28::P_TORQUE_ENABLE, 1, 0);
-    cm730.WriteByte(JointData::ID_R_GRIPPER, MX28::P_P_GAIN, 4, 0);
-
-    cm730.WriteByte(JointData::ID_R_SHOULDER_PITCH, MX28::P_TORQUE_ENABLE, 1, 0);
-    cm730.WriteByte(JointData::ID_R_SHOULDER_PITCH, MX28::P_I_GAIN, 4, 0);
-
-    cm730.WriteByte(JointData::ID_R_SHOULDER_ROLL, MX28::P_TORQUE_ENABLE, 1, 0);
-    cm730.WriteByte(JointData::ID_R_SHOULDER_ROLL, MX28::P_P_GAIN, 4, 0);
-
-    cm730.WriteByte(JointData::ID_R_ELBOW, MX28::P_TORQUE_ENABLE, 1, 0);
-    cm730.WriteByte(JointData::ID_R_ELBOW, MX28::P_P_GAIN, 4, 0);
+    cm730.WriteByte(JointData::ID_R_GRIPPER, MX28::P_P_GAIN, p_gain_gripper, 0);
 }
 
 // Gripper Functions
@@ -69,11 +72,17 @@ void CenterWrist(CM730 &cm730)
 // Arm Positioning
 void PositionRightArm(CM730 &cm730)
 {
-     cm730.WriteWord(JointData::ID_R_SHOULDER_ROLL, MX28::P_GOAL_POSITION_L, 1850, 0);
+    if (!CheckRightArmIsEnabled())
+    {
+        printf("ID[%d] or ID[%d], torque is off", JointData::ID_R_SHOULDER_ROLL, JointData::ID_R_SHOULDER_PITCH);
+        return;
+    }
+
+    cm730.WriteWord(JointData::ID_R_SHOULDER_ROLL, MX28::P_GOAL_POSITION_L, 1850, 0);
     WaitWhileServoMoving(cm730, JointData::ID_R_SHOULDER_ROLL);
 
     cm730.WriteWord(JointData::ID_R_SHOULDER_PITCH, MX28::P_GOAL_POSITION_L, 1800, 0);
-    WaitWhileServoMoving(cm730, JointData::ID_R_SHOULDER_PITCH);   
+    WaitWhileServoMoving(cm730, JointData::ID_R_SHOULDER_PITCH);
 
     cm730.WriteWord(JointData::ID_R_ELBOW, MX28::P_GOAL_POSITION_L, 2400, 0);
     WaitWhileServoMoving(cm730, JointData::ID_R_ELBOW);
@@ -81,14 +90,26 @@ void PositionRightArm(CM730 &cm730)
 
 void DefaulPositionRightArm(CM730 &cm730)
 {
-     cm730.WriteWord(JointData::ID_R_SHOULDER_ROLL, MX28::P_GOAL_POSITION_L, 2000, 0);
+     if (!CheckRightArmIsEnabled())
+    {
+        printf("ID[%d] or ID[%d], torque is off", JointData::ID_R_SHOULDER_ROLL, JointData::ID_R_SHOULDER_PITCH);
+        return;
+    }
+
+    cm730.WriteWord(JointData::ID_R_SHOULDER_ROLL, MX28::P_GOAL_POSITION_L, 1800, 0);
     WaitWhileServoMoving(cm730, JointData::ID_R_SHOULDER_ROLL);
 
     cm730.WriteWord(JointData::ID_R_SHOULDER_PITCH, MX28::P_GOAL_POSITION_L, 2000, 0);
-    WaitWhileServoMoving(cm730, JointData::ID_R_SHOULDER_PITCH);   
+    WaitWhileServoMoving(cm730, JointData::ID_R_SHOULDER_PITCH);
 
-    cm730.WriteWord(JointData::ID_R_ELBOW, MX28::P_GOAL_POSITION_L, 2100, 0);
+    cm730.WriteWord(JointData::ID_R_ELBOW, MX28::P_GOAL_POSITION_L, 1550, 0);
     WaitWhileServoMoving(cm730, JointData::ID_R_ELBOW);
+}
+
+bool CheckRightArmIsEnabled(){
+    return Action::GetInstance()->m_Joint.GetEnable(JointData::ID_R_SHOULDER_ROLL) &&
+           Action::GetInstance()->m_Joint.GetEnable(JointData::ID_R_SHOULDER_PITCH) &&
+           Action::GetInstance()->m_Joint.GetEnable(JointData::ID_R_ELBOW);
 }
 
 // Utility Function

@@ -6,15 +6,15 @@
 using namespace Robot;
 
 // Servo Position Limits
-#define ID_21_MAX_CW_LIMIT   3100
+#define ID_21_MAX_CW_LIMIT 3100
 #define ID_21_MAX_CCW_LIMIT 1070
-#define ID_21_CENTER         1860
-#define ID_22_MAX_CW_LIMIT   1450
+#define ID_21_CENTER 1860
+#define ID_22_MAX_CW_LIMIT 1450
 #define ID_22_MAX_CCW_LIMIT 2270
-#define ID_22_CENTER         1860
+#define ID_22_CENTER 1860
 
 // Core Functions
-void InitializeGripper(CM730 &cm730);
+void InitializeGripper(CM730 &cm730, int p_gain ,int p_gain_gripper, bool complete_arm = false);
 void OpenGripper(CM730 &cm730);
 void CloseGripper(CM730 &cm730);
 void CenterGripperPosition(CM730 &cm730);
