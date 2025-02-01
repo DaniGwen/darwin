@@ -14,7 +14,7 @@ int main()
         return 0;
     }
 
-    m_CM730->WriteByte(0x1A, 255, NULL); // Red
+    cm730.WriteByte(0x1A, 255, NULL); // Red
                                          // m_CM730->WriteByte(0x1B, 0, NULL);   // Green
                                          // m_CM730->WriteByte(0x1C, 255, NULL); // Blue
 
