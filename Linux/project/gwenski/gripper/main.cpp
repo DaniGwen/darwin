@@ -14,7 +14,7 @@ int main()
         return 0;
     }
 
-    InitializeGripper(cm730, 3, 5, true);
+    InitializeGripper(cm730, 5, 5, true);
     PositionRightArm(cm730);
     CenterGripperPosition(cm730);
 
