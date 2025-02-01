@@ -122,7 +122,7 @@ bool WaitWhileServoMoving(CM730 &cm730, int servo_id)
         moving_status == 1 &&
         timeout-- > 0)
     {
-        usleep(10000);
+        usleep(2*10000);
     }
 
     if (timeout <= 0)

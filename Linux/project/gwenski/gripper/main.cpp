@@ -22,19 +22,20 @@ int main()
     while (count-- > 0)
     {
         OpenGripper(cm730);
-        RotateWristLeft(cm730);
-
         usleep(50000);
-
+        RotateWristLeft(cm730);
+        usleep(50000);
         CloseGripper(cm730);
+        usleep(50000);
         RotateWristRight(cm730);
-
         usleep(50000);
     }
 
     CenterWrist(cm730);
+    usleep(50000);
     CenterGripperPosition(cm730);
+    usleep(50000);
     DefaulPositionRightArm(cm730);
-    
+
     return 0;
 }
