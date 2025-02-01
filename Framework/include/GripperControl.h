@@ -30,5 +30,6 @@ void DefaulPositionRightArm(CM730 &cm730);
 
 // Utility
 bool WaitWhileServoMoving(CM730 &cm730, int servo_id);
+bool CheckRightArmIsEnabled();
 
 #endif
