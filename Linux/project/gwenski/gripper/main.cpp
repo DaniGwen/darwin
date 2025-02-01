@@ -14,9 +14,7 @@ int main()
         return 0;
     }
 
-    cm730.WriteByte(0x1A, 255, NULL); // Red
-                                         // m_CM730->WriteByte(0x1B, 0, NULL);   // Green
-                                         // m_CM730->WriteByte(0x1C, 255, NULL); // Blue
+	cm730.WriteWord(CM730::ID_CM, CM730::P_LED_HEAD_L, MakeColor(255, 0, 0), 0);
 
     InitializeGripper(cm730, 5, 5, true);
     PositionRightArm(cm730);
