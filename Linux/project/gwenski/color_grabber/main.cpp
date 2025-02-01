@@ -63,6 +63,7 @@ void change_current_dir()
 
 int main(void)
 {
+    LinuxActionScript::PlayMP3("../../../Data/mp3/voice-to-battle.mp3");
     printf("\n===== Ball Tracking & Grabbing Program =====\n\n");
     change_current_dir();
 
