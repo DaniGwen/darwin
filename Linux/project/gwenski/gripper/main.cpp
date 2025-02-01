@@ -14,12 +14,10 @@ int main()
         return 0;
     }
 
-    // Configure servos using library
     InitializeGripper(cm730, 3, 5, true);
     PositionRightArm(cm730);
     CenterGripperPosition(cm730);
 
-    // Demo loop
     int count = 2;
     while (count-- > 0)
     {
@@ -37,5 +35,6 @@ int main()
     CenterWrist(cm730);
     CenterGripperPosition(cm730);
     DefaulPositionRightArm(cm730);
+    
     return 0;
 }

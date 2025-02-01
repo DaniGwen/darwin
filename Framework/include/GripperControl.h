@@ -14,7 +14,7 @@ using namespace Robot;
 #define ID_22_CENTER 1860
 
 // Core Functions
-void InitializeGripper(CM730 &cm730, int p_gain ,int p_gain_gripper, bool complete_arm = false);
+void InitializeGripper(CM730 &cm730, int p_gain , int p_gain_gripper, bool complete_arm);
 void OpenGripper(CM730 &cm730);
 void CloseGripper(CM730 &cm730);
 void CenterGripperPosition(CM730 &cm730);
