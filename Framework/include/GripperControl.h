@@ -26,6 +26,7 @@ void CenterWrist(CM730 &cm730);
 
 // Arm Control
 void PositionRightArm(CM730 &cm730);
+void DefaulPositionRightArm(CM730 &cm730)
 
 // Utility
 bool WaitWhileServoMoving(CM730 &cm730, int servo_id);

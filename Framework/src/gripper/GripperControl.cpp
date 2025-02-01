@@ -72,10 +72,22 @@ void PositionRightArm(CM730 &cm730)
      cm730.WriteWord(JointData::ID_R_SHOULDER_ROLL, MX28::P_GOAL_POSITION_L, 1850, 0);
     WaitWhileServoMoving(cm730, JointData::ID_R_SHOULDER_ROLL);
 
-    cm730.WriteWord(JointData::ID_R_SHOULDER_PITCH, MX28::P_GOAL_POSITION_L, 2200, 0);
+    cm730.WriteWord(JointData::ID_R_SHOULDER_PITCH, MX28::P_GOAL_POSITION_L, 1800, 0);
     WaitWhileServoMoving(cm730, JointData::ID_R_SHOULDER_PITCH);   
 
     cm730.WriteWord(JointData::ID_R_ELBOW, MX28::P_GOAL_POSITION_L, 2400, 0);
+    WaitWhileServoMoving(cm730, JointData::ID_R_ELBOW);
+}
+
+void DefaulPositionRightArm(CM730 &cm730)
+{
+     cm730.WriteWord(JointData::ID_R_SHOULDER_ROLL, MX28::P_GOAL_POSITION_L, 2000, 0);
+    WaitWhileServoMoving(cm730, JointData::ID_R_SHOULDER_ROLL);
+
+    cm730.WriteWord(JointData::ID_R_SHOULDER_PITCH, MX28::P_GOAL_POSITION_L, 2000, 0);
+    WaitWhileServoMoving(cm730, JointData::ID_R_SHOULDER_PITCH);   
+
+    cm730.WriteWord(JointData::ID_R_ELBOW, MX28::P_GOAL_POSITION_L, 2100, 0);
     WaitWhileServoMoving(cm730, JointData::ID_R_ELBOW);
 }
 

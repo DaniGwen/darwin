@@ -33,5 +33,6 @@ int main() {
 
 	CenterWrist(cm730);
 	CenterGripperPosition(cm730);
+    DefaulPositionRightArm(cm730);
     return 0;
 }
