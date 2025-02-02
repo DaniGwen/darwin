@@ -4,7 +4,6 @@
 #include <libgen.h>
 
 #include "Camera.h"
-#include "mjpg_streamer.h"
 #include "LinuxDARwIn.h"
 
 #define INI_FILE_PATH "config.ini"
