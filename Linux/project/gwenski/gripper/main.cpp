@@ -39,7 +39,7 @@ int main()
     CenterGripperPosition(cm730);
     usleep(50000);
     DefaulPositionRightArm(cm730);
-      LinuxActionScript::PlayMP3Wait("../../../../Data/mp3/puppy-kisser.mp3");
+    LinuxActionScript::PlayMP3("../../../../Data/mp3/woman-yippee.mp3");
 
     return 0;
 }
