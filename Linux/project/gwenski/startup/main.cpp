@@ -4,24 +4,17 @@
 #include <libgen.h>
 
 #include "Camera.h"
+#include "mjpg_streamer.h"
 #include "LinuxDARwIn.h"
 
 #define INI_FILE_PATH "config.ini"
 
 #define U2D_DEV_NAME "/dev/ttyUSB0"
 
-void change_current_dir()
-{
-    char exepath[1024] = {0};
-    if (readlink("/proc/self/exe", exepath, sizeof(exepath)) != -1)
-        chdir(dirname(exepath));
-}
 
 int main()
 {
     printf("\n===== Start up with head tracking=====\n\n");
-
-    change_current_dir();
 
     minIni *ini = new minIni(INI_FILE_PATH);
     Image *rgb_ball = new Image(Camera::WIDTH, Camera::HEIGHT, Image::RGB_PIXEL_SIZE);
