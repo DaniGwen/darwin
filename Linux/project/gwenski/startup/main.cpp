@@ -30,8 +30,6 @@ int main()
     LinuxCamera::GetInstance()->Initialize(0);
     LinuxCamera::GetInstance()->LoadINISettings(ini);
 
-    mjpg_streamer *streamer = new mjpg_streamer(Camera::WIDTH, Camera::HEIGHT);
-
     ColorFinder *ball_finder = new ColorFinder();
     ball_finder->LoadINISettings(ini);
     httpd::ball_finder = ball_finder;
@@ -83,7 +81,6 @@ int main()
                 rgb_ball->m_ImageData[i * rgb_ball->m_PixelSize + 2] = 0;
             }
         }
-        streamer->send_image(rgb_ball);
     }
 
     return 0;
