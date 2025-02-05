@@ -259,6 +259,22 @@ void MoveRightCursor()
 	}
 }
 
+// Set default value (2000) for any new servos that have been added to the robot
+void SanitizePageData(Action::PAGE& page)
+{
+    for(int s = 0; s < Action::MAXNUM_STEP; s++)
+    {
+        for(int id = JointData::ID_R_SHOULDER_PITCH; id < JointData::NUMBER_OF_JOINTS; id++)
+        {
+            if(page.step[s].position[id] == Action::INVALID_BIT_MASK || 
+               page.step[s].position[id] == Action::TORQUE_OFF_BIT_MASK)
+            {
+                page.step[s].position[id] = 2000; // Set default centered position
+            }
+        }
+    }
+}
+
 void DrawIntro(CM730 *cm730)
 {
 	int nrows, ncolumns;
@@ -278,20 +294,8 @@ void DrawIntro(CM730 *cm730)
 	_getch();
 
 	Action::GetInstance()->LoadPage(indexPage, &Page);
+    SanitizePageData(Page);
 
- // Set 2000 for any invalid positions in loaded page data
-    for(int s=0; s<Action::MAXNUM_STEP; s++)
-    {
-        for(int id=JointData::ID_R_SHOULDER_PITCH; id<JointData::NUMBER_OF_JOINTS; id++)
-        {
-            if(Page.step[s].position[id] == Action::INVALID_BIT_MASK || 
-               Page.step[s].position[id] == Action::TORQUE_OFF_BIT_MASK)
-            {
-                Page.step[s].position[id] = 2000; // Set centered position
-            }
-        }
-    }
-	
 	ReadStep(cm730);	
 	Step.pause = 0;
 	Step.time = 0;
@@ -953,7 +957,8 @@ void PageCmd(int index)
 	{
 		indexPage = index;
 		Action::GetInstance()->LoadPage(indexPage, &Page);
-
+        SanitizePageData(Page);
+		
 		Col = STP7_COL;
 		Row = ID_1_ROW;
 		DrawPage();
