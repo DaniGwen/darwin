@@ -259,20 +259,6 @@ void MoveRightCursor()
 	}
 }
 
-// Set default value (2000) for any new servos that have been added to the robot
-void ValidateStepData(Action::STEP& step)
-{
-    for(int id = JointData::ID_R_SHOULDER_PITCH; id < JointData::NUMBER_OF_JOINTS; id++)
-    {
-        // Replace invalid/torque-off markers with centered position
-        if(step.position[id] == Action::INVALID_BIT_MASK || 
-           step.position[id] == Action::TORQUE_OFF_BIT_MASK)
-        {
-            step.position[id] = 2000;
-        }
-    }
-}
-
 void DrawIntro(CM730 *cm730)
 {
 	int nrows, ncolumns;
@@ -292,13 +278,6 @@ void DrawIntro(CM730 *cm730)
 	_getch();
 
 	Action::GetInstance()->LoadPage(indexPage, &Page);
-
-    // Validate values in all steps in the page (0,1,2,3,4,5,6)
-	// Set default value (2000) for any new servos that have been added to the robot
-    for(int s=0; s<Action::MAXNUM_STEP; s++)
-    {
-        ValidateStepData(Page.step[s]); // STP0-STP6
-    }
 
 	ReadStep(cm730);	
 	Step.pause = 0;
