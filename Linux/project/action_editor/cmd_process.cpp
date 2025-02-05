@@ -279,6 +279,19 @@ void DrawIntro(CM730 *cm730)
 
 	Action::GetInstance()->LoadPage(indexPage, &Page);
 
+ // Set 2000 for any invalid positions in loaded page data
+    for(int s=0; s<Action::MAXNUM_STEP; s++)
+    {
+        for(int id=JointData::ID_R_SHOULDER_PITCH; id<JointData::NUMBER_OF_JOINTS; id++)
+        {
+            if(Page.step[s].position[id] == Action::INVALID_BIT_MASK || 
+               Page.step[s].position[id] == Action::TORQUE_OFF_BIT_MASK)
+            {
+                Page.step[s].position[id] = 2000; // Set centered position
+            }
+        }
+    }
+	
 	ReadStep(cm730);	
 	Step.pause = 0;
 	Step.time = 0;
