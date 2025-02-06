@@ -108,6 +108,9 @@ void Walking::LoadINISettings(minIni* ini, const std::string &section)
     if((value = ini->getd(section, "balance_ankle_pitch_gain", INVALID_VALUE)) != INVALID_VALUE)BALANCE_ANKLE_PITCH_GAIN = value;
     if((value = ini->getd(section, "balance_hip_roll_gain", INVALID_VALUE)) != INVALID_VALUE)   BALANCE_HIP_ROLL_GAIN = value;
     if((value = ini->getd(section, "balance_ankle_roll_gain", INVALID_VALUE)) != INVALID_VALUE) BALANCE_ANKLE_ROLL_GAIN = value;
+    if((value = ini->getd(section, "x_odo_factor", INVALID_VALUE)) != INVALID_VALUE) X_ODO_FACTOR = value;
+    if((value = ini->getd(section, "y_odo_factor", INVALID_VALUE)) != INVALID_VALUE) Y_ODO_FACTOR = value;
+    if((value = ini->getd(section, "a_odo_factor", INVALID_VALUE)) != INVALID_VALUE) A_ODO_FACTOR = value;
 
     int ivalue = INVALID_VALUE;
 
@@ -140,6 +143,9 @@ void Walking::SaveINISettings(minIni* ini, const std::string &section)
     ini->put(section,   "balance_ankle_pitch_gain", BALANCE_ANKLE_PITCH_GAIN);
     ini->put(section,   "balance_hip_roll_gain",    BALANCE_HIP_ROLL_GAIN);
     ini->put(section,   "balance_ankle_roll_gain",  BALANCE_ANKLE_ROLL_GAIN);
+    ini->put(section,   "x_odo_factor", X_ODO_FACTOR);
+    ini->put(section,   "y_odo_factor", Y_ODO_FACTOR);
+    ini->put(section,   "a_odo_factor", A_ODO_FACTOR);
 
     ini->put(section,   "p_gain",                   P_GAIN);
     ini->put(section,   "i_gain",                   I_GAIN);
@@ -153,80 +159,52 @@ double Walking::wsin(double time, double period, double period_shift, double mag
 
 bool Walking::computeIK(double *out, double x, double y, double z, double a, double b, double c)
 {
-	Matrix3D Tad, Tda, Tcd, Tdc, Tac;
-	Vector3D vec;
-    double _Rac, _Acos, _Atan, _k, _l, _m, _n, _s, _c, _theta;
-	double LEG_LENGTH = Kinematics::LEG_LENGTH;
-	double THIGH_LENGTH = Kinematics::THIGH_LENGTH;
-	double CALF_LENGTH = Kinematics::CALF_LENGTH;
-	double ANKLE_LENGTH = Kinematics::ANKLE_LENGTH;
+    const double LEG_LENGTH = Kinematics::LEG_LENGTH;
+	const double THIGH_LENGTH = Kinematics::THIGH_LENGTH;
+	const double CALF_LENGTH = Kinematics::CALF_LENGTH;
+	const double ANKLE_LENGTH = Kinematics::ANKLE_LENGTH;
 
-	Tad.SetTransform(Point3D(x, y, z - LEG_LENGTH), Vector3D(a * 180.0 / PI, b * 180.0 / PI, c * 180.0 / PI));
+    const double cyaw = cos(c);
+    const double syaw = sin(c);
+    const double cpitch = cos(b);
+    const double spitch = sin(b);
+    const double croll = cos(a);
+    const double sroll = sin(a);
 
-	vec.X = x + Tad.m[2] * ANKLE_LENGTH;
-    vec.Y = y + Tad.m[6] * ANKLE_LENGTH;
-    vec.Z = (z - LEG_LENGTH) + Tad.m[10] * ANKLE_LENGTH;
+    // Apply roll
+    // TODO Applying roll may cause wrong calculations. Check it.
+    x += -sroll * spitch * ANKLE_LENGTH;
+    y += sroll *          ANKLE_LENGTH;
+    z += sroll * cpitch * ANKLE_LENGTH;
+    // Apply pitch
+    z += cpitch * ANKLE_LENGTH;
+    x += -spitch * ANKLE_LENGTH;
+    // Apply yaw
+    const double oldx = x;
+    const double oldy  = y;
+    x = cyaw * oldx + syaw * oldy;
+    y = cyaw * oldy - syaw * oldx;
+    // Ankle offset
+    z = LEG_LENGTH - z;
+    const double offset_sqr = z * z + x * x;
+    const double offset_dist = sqrt(offset_sqr);
 
-    // Get Knee
-	_Rac = vec.Length();
-    _Acos = acos((_Rac * _Rac - THIGH_LENGTH * THIGH_LENGTH - CALF_LENGTH * CALF_LENGTH) / (2 * THIGH_LENGTH * CALF_LENGTH));
-    if(isnan(_Acos) == 1)
-		return false;
-    *(out + 3) = _Acos;
-
-    // Get Ankle Roll
-    Tda = Tad;
-	if(Tda.Inverse() == false)
+    if (offset_dist > CALF_LENGTH + THIGH_LENGTH) {
         return false;
-    _k = sqrt(Tda.m[7] * Tda.m[7] + Tda.m[11] * Tda.m[11]);
-    _l = sqrt(Tda.m[7] * Tda.m[7] + (Tda.m[11] - ANKLE_LENGTH) * (Tda.m[11] - ANKLE_LENGTH));
-    _m = (_k * _k - _l * _l - ANKLE_LENGTH * ANKLE_LENGTH) / (2 * _l * ANKLE_LENGTH);
-    if(_m > 1.0)
-        _m = 1.0;
-    else if(_m < -1.0)
-        _m = -1.0;
-    _Acos = acos(_m);
-    if(isnan(_Acos) == 1)
-        return false;
-    if(Tda.m[7] < 0.0)
-        *(out + 5) = -_Acos;
-    else
-        *(out + 5) = _Acos;
+    }
 
-    // Get Hip Yaw
-	Tcd.SetTransform(Point3D(0, 0, -ANKLE_LENGTH), Vector3D(*(out + 5) * 180.0 / PI, 0, 0));
-	Tdc = Tcd;
-	if(Tdc.Inverse() == false)
-        return false;
-	Tac = Tad * Tdc;
-    _Atan = atan2(-Tac.m[1] , Tac.m[5]);
-    if(isinf(_Atan) == 1)
-        return false;
-    *(out) = _Atan;
-
-    // Get Hip Roll
-    _Atan = atan2(Tac.m[9], -Tac.m[1] * sin(*(out)) + Tac.m[5] * cos(*(out)));
-    if(isinf(_Atan) == 1)
-        return false;
-    *(out + 1) = _Atan;
-
-    // Get Hip Pitch and Ankle Pitch
-    _Atan = atan2(Tac.m[2] * cos(*(out)) + Tac.m[6] * sin(*(out)), Tac.m[0] * cos(*(out)) + Tac.m[4] * sin(*(out)));
-    if(isinf(_Atan) == 1)
-        return false;
-    _theta = _Atan;
-    _k = sin(*(out + 3)) * CALF_LENGTH;
-    _l = -THIGH_LENGTH - cos(*(out + 3)) * CALF_LENGTH;
-	_m = cos(*(out)) * vec.X + sin(*(out)) * vec.Y;
-	_n = cos(*(out + 1)) * vec.Z + sin(*(out)) * sin(*(out + 1)) * vec.X - cos(*(out)) * sin(*(out + 1)) * vec.Y;
-    _s = (_k * _n + _l * _m) / (_k * _k + _l * _l);
-    _c = (_n - _k * _s) / _l;
-    _Atan = atan2(_s, _c);
-    if(isinf(_Atan) == 1)
-        return false;
-    *(out + 2) = _Atan;
-    *(out + 4) = _theta - *(out + 3) - *(out + 2);
-
+    // Hip yaw
+    out[0] = c;
+    // Hip roll
+    out[1] = atan2(y, z);
+    // Hip pitch
+    out[2] = -atan2(x, z) - acos((offset_sqr + THIGH_LENGTH * THIGH_LENGTH - CALF_LENGTH * CALF_LENGTH) / (2.0 * THIGH_LENGTH * offset_dist));
+    // Knee pitch
+    out[3] = PI - acos((THIGH_LENGTH * THIGH_LENGTH + CALF_LENGTH * CALF_LENGTH - offset_sqr) / (2.0 * THIGH_LENGTH * CALF_LENGTH));
+    // Ankle pitch
+    out[4] = -out[3] - out[2] - b;
+    // Ankle roll
+    out[5] = -out[1] + a;
     return true;
 }
 
@@ -314,6 +292,10 @@ void Walking::Initialize()
     Y_MOVE_AMPLITUDE   = 0;
     A_MOVE_AMPLITUDE   = 0;
 
+    m_X_Odo_Offset = 0.0;
+    m_Y_Odo_Offset = 0.0;
+    m_A_Odo_Offset = 0.0;
+
 	m_Body_Swing_Y = 0;
     m_Body_Swing_Z = 0;
 
@@ -327,6 +309,27 @@ void Walking::Initialize()
     m_Z_Swap_Phase_Shift = PI * 3 / 2;
     m_Z_Move_Phase_Shift = PI / 2;
     m_A_Move_Phase_Shift = PI / 2;
+
+    m_X_Left_Odo = 0.0;
+    m_Y_Left_Odo = 0.0;
+    m_A_Left_Odo = 0.0;
+
+    m_X_Right_Odo= 0.0;
+    m_Y_Right_Odo= 0.0;
+    m_A_Right_Odo= 0.0;
+
+    m_Right_Start = false;
+    m_Right_End = false;
+    m_Left_Start = false;
+    m_Left_End = false;
+
+    X_ODO_FACTOR = 1.0;
+    Y_ODO_FACTOR = 1.0;
+    A_ODO_FACTOR = 1.0;
+
+    X_ODO = 0.0;
+    Y_ODO = 0.0;
+    A_ODO = 0.0;
 
 	m_Ctrl_Running = false;
     m_Real_Running = false;
@@ -437,6 +440,7 @@ void Walking::Process()
         c_move_r = wsin(m_SSP_Time_Start_L, m_A_Move_PeriodTime, m_A_Move_Phase_Shift + 2 * PI / m_A_Move_PeriodTime * m_SSP_Time_Start_L, -m_A_Move_Amplitude, -m_A_Move_Amplitude_Shift);
         pelvis_offset_l = 0;
         pelvis_offset_r = 0;
+        m_Left_Start = true;
     }
     else if(m_Time <= m_SSP_Time_End_L)
     {
@@ -450,6 +454,7 @@ void Walking::Process()
         c_move_r = wsin(m_Time, m_A_Move_PeriodTime, m_A_Move_Phase_Shift + 2 * PI / m_A_Move_PeriodTime * m_SSP_Time_Start_L, -m_A_Move_Amplitude, -m_A_Move_Amplitude_Shift);
         pelvis_offset_l = wsin(m_Time, m_Z_Move_PeriodTime, m_Z_Move_Phase_Shift + 2 * PI / m_Z_Move_PeriodTime * m_SSP_Time_Start_L, m_Pelvis_Swing / 2, m_Pelvis_Swing / 2);
         pelvis_offset_r = wsin(m_Time, m_Z_Move_PeriodTime, m_Z_Move_Phase_Shift + 2 * PI / m_Z_Move_PeriodTime * m_SSP_Time_Start_L, -m_Pelvis_Offset / 2, -m_Pelvis_Offset / 2);
+        m_Left_End = true;
     }
     else if(m_Time <= m_SSP_Time_Start_R)
     {
@@ -463,6 +468,7 @@ void Walking::Process()
         c_move_r = wsin(m_SSP_Time_End_L, m_A_Move_PeriodTime, m_A_Move_Phase_Shift + 2 * PI / m_A_Move_PeriodTime * m_SSP_Time_Start_L, -m_A_Move_Amplitude, -m_A_Move_Amplitude_Shift);
         pelvis_offset_l = 0;
         pelvis_offset_r = 0;
+        m_Right_Start = true;
     }
     else if(m_Time <= m_SSP_Time_End_R)
     {
@@ -476,6 +482,7 @@ void Walking::Process()
         c_move_r = wsin(m_Time, m_A_Move_PeriodTime, m_A_Move_Phase_Shift + 2 * PI / m_A_Move_PeriodTime * m_SSP_Time_Start_R + PI, -m_A_Move_Amplitude, -m_A_Move_Amplitude_Shift);
         pelvis_offset_l = wsin(m_Time, m_Z_Move_PeriodTime, m_Z_Move_Phase_Shift + 2 * PI / m_Z_Move_PeriodTime * m_SSP_Time_Start_R, m_Pelvis_Offset / 2, m_Pelvis_Offset / 2);
         pelvis_offset_r = wsin(m_Time, m_Z_Move_PeriodTime, m_Z_Move_Phase_Shift + 2 * PI / m_Z_Move_PeriodTime * m_SSP_Time_Start_R, -m_Pelvis_Swing / 2, -m_Pelvis_Swing / 2);
+        m_Right_End = true;
     }
     else
     {
@@ -508,6 +515,55 @@ void Walking::Process()
     ep[9] = a_swap + a_move_l + m_R_Offset / 2;
     ep[10] = b_swap + b_move_l + m_P_Offset;
     ep[11] = c_swap + c_move_l + m_A_Offset / 2;
+
+    // Calculate odometry
+    if(m_Left_End && m_Left_Start)
+    {
+        if(m_X_Move_Amplitude != 0 || m_Y_Move_Amplitude != 0)
+        {
+            m_X_Odo_Offset += m_X_Left_Odo;
+            m_Y_Odo_Offset += m_Y_Left_Odo;
+        }
+        m_A_Odo_Offset += m_A_Left_Odo;
+        m_Left_End = false;
+        m_Left_Start = false;
+        m_Right_End = false;
+    }
+    else if(m_Right_End && m_Right_Start)
+    {
+        if(m_X_Move_Amplitude != 0 || m_Y_Move_Amplitude != 0)
+        {
+            m_X_Odo_Offset += m_X_Right_Odo;
+            m_Y_Odo_Offset += m_Y_Right_Odo;
+        }
+        m_A_Odo_Offset += m_A_Right_Odo;
+        m_Right_End = false;
+        m_Right_Start = false;
+        m_Left_End = false;
+    }
+    else
+    {
+        if(m_X_Move_Amplitude > 0)
+            m_X_Left_Odo = -X_ODO_FACTOR * ep[6];
+        else
+            m_X_Left_Odo = X_ODO_FACTOR * ep[6];
+        m_Y_Left_Odo = -Y_ODO_FACTOR * ep[7];
+        m_A_Left_Odo = -A_ODO_FACTOR * ep[11];
+
+        if(m_X_Move_Amplitude > 0)
+            m_X_Right_Odo = -X_ODO_FACTOR * ep[0];
+        else
+            m_X_Right_Odo = X_ODO_FACTOR * ep[0];
+        m_Y_Right_Odo = -Y_ODO_FACTOR * ep[1];
+        m_A_Right_Odo = -A_ODO_FACTOR * ep[5];
+    }
+
+    double odo_offset_dst = hypot(m_X_Odo_Offset, m_Y_Odo_Offset);
+    double odo_offset_angle = atan2(m_Y_Odo_Offset, m_X_Odo_Offset);
+    X_ODO = X_ODO + cos(A_ODO + odo_offset_angle) * odo_offset_dst;
+    Y_ODO = Y_ODO + sin(A_ODO + odo_offset_angle + m_A_Odo_Offset) * odo_offset_dst;
+    A_ODO = A_ODO + m_A_Odo_Offset * 180.0 / PI;
+    A_ODO = A_ODO - 360.0 * floor((A_ODO + 180.0) / 360.0); // Normalize between -180 and 180
 
     // Compute body swing
     if(m_Time <= m_SSP_Time_End_L)
@@ -553,19 +609,23 @@ void Walking::Process()
 		return; // Do not use angle;
 	}
 
+
     // Compute motor value
-    for(int i=0; i<14; i++)
+    for (int i = 0; i < 14; i++)
     {
-		offset = (double)dir[i] * angle[i] * MX28::RATIO_ANGLE2VALUE;
-        if(i == 1) // R_HIP_ROLL
-            offset += (double)dir[i] * pelvis_offset_r;
-        else if(i == 7) // L_HIP_ROLL
-            offset += (double)dir[i] * pelvis_offset_l;
-        else if(i == 2 || i == 8) // R_HIP_PITCH or L_HIP_PITCH
-            offset -= (double)dir[i] * HIP_PITCH_OFFSET * MX28::RATIO_ANGLE2VALUE;
+        offset = (double)dir[i] * angle[i] * MX28::RATIO_ANGLE2VALUE;
+        if (i == 1) // R_HIP_ROLL
+            offset += (double)dir[i] * (pelvis_offset_r * cos(ep[5]) - HIP_PITCH_OFFSET * sin(ep[5]) * MX28::RATIO_ANGLE2VALUE);
+        else if (i == 7) // L_HIP_ROLL
+            offset += (double)dir[i] * (pelvis_offset_l * cos(ep[11]) - HIP_PITCH_OFFSET * sin(ep[11]) * MX28::RATIO_ANGLE2VALUE);
+        else if (i == 2) // R_HIP_PITCH
+            offset -= (double)dir[i] * (pelvis_offset_r * sin(ep[5]) + HIP_PITCH_OFFSET * cos(ep[5])) * MX28::RATIO_ANGLE2VALUE;
+        else if (i == 8) // L_HIP_PITCH
+            offset -= (double)dir[i] * (pelvis_offset_l * sin(ep[11]) + HIP_PITCH_OFFSET * cos(ep[11])) * MX28::RATIO_ANGLE2VALUE;
 
         outValue[i] = MX28::Angle2Value(initAngle[i]) + (int)offset;
     }
+
 
     // adjust balance offset
     if(BALANCE_ENABLE == true)

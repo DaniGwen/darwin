@@ -93,6 +93,22 @@ namespace Robot
 		double m_Body_Swing_Y;
 		double m_Body_Swing_Z;
 
+		double m_X_Odo_Offset;
+		double m_Y_Odo_Offset;
+		double m_A_Odo_Offset;
+
+		double m_X_Left_Odo;
+		double m_Y_Left_Odo;
+		double m_A_Left_Odo;
+		double m_X_Right_Odo;
+		double m_Y_Right_Odo;
+		double m_A_Right_Odo;
+
+		bool m_Right_Start;
+		bool m_Right_End;
+		bool m_Left_Start;
+		bool m_Left_End;
+
         Walking();
 
 		double wsin(double time, double period, double period_shift, double mag, double mag_shift);
@@ -131,6 +147,15 @@ namespace Robot
 		double ARM_SWING_GAIN;
 		double PELVIS_OFFSET;
 		double HIP_PITCH_OFFSET;
+
+		// Odometry
+		double X_ODO;
+		double Y_ODO;
+		double A_ODO;
+
+		double X_ODO_FACTOR;
+		double Y_ODO_FACTOR;
+		double A_ODO_FACTOR;
 
 		int    P_GAIN;
 		int    I_GAIN;
