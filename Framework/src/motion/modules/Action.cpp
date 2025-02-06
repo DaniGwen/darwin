@@ -249,19 +249,6 @@ bool Action::LoadPage(int index, PAGE *pPage)
     if( VerifyChecksum( pPage ) == false )
         ResetPage( pPage );
 
-    // Convert invalid entries to 2000 during load
-    for(int s=0; s<MAXNUM_STEP; s++)
-    {
-        for(int id=JointData::ID_R_SHOULDER_PITCH; id<JointData::NUMBER_OF_JOINTS; id++)
-        {
-            if(pPage->step[s].position[id] == INVALID_BIT_MASK || 
-               pPage->step[s].position[id] == TORQUE_OFF_BIT_MASK)
-            {
-                pPage->step[s].position[id] = 2000; // Set default center
-            }
-        }
-    }
-
     return true;
 }
 

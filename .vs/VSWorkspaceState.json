@@ -1,11 +1,13 @@
 {
   "ExpandedNodes": [
     "",
+    "\\Framework",
+    "\\Framework\\src",
+    "\\Framework\\src\\motion",
+    "\\Framework\\src\\motion\\modules",
     "\\Linux",
-    "\\Linux\\project",
-    "\\Linux\\project\\tutorial",
-    "\\Linux\\project\\tutorial\\read_write_custom"
+    "\\Linux\\project"
   ],
-  "SelectedNode": "\\Linux\\project\\tutorial\\read_write_custom\\main.cpp",
+  "SelectedNode": "\\Framework\\src\\motion\\modules\\Action.cpp",
   "PreviewInSolutionExplorer": false
 }
