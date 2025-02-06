@@ -30,3 +30,6 @@ Linux/project/gwenski/head_tracking_custom/www/.svn/entries
 *.json
 *.sqlite
 *.db
+.vs/darwin/v17/Browse.VC.db
+.vs/ProjectSettings.json
+.vs/slnx.sqlite
