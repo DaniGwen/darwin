@@ -744,7 +744,7 @@ void SetValue(CM730 *cm730, int value)
 		{
 			if(value >= 0 && value <= MX28::MAX_VALUE)
 			{
-				if(!(Page.step[i].position[row + 1] & Action::INVALID_BIT_MASK))
+				if(!Page.step[i].position[row + 1])
 				{
 					Page.step[i].position[row + 1] = value;
 					printf( "%.4d", value );

@@ -28,3 +28,5 @@ Linux/project/gwenski/head_tracking_custom/www/.svn/entries
 *.db-wal
 *.sqlite
 *.json
+*.sqlite
+*.db
