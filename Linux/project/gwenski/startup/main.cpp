@@ -61,8 +61,8 @@ int main()
         LinuxCamera::GetInstance()->CaptureFrame();
 
         tracker.Process(red_finder->GetPosition(LinuxCamera::GetInstance()->fbuffer->m_HSVFrame));
-        tracker.Process(blue_finder->GetPosition(LinuxCamera::GetInstance()->fbuffer->m_HSVFrame));
-        tracker.Process(yellow_finder->GetPosition(LinuxCamera::GetInstance()->fbuffer->m_HSVFrame));
+        // tracker.Process(blue_finder->GetPosition(LinuxCamera::GetInstance()->fbuffer->m_HSVFrame));
+        // tracker.Process(yellow_finder->GetPosition(LinuxCamera::GetInstance()->fbuffer->m_HSVFrame));
 
         bool red_found = false;
         bool blue_found = false;
