@@ -22,7 +22,7 @@ int main()
 
     ColorFinder *red_finder = new ColorFinder();
     red_finder->LoadINISettings(ini, "Red");
-    printf("Section 1: %s\n", ini->getsection(1));
+    printf("Section 1: ", ini->getsection(1));
 
     ColorFinder *blue_finder = new ColorFinder();
     blue_finder->LoadINISettings(ini, "Blue");
