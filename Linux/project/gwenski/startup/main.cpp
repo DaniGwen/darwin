@@ -21,7 +21,7 @@ int main()
     LinuxCamera::GetInstance()->LoadINISettings(ini);
 
     ColorFinder *red_finder = new ColorFinder();
-    red_finder->LoadINISettings(ini);
+    red_finder->LoadINISettings(ini, "Red");
 
     ColorFinder *blue_finder = new ColorFinder();
     blue_finder->LoadINISettings(ini, "Blue");
