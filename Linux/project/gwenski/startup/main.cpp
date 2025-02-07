@@ -78,20 +78,20 @@ int main()
                 rgb_ball->m_ImageData[i * rgb_ball->m_PixelSize + 2] = 0;
                 red_found = true;
             }
-            if (blue_finder->m_result->m_ImageData[i] == 1)
-            {
-                rgb_ball->m_ImageData[i * rgb_ball->m_PixelSize + 0] = 0;
-                rgb_ball->m_ImageData[i * rgb_ball->m_PixelSize + 1] = 0;
-                rgb_ball->m_ImageData[i * rgb_ball->m_PixelSize + 2] = 255;
-                blue_found = true;
-            }
-            if (yellow_finder->m_result->m_ImageData[i] == 1)
-            {
-                rgb_ball->m_ImageData[i * rgb_ball->m_PixelSize + 0] = 255;
-                rgb_ball->m_ImageData[i * rgb_ball->m_PixelSize + 1] = 255;
-                rgb_ball->m_ImageData[i * rgb_ball->m_PixelSize + 2] = 0;
-                yellow_found = true;
-            }
+            // if (blue_finder->m_result->m_ImageData[i] == 1)
+            // {
+            //     rgb_ball->m_ImageData[i * rgb_ball->m_PixelSize + 0] = 0;
+            //     rgb_ball->m_ImageData[i * rgb_ball->m_PixelSize + 1] = 0;
+            //     rgb_ball->m_ImageData[i * rgb_ball->m_PixelSize + 2] = 255;
+            //     blue_found = true;
+            // }
+            // if (yellow_finder->m_result->m_ImageData[i] == 1)
+            // {
+            //     rgb_ball->m_ImageData[i * rgb_ball->m_PixelSize + 0] = 255;
+            //     rgb_ball->m_ImageData[i * rgb_ball->m_PixelSize + 1] = 255;
+            //     rgb_ball->m_ImageData[i * rgb_ball->m_PixelSize + 2] = 0;
+            //     yellow_found = true;
+            // }
         }
 
         // Set LED eyes to red if the red ball is found, blue if the blue ball is found
@@ -99,14 +99,14 @@ int main()
         {
             cm730.WriteWord(CM730::ID_CM, CM730::P_LED_EYE_L, cm730.MakeColor(255, 0, 0), 0);
         }
-        else if (blue_found)
-        {
-            cm730.WriteWord(CM730::ID_CM, CM730::P_LED_EYE_L, cm730.MakeColor(0, 0, 255), 0);
-        }
-        else if (yellow_found)
-        {
-            cm730.WriteWord(CM730::ID_CM, CM730::P_LED_EYE_L, cm730.MakeColor(255, 255, 0), 0);
-        }
+        // else if (blue_found)
+        // {
+        //     cm730.WriteWord(CM730::ID_CM, CM730::P_LED_EYE_L, cm730.MakeColor(0, 0, 255), 0);
+        // }
+        // else if (yellow_found)
+        // {
+        //     cm730.WriteWord(CM730::ID_CM, CM730::P_LED_EYE_L, cm730.MakeColor(255, 255, 0), 0);
+        // }
         else
         {
             cm730.WriteWord(CM730::ID_CM, CM730::P_LED_EYE_L, cm730.MakeColor(255, 255, 255), 0);
