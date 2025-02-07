@@ -12,7 +12,7 @@
 
 int main()
 {
-    printf("\n===== Start up with head tracking=====\n\n");
+    printf("\n===== Startup =====\n\n");
 
     minIni *ini = new minIni(INI_FILE_PATH);
     Image *rgb_ball = new Image(Camera::WIDTH, Camera::HEIGHT, Image::RGB_PIXEL_SIZE);
@@ -22,6 +22,7 @@ int main()
 
     ColorFinder *red_finder = new ColorFinder();
     red_finder->LoadINISettings(ini, "Red");
+    printf("Section 1: %s\n", ini->getsection(1));
 
     ColorFinder *blue_finder = new ColorFinder();
     blue_finder->LoadINISettings(ini, "Blue");
