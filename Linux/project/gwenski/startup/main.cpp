@@ -20,12 +20,14 @@ int main()
     LinuxCamera::GetInstance()->Initialize(0);
     LinuxCamera::GetInstance()->LoadINISettings(ini);
 
-    ColorFinder *red_ball_finder = new ColorFinder();
-    red_ball_finder->LoadINISettings(ini);
-    httpd::ball_finder = red_ball_finder;
+    ColorFinder *red_finder = new ColorFinder();
+    red_finder->LoadINISettings(ini);
 
-    ColorFinder *blue_ball_finder = new ColorFinder();
-    blue_ball_finder->LoadINISettings(ini, "Blue_Ball");
+    ColorFinder *blue_finder = new ColorFinder();
+    blue_finder->LoadINISettings(ini, "Blue");
+
+    ColorFinder *yellow_finder = new ColorFinder();
+    yellow_finder->LoadINISettings(ini, "Yellow");
 
     BallTracker tracker = BallTracker();
 
@@ -58,27 +60,37 @@ int main()
     {
         LinuxCamera::GetInstance()->CaptureFrame();
 
-        tracker.Process(red_ball_finder->GetPosition(LinuxCamera::GetInstance()->fbuffer->m_HSVFrame));
-        tracker.Process(blue_ball_finder->GetPosition(LinuxCamera::GetInstance()->fbuffer->m_HSVFrame));
+        tracker.Process(red_finder->GetPosition(LinuxCamera::GetInstance()->fbuffer->m_HSVFrame));
+        tracker.Process(blue_finder->GetPosition(LinuxCamera::GetInstance()->fbuffer->m_HSVFrame));
+        tracker.Process(yellow_finder->GetPosition(LinuxCamera::GetInstance()->fbuffer->m_HSVFrame));
 
         bool red_found = false;
         bool blue_found = false;
+        bool yellow_found = false;
+
         rgb_ball = LinuxCamera::GetInstance()->fbuffer->m_RGBFrame;
         for (int i = 0; i < rgb_ball->m_NumberOfPixels; i++)
         {
-            if (red_ball_finder->m_result->m_ImageData[i] == 1)
+            if (red_finder->m_result->m_ImageData[i] == 1)
             {
                 rgb_ball->m_ImageData[i * rgb_ball->m_PixelSize + 0] = 255;
                 rgb_ball->m_ImageData[i * rgb_ball->m_PixelSize + 1] = 0;
                 rgb_ball->m_ImageData[i * rgb_ball->m_PixelSize + 2] = 0;
                 red_found = true;
             }
-            if (blue_ball_finder->m_result->m_ImageData[i] == 1)
+            if (blue_finder->m_result->m_ImageData[i] == 1)
             {
                 rgb_ball->m_ImageData[i * rgb_ball->m_PixelSize + 0] = 0;
                 rgb_ball->m_ImageData[i * rgb_ball->m_PixelSize + 1] = 0;
                 rgb_ball->m_ImageData[i * rgb_ball->m_PixelSize + 2] = 255;
                 blue_found = true;
+            }
+            if (yellow_finder->m_result->m_ImageData[i] == 1)
+            {
+                rgb_ball->m_ImageData[i * rgb_ball->m_PixelSize + 0] = 255;
+                rgb_ball->m_ImageData[i * rgb_ball->m_PixelSize + 1] = 255;
+                rgb_ball->m_ImageData[i * rgb_ball->m_PixelSize + 2] = 0;
+                yellow_found = true;
             }
         }
 
@@ -90,6 +102,10 @@ int main()
         else if (blue_found)
         {
             cm730.WriteWord(CM730::ID_CM, CM730::P_LED_EYE_L, cm730.MakeColor(0, 0, 255), 0);
+        }
+        else if (yellow_found)
+        {
+            cm730.WriteWord(CM730::ID_CM, CM730::P_LED_EYE_L, cm730.MakeColor(255, 255, 0), 0);
         }
         else
         {
