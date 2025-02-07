@@ -11,7 +11,6 @@
 
 #define U2D_DEV_NAME "/dev/ttyUSB0"
 
-
 int main()
 {
     printf("\n===== Start up with head tracking=====\n\n");
@@ -54,15 +53,14 @@ int main()
     // Change Eyes color to red
     cm730.WriteWord(CM730::ID_CM, CM730::P_LED_EYE_L, cm730.MakeColor(255, 255, 255), 0);
 
-     LinuxActionScript::PlayMP3("../../../../Data/mp3/woman-ya.mp3");
+    LinuxActionScript::PlayMP3("../../../../Data/mp3/woman-ya.mp3");
 
     while (1)
     {
-        Point2D pos;
         LinuxCamera::GetInstance()->CaptureFrame();
 
         tracker.Process(ball_finder->GetPosition(LinuxCamera::GetInstance()->fbuffer->m_HSVFrame));
-
+        bool colorfound = false;
         rgb_ball = LinuxCamera::GetInstance()->fbuffer->m_RGBFrame;
         for (int i = 0; i < rgb_ball->m_NumberOfPixels; i++)
         {
@@ -71,7 +69,16 @@ int main()
                 rgb_ball->m_ImageData[i * rgb_ball->m_PixelSize + 0] = 255;
                 rgb_ball->m_ImageData[i * rgb_ball->m_PixelSize + 1] = 0;
                 rgb_ball->m_ImageData[i * rgb_ball->m_PixelSize + 2] = 0;
+                colorfound = true;
             }
+        }
+
+        if (colorfound)
+        {
+            cm730.WriteWord(CM730::ID_CM, CM730::P_LED_EYE_L, cm730.MakeColor(255, 0, 0), 0);
+        }
+        else{
+             cm730.WriteWord(CM730::ID_CM, CM730::P_LED_EYE_L, cm730.MakeColor(255, 255, 255), 0);
         }
     }
 
