@@ -196,11 +196,6 @@ int main(void)
             {
                 LinuxActionScript::PlayMP3Wait("../../../../Data/mp3/target-acquired.mp3");
 
-                Walking::GetInstance()->A_MOVE_AMPLITUDE = -10; // turn left
-                usleep(20 * 1000);
-
-                Walking::GetInstance()->Stop();
-
                 Action::GetInstance()->Start(15); // sit down
                 while (Action::GetInstance()->IsRunning())
                     usleep(8 * 1000);
