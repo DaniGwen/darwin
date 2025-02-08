@@ -8,7 +8,6 @@
 #include "mjpg_streamer.h"
 #include "LinuxDARwIn.h"
 
-
 #ifdef MX28_1024
 #define MOTION_FILE_PATH "../../../../Data/motion_1024.bin"
 #else
@@ -44,7 +43,6 @@ static ServoData rigth_arm_data_pickup[5] = {
     {JointData::ID_R_WRIST, 2317},
     {JointData::ID_R_GRIPPER, 1451}};
 
-
 bool WaitWhileServoMoving(CM730 &cm730, int servo_id)
 {
     int moving_status;
@@ -54,7 +52,7 @@ bool WaitWhileServoMoving(CM730 &cm730, int servo_id)
         moving_status == 1 &&
         timeout-- > 0)
     {
-        usleep(2*10000);
+        usleep(2 * 10000);
     }
 
     if (timeout <= 0)
@@ -157,7 +155,8 @@ int main(void)
     cm730.WriteByte(CM730::P_LED_PANNEL, 0x01 | 0x02 | 0x04, NULL);
 
     LinuxActionScript::PlayMP3("../../../../Data/mp3/activation-finished.mp3");
-    Action::GetInstance()->Start(15);
+    Action::GetInstance()->Start(16);
+    printf("Standing up...\n");
     while (Action::GetInstance()->IsRunning())
         usleep(8 * 1000);
 
@@ -165,8 +164,6 @@ int main(void)
 
     while (1)
     {
-        Point2D ball_pos, red_pos, yellow_pos, blue_pos;
-
         LinuxCamera::GetInstance()->CaptureFrame();
         memcpy(rgb_output->m_ImageData, LinuxCamera::GetInstance()->fbuffer->m_RGBFrame->m_ImageData, LinuxCamera::GetInstance()->fbuffer->m_RGBFrame->m_ImageSize);
 
@@ -205,11 +202,18 @@ int main(void)
                 {
                     Head::GetInstance()->m_Joint.SetEnableHeadOnly(true, true);
                     Action::GetInstance()->m_Joint.SetEnableBodyWithoutHead(true, true);
+
                     LinuxActionScript::PlayMP3("../../../../Data/mp3/target-acquired.mp3");
 
-                    Action::GetInstance()->Start(15);               // sit down
                     Walking::GetInstance()->A_MOVE_AMPLITUDE = -10; // turn left
                     usleep(20 * 1000);
+
+                    Walking::GetInstance()->Stop();
+
+                    Action::GetInstance()->Start(15); // sit down
+                    while (Action::GetInstance()->IsRunning())
+                        usleep(8 * 1000);
+
                     int number_of_joints = sizeof(rigth_arm_data_ready) / sizeof(rigth_arm_data_ready[0]);
                     for (int i = 0; i < number_of_joints; i++)
                     {
@@ -220,7 +224,7 @@ int main(void)
 
                     if (follower.KickBall == -1) // right side
                     {
-                        cm730.WriteByte(JointData::ID_R_GRIPPER, MX28::P_P_GAIN, 8, 0); 
+                        cm730.WriteByte(JointData::ID_R_GRIPPER, MX28::P_P_GAIN, 8, 0);
 
                         for (int i = 0; i < number_of_joints; i++)
                         {
@@ -232,11 +236,12 @@ int main(void)
                     }
                     else if (follower.KickBall == 1) // left side
                     {
-
-                        fprintf(stderr, "\n");
+                        fprintf(stderr, "object left side\n");
                     }
 
                     Action::GetInstance()->Start(16); // stand up
+                    while (Action::GetInstance()->IsRunning())
+                    usleep(8 * 1000);
                 }
             }
             else if (_ball_found == -1)
@@ -254,4 +259,3 @@ int main(void)
 
     return 0;
 }
-
