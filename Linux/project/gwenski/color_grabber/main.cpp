@@ -1,77 +1,108 @@
 /*
- * main.cpp - Ball Tracking & Grabbing Program
+ * main.cpp
+ *
+ *  Created on: 2011. 1. 4.
+ *      Author: robotis
  */
 
 #include <stdio.h>
 #include <unistd.h>
+#include <limits.h>
 #include <string.h>
 #include <libgen.h>
-#include <algorithm>
-#include "Camera.h"
+#include <signal.h>
+
 #include "mjpg_streamer.h"
 #include "LinuxDARwIn.h"
 
-#define INI_FILE_PATH "../../../../Data/config.ini"
-#define U2D_DEV_NAME "/dev/ttyUSB0"
+#include "StatusCheck.h"
+#include "VisionMode.h"
 
-#define CENTER_POS 2048
-#define GRAB_THRESHOLD (Camera::WIDTH / 10) // Dynamic threshold
-#define RELEASE_THRESHOLD (Camera::WIDTH / 5)
-#define WRIST_GRAB_POS 2800
-#define GRIPPER_CLOSE_POS 3000
-#define WRIST_HOME_POS 2048
-#define GRIPPER_OPEN_POS 1500
+#ifdef MX28_1024
+#define MOTION_FILE_PATH "../../../Data/motion_1024.bin"
+#else
+#define MOTION_FILE_PATH "../../../Data/motion_4096.bin"
+#endif
 
-using namespace Robot;
+#define INI_FILE_PATH "../../../Data/config.ini"
+#define SCRIPT_FILE_PATH "script.asc"
 
-// Arm position configurations
-cconst int ARM_GRAB_POSITIONS[JointData::NUMBER_OF_JOINTS] = {
-    0, // [0] Unused
-    // Right Arm              Left Arm
-    2048, 2048, // ID 1-2: Shoulder Pitch
-    3280, 816,  // ID 3-4: Shoulder Roll (adjusted mechanics)
-    2300, 1796, // ID 5-6: Elbow (safer angles)
-    // ... other joints maintain 2048 center
-    WRIST_GRAB_POS,   // ID 21: Wrist
-    GRIPPER_CLOSE_POS // ID 22: Gripper
+#define U2D_DEV_NAME0 "/dev/ttyUSB0"
+#define U2D_DEV_NAME1 "/dev/ttyUSB1"
+
+LinuxCM730 linux_cm730(U2D_DEV_NAME0);
+CM730 cm730(&linux_cm730);
+
+struct ServoData
+{
+    int Id;
+    int Position;
 };
 
-const int ARM_HOME_POSITIONS[JointData::NUMBER_OF_JOINTS] = {
-    0, // [0] Unused
-    // Right Arm              Left Arm
-    512, 512, // ID 1-2: Shoulder Pitch
-    512, 512, // ID 3-4: Shoulder Roll
-    512, 512, // ID 5-6: Elbow
-    // Hips, Knees, Ankles, Head
-    512, 512, 512, 512, 512, 512, 512, 512, 512, 512,
-    512, 512, 512, 512, // ID 17-20
-    WRIST_HOME_POS,     // ID 21: Wrist
-    GRIPPER_OPEN_POS    // ID 22: Gripper
-};
+static ServoData rigth_arm_data_ready[5] = {
+    {JointData::ID_R_SHOULDER_PITCH, 1324},
+    {JointData::ID_R_SHOULDER_ROLL, 2025},
+    {JointData::ID_R_ELBOW, 1985},
+    {JointData::ID_R_WRIST, 2424},
+    {JointData::ID_R_GRIPPER, 1451}};
 
-void change_current_dir();
-void set_arm_positions(CM730 &cm730, const int positions[], bool force = false);
-void grab_ball(CM730 &cm730);
-void release_arms(CM730 &cm730);
+static ServoData rigth_arm_data_pickup[5] = {
+    {JointData::ID_R_SHOULDER_PITCH, 1714},
+    {JointData::ID_R_SHOULDER_ROLL, 1868},
+    {JointData::ID_R_ELBOW, 1525},
+    {JointData::ID_R_WRIST, 2317},
+    {JointData::ID_R_GRIPPER, 1451}};
 
 void change_current_dir()
 {
     char exepath[1024] = {0};
     if (readlink("/proc/self/exe", exepath, sizeof(exepath)) != -1)
-        chdir(dirname(exepath));
+    {
+        if (chdir(dirname(exepath)))
+            fprintf(stderr, "chdir error!! \n");
+    }
+}
+
+void sighandler(int sig)
+{
+    exit(0);
+}
+
+bool WaitWhileServoMoving(CM730 &cm730, int servo_id)
+{
+    int moving_status;
+    int timeout = 100; // 100 * 10ms = 1 second timeout
+    while (
+        cm730.ReadByte(servo_id, MX28::P_MOVING, &moving_status, 0) == CM730::SUCCESS &&
+        moving_status == 1 &&
+        timeout-- > 0)
+    {
+        usleep(2*10000);
+    }
+
+    if (timeout <= 0)
+    {
+        printf("\nTimeout: Servo did not reach goal!\n");
+        return false;
+    }
+    return true;
 }
 
 int main(void)
 {
-    LinuxActionScript::PlayMP3("../../../Data/mp3/voice-to-battle.mp3");
-    printf("\n===== Ball Tracking & Grabbing Program =====\n\n");
+    signal(SIGABRT, &sighandler);
+    signal(SIGTERM, &sighandler);
+    signal(SIGQUIT, &sighandler);
+    signal(SIGINT, &sighandler);
+
     change_current_dir();
 
-    Image *rgb_ball = new Image(Camera::WIDTH, Camera::HEIGHT, Image::RGB_PIXEL_SIZE);
     minIni *ini = new minIni(INI_FILE_PATH);
+    Image *rgb_output = new Image(Camera::WIDTH, Camera::HEIGHT, Image::RGB_PIXEL_SIZE);
 
     LinuxCamera::GetInstance()->Initialize(0);
-    LinuxCamera::GetInstance()->LoadINISettings(ini);
+    LinuxCamera::GetInstance()->SetCameraSettings(CameraSettings()); // set default
+    LinuxCamera::GetInstance()->LoadINISettings(ini);                // load from ini
 
     mjpg_streamer *streamer = new mjpg_streamer(Camera::WIDTH, Camera::HEIGHT);
 
@@ -83,216 +114,174 @@ int main(void)
     BallFollower follower = BallFollower();
     follower.DEBUG_PRINT = true;
 
-    // Framework initialization
-    LinuxCM730 linux_cm730(U2D_DEV_NAME);
-    CM730 cm730(&linux_cm730);
+    ColorFinder *red_finder = new ColorFinder(0, 15, 45, 0, 0.3, 50.0);
+    red_finder->LoadINISettings(ini, "RED");
+    httpd::red_finder = red_finder;
+
+    ColorFinder *yellow_finder = new ColorFinder(60, 15, 45, 0, 0.3, 50.0);
+    yellow_finder->LoadINISettings(ini, "YELLOW");
+    httpd::yellow_finder = yellow_finder;
+
+    ColorFinder *blue_finder = new ColorFinder(225, 15, 45, 0, 0.3, 50.0);
+    blue_finder->LoadINISettings(ini, "BLUE");
+    httpd::blue_finder = blue_finder;
+
+    httpd::ini = ini;
+
+    //////////////////// Framework Initialize ////////////////////////////
     if (MotionManager::GetInstance()->Initialize(&cm730) == false)
     {
-        printf("Fail to initialize Motion Manager!\n");
-        return 0;
+        linux_cm730.SetPortName(U2D_DEV_NAME1);
+        if (MotionManager::GetInstance()->Initialize(&cm730) == false)
+        {
+            printf("Fail to initialize Motion Manager!\n");
+            return 0;
+        }
     }
 
-    MotionManager::GetInstance()->LoadINISettings(ini);
     Walking::GetInstance()->LoadINISettings(ini);
 
+    MotionManager::GetInstance()->AddModule((MotionModule *)Action::GetInstance());
     MotionManager::GetInstance()->AddModule((MotionModule *)Head::GetInstance());
     MotionManager::GetInstance()->AddModule((MotionModule *)Walking::GetInstance());
 
     LinuxMotionTimer *motion_timer = new LinuxMotionTimer(MotionManager::GetInstance());
     motion_timer->Start();
+    /////////////////////////////////////////////////////////////////////
 
-    // Initialize arm positions
-    set_arm_positions(cm730, ARM_HOME_POSITIONS, true);
-    usleep(1000000);
+    MotionManager::GetInstance()->LoadINISettings(ini);
 
-    printf("Press the ENTER key to begin!\n");
-    getchar();
+    int firm_ver = 0;
+    if (cm730.ReadByte(JointData::ID_HEAD_PAN, MX28::P_VERSION, &firm_ver, 0) != CM730::SUCCESS)
+    {
+        fprintf(stderr, "Can't read firmware version from Dynamixel ID %d!! \n\n", JointData::ID_HEAD_PAN);
+        exit(0);
+    }
 
-    Head::GetInstance()->m_Joint.SetEnableHeadOnly(true, true);
-    Walking::GetInstance()->m_Joint.SetEnableBodyWithoutHead(true, true);
+    if (0 < firm_ver && firm_ver < 27)
+    {
+#ifdef MX28_1024
+        Action::GetInstance()->LoadFile(MOTION_FILE_PATH);
+#else
+        fprintf(stderr, "MX-28's firmware is not support 4096 resolution!! \n");
+        fprintf(stderr, "Upgrade MX-28's firmware to version 27(0x1B) or higher.\n\n");
+        exit(0);
+#endif
+    }
+    else if (27 <= firm_ver)
+    {
+#ifdef MX28_1024
+        fprintf(stderr, "MX-28's firmware is not support 1024 resolution!! \n");
+        fprintf(stderr, "Remove '#define MX28_1024' from 'MX28.h' file and rebuild.\n\n");
+        exit(0);
+#else
+        Action::GetInstance()->LoadFile((char *)MOTION_FILE_PATH);
+#endif
+    }
+    else
+        exit(0);
+
+    Action::GetInstance()->m_Joint.SetEnableBody(true, true);
     MotionManager::GetInstance()->SetEnable(true);
 
-    bool isGrabbing = false;
-    int grabTimeout = 0;
+    cm730.WriteByte(CM730::P_LED_PANNEL, 0x01 | 0x02 | 0x04, NULL);
+
+    LinuxActionScript::PlayMP3("../../../../Data/mp3/activation-finished.mp3");
+    Action::GetInstance()->Start(15);
+    while (Action::GetInstance()->IsRunning())
+        usleep(8 * 1000);
+
+    int _ball_found = 0;
 
     while (1)
     {
-        Point2D pos;
+        Point2D ball_pos, red_pos, yellow_pos, blue_pos;
+
         LinuxCamera::GetInstance()->CaptureFrame();
-        memcpy(rgb_ball->m_ImageData, LinuxCamera::GetInstance()->fbuffer->m_RGBFrame->m_ImageData,
-               LinuxCamera::GetInstance()->fbuffer->m_RGBFrame->m_ImageSize);
+        memcpy(rgb_output->m_ImageData, LinuxCamera::GetInstance()->fbuffer->m_RGBFrame->m_ImageData, LinuxCamera::GetInstance()->fbuffer->m_RGBFrame->m_ImageSize);
 
-        tracker.Process(ball_finder->GetPosition(LinuxCamera::GetInstance()->fbuffer->m_HSVFrame));
-        follower.Process(tracker.ball_position);
+        // tracker.Process(ball_finder->GetPosition(LinuxCamera::GetInstance()->fbuffer->m_HSVFrame));
+        _ball_found = tracker.SearchAndTracking(ball_finder->GetPosition(LinuxCamera::GetInstance()->fbuffer->m_HSVFrame));
 
-        // Grabbing logic
-        if (tracker.ball_position.X != -1 && tracker.ball_position.Y != -1)
-        {
-            int centerX = Camera::WIDTH / 2;
-            int centerY = Camera::HEIGHT / 2;
-            int offsetX = abs(tracker.ball_position.X - centerX);
-            int offsetY = abs(tracker.ball_position.Y - centerY);
-
-            if (!isGrabbing && offsetX < GRAB_THRESHOLD && offsetY < GRAB_THRESHOLD)
-            {
-                grab_ball(cm730);
-                isGrabbing = true;
-                grabTimeout = 0;
-            }
-            else if (isGrabbing && (offsetX > RELEASE_THRESHOLD || offsetY > RELEASE_THRESHOLD))
-            {
-                release_arms(cm730);
-                isGrabbing = false;
-            }
-        }
-        else if (isGrabbing)
-        {
-            if (++grabTimeout > 50)
-            {
-                release_arms(cm730);
-                isGrabbing = false;
-            }
-        }
-
-        // Draw detected ball area
-        for (int i = 0; i < rgb_ball->m_NumberOfPixels; i++)
+        for (int i = 0; i < rgb_output->m_NumberOfPixels; i++)
         {
             if (ball_finder->m_result->m_ImageData[i] == 1)
             {
-                rgb_ball->m_ImageData[i * rgb_ball->m_PixelSize + 0] = 255;
-                rgb_ball->m_ImageData[i * rgb_ball->m_PixelSize + 1] = 0;
-                rgb_ball->m_ImageData[i * rgb_ball->m_PixelSize + 2] = 0;
+                rgb_output->m_ImageData[i * rgb_output->m_PixelSize + 0] = 255;
+                rgb_output->m_ImageData[i * rgb_output->m_PixelSize + 1] = 128;
+                rgb_output->m_ImageData[i * rgb_output->m_PixelSize + 2] = 0;
             }
         }
-        streamer->send_image(rgb_ball);
+
+        streamer->send_image(rgb_output);
+
+        if (Action::GetInstance()->IsRunning() == 0)
+        {
+            Head::GetInstance()->m_Joint.SetEnableHeadOnly(true, true);
+            Walking::GetInstance()->m_Joint.SetEnableBodyWithoutHead(true, true);
+
+            if (Walking::GetInstance()->IsRunning() == false && _ball_found != 1)
+            {
+                Walking::GetInstance()->X_MOVE_AMPLITUDE = -1.0;
+                Walking::GetInstance()->A_MOVE_AMPLITUDE = 0.0;
+                Walking::GetInstance()->Start();
+            }
+
+            if (_ball_found == 1)
+            {
+                follower.Process(tracker.ball_position);
+
+                if (follower.KickBall != 0)
+                {
+                    Head::GetInstance()->m_Joint.SetEnableHeadOnly(true, true);
+                    Action::GetInstance()->m_Joint.SetEnableBodyWithoutHead(true, true);
+                    LinuxActionScript::PlayMP3("../../../../Data/mp3/target-acquired.mp3");
+
+                    Action::GetInstance()->Start(15);               // sit down
+                    Walking::GetInstance()->A_MOVE_AMPLITUDE = -10; // turn left
+                    usleep(20 * 1000);
+                    int number_of_joints = sizeof(rigth_arm_data_ready) / sizeof(rigth_arm_data_ready[0]);
+                    for (int i = 0; i < number_of_joints; i++)
+                    {
+                        cm730.WriteByte(rigth_arm_data_ready[i].Id, MX28::P_P_GAIN, 6, 0);
+                        cm730.WriteWord(rigth_arm_data_ready[i].Id, MX28::P_GOAL_POSITION_L, rigth_arm_data_ready[i].Position, 0);
+                        WaitWhileServoMoving(cm730, rigth_arm_data_ready[i].Id);
+                    }
+
+                    if (follower.KickBall == -1) // right side
+                    {
+                        cm730.WriteByte(JointData::ID_R_GRIPPER, MX28::P_P_GAIN, 8, 0); 
+
+                        for (int i = 0; i < number_of_joints; i++)
+                        {
+                            cm730.WriteWord(rigth_arm_data_pickup[i].Id, MX28::P_GOAL_POSITION_L, rigth_arm_data_ready[i].Position, 0);
+                            WaitWhileServoMoving(cm730, rigth_arm_data_pickup[i].Id);
+                        }
+
+                        fprintf(stderr, "picking up... \n");
+                    }
+                    else if (follower.KickBall == 1) // left side
+                    {
+
+                        fprintf(stderr, "\n");
+                    }
+
+                    Action::GetInstance()->Start(16); // stand up
+                }
+            }
+            else if (_ball_found == -1)
+            {
+                Walking::GetInstance()->X_MOVE_AMPLITUDE = -1.0;
+                Walking::GetInstance()->A_MOVE_AMPLITUDE = 10.0;
+            }
+            else
+            {
+                Walking::GetInstance()->X_MOVE_AMPLITUDE = -1.0;
+                Walking::GetInstance()->A_MOVE_AMPLITUDE = 0.0;
+            }
+        }
     }
 
     return 0;
 }
 
-void grab_ball(CM730 &cm730)
-{
-    printf("**** GRABBING SEQUENCE INITIATED ****\n");
-    Walking::GetInstance()->Stop();
-
-    // Freeze head position
-    Head::GetInstance()->m_Joint.SetEnable(false);
-
-    // Step 1: Arm positioning with feedback check
-    set_arm_positions(cm730, ARM_GRAB_POSITIONS);
-    if (!wait_for_servos(cm730, 2000))
-    {
-        fprintf(stderr, "Arm positioning timeout!\n");
-        return;
-    }
-
-    // Step 2: Smooth gripper closure
-    for (int pos = GRIPPER_OPEN_POS; pos <= GRIPPER_CLOSE_POS; pos += 5)
-    {
-        int target[JointData::NUMBER_OF_JOINTS];
-        memcpy(target, ARM_GRAB_POSITIONS, sizeof(target));
-        target[JointData::ID_R_GRIPPER] = pos;
-        set_arm_positions(cm730, target);
-        usleep(100000); // 100ms per step
-
-        // Emergency stop check
-        if (cm730.ReadByte(JointData::ID_R_GRIPPER,
-                           MX28::P_PRESENT_LOAD_L,
-                           &load, 0) == CM730::SUCCESS)
-        {
-            if (abs(load) > 300)
-            { // Overload protection
-                printf("Gripper overload detected!\n");
-                break;
-            }
-        }
-    }
-}
-
-void release_arms(CM730 &cm730)
-{
-    printf("**** RELEASE SEQUENCE INITIATED ****\n");
-
-    // Step 1: Open gripper
-    int target[JointData::NUMBER_OF_JOINTS];
-    memcpy(target, ARM_GRAB_POSITIONS, sizeof(target));
-    target[JointData::ID_R_GRIPPER] = GRIPPER_OPEN_POS;
-    set_arm_positions(cm730, target);
-    usleep(500000);
-
-    // Step 2: Return to home position
-    set_arm_positions(cm730, ARM_HOME_POSITIONS);
-    usleep(800000);
-}
-
-void set_arm_positions(CM730 &cm730, const int positions[], bool force)
-{
-    int param[JointData::NUMBER_OF_JOINTS * 5];
-    int n = 0;
-
-    const int arm_joints[] = {
-        JointData::ID_R_SHOULDER_PITCH,
-        JointData::ID_R_SHOULDER_ROLL,
-        JointData::ID_R_ELBOW,
-        JointData::ID_R_WRIST,
-        JointData::ID_R_GRIPPER};
-
-    for (int i = 0; i < sizeof(arm_joints) / sizeof(int); i++)
-    {
-        int id = arm_joints[i];
-        int current = MotionStatus::m_CurrentJoints.GetValue(id);
-        int target = positions[id];
-
-        if (!force && abs(current - target) < 10)
-            continue;
-
-        int speed = 100 + abs(current - target) / 2;
-        speed = std::min(speed, 200);
-
-        param[n++] = id;
-        param[n++] = CM730::GetLowByte(target);
-        param[n++] = CM730::GetHighByte(target);
-        param[n++] = CM730::GetLowByte(speed);
-        param[n++] = CM730::GetHighByte(speed);
-    }
-
-    if (n > 0)
-    {
-        int result = cm730.SyncWrite(MX28::P_GOAL_POSITION_L, 5, n / 5, param);
-        if (result != CM730::SUCCESS)
-        {
-            fprintf(stderr, "SyncWrite failed with error: %d\n", result);
-            // Implement recovery logic here
-        }
-    }
-}
-
-bool wait_for_servos(CM730 &cm730, int timeout_ms)
-{
-    chrono::steady_clock::time_point start = chrono::steady_clock::now();
-    while (chrono::duration_cast<chrono::milliseconds>(
-               chrono::steady_clock::now() - start)
-               .count() < timeout_ms)
-    {
-        bool all_in_position = true;
-        for (int id : {JointData::ID_R_SHOULDER_ROLL,
-                       JointData::ID_R_ELBOW,
-                       JointData::ID_R_WRIST})
-        {
-            int pos;
-            if (cm730.ReadWord(id, MX28::P_PRESENT_POSITION_L, &pos, 0) != CM730::SUCCESS)
-            {
-                continue;
-            }
-            if (abs(pos - ARM_GRAB_POSITIONS[id]) > 20)
-            {
-                all_in_position = false;
-                break;
-            }
-        }
-        if (all_in_position)
-            return true;
-        usleep(50000);
-    }
-    return false;
-}
