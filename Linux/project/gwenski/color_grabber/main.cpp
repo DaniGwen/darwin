@@ -1,10 +1,3 @@
-/*
- * main.cpp
- *
- *  Created on: 2011. 1. 4.
- *      Author: robotis
- */
-
 #include <stdio.h>
 #include <unistd.h>
 #include <limits.h>
@@ -17,12 +10,12 @@
 
 
 #ifdef MX28_1024
-#define MOTION_FILE_PATH "../../../Data/motion_1024.bin"
+#define MOTION_FILE_PATH "../../../../Data/motion_1024.bin"
 #else
-#define MOTION_FILE_PATH "../../../Data/motion_4096.bin"
+#define MOTION_FILE_PATH "../../../../Data/motion_4096.bin"
 #endif
 
-#define INI_FILE_PATH "../../../Data/config.ini"
+#define INI_FILE_PATH "config.ini"
 #define SCRIPT_FILE_PATH "script.asc"
 
 #define U2D_DEV_NAME0 "/dev/ttyUSB0"
@@ -51,20 +44,6 @@ static ServoData rigth_arm_data_pickup[5] = {
     {JointData::ID_R_WRIST, 2317},
     {JointData::ID_R_GRIPPER, 1451}};
 
-void change_current_dir()
-{
-    char exepath[1024] = {0};
-    if (readlink("/proc/self/exe", exepath, sizeof(exepath)) != -1)
-    {
-        if (chdir(dirname(exepath)))
-            fprintf(stderr, "chdir error!! \n");
-    }
-}
-
-void sighandler(int sig)
-{
-    exit(0);
-}
 
 bool WaitWhileServoMoving(CM730 &cm730, int servo_id)
 {
@@ -88,13 +67,6 @@ bool WaitWhileServoMoving(CM730 &cm730, int servo_id)
 
 int main(void)
 {
-    signal(SIGABRT, &sighandler);
-    signal(SIGTERM, &sighandler);
-    signal(SIGQUIT, &sighandler);
-    signal(SIGINT, &sighandler);
-
-    change_current_dir();
-
     minIni *ini = new minIni(INI_FILE_PATH);
     Image *rgb_output = new Image(Camera::WIDTH, Camera::HEIGHT, Image::RGB_PIXEL_SIZE);
 
