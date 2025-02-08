@@ -154,7 +154,7 @@ int main(void)
 
     cm730.WriteByte(CM730::P_LED_PANNEL, 0x01 | 0x02 | 0x04, NULL);
 
-    LinuxActionScript::PlayMP3("../../../../Data/mp3/activation-finished.mp3");
+    LinuxActionScript::PlayMP3Wait("../../../../Data/mp3/activation-finished.mp3");
     Action::GetInstance()->Start(16);
     printf("Standing up...\n");
     while (Action::GetInstance()->IsRunning())
@@ -203,7 +203,7 @@ int main(void)
                     Head::GetInstance()->m_Joint.SetEnableHeadOnly(true, true);
                     Action::GetInstance()->m_Joint.SetEnableBodyWithoutHead(true, true);
 
-                    LinuxActionScript::PlayMP3("../../../../Data/mp3/target-acquired.mp3");
+                    LinuxActionScript::PlayMP3Wait("../../../../Data/mp3/target-acquired.mp3");
 
                     Walking::GetInstance()->A_MOVE_AMPLITUDE = -10; // turn left
                     usleep(20 * 1000);
