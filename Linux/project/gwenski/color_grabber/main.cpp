@@ -15,7 +15,6 @@
 #include "mjpg_streamer.h"
 #include "LinuxDARwIn.h"
 
-#include "StatusCheck.h"
 #include "VisionMode.h"
 
 #ifdef MX28_1024
