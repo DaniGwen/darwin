@@ -164,14 +164,16 @@ int main(void)
 
     Head::GetInstance()->m_Joint.SetPGain(JointData::ID_HEAD_PAN, 5);
     Head::GetInstance()->m_Joint.SetPGain(JointData::ID_HEAD_TILT, 5);
-    
+
     while (1)
     {
+        Point2D pos;
         LinuxCamera::GetInstance()->CaptureFrame();
-        memcpy(rgb_output->m_ImageData, LinuxCamera::GetInstance()->fbuffer->m_RGBFrame->m_ImageData, LinuxCamera::GetInstance()->fbuffer->m_RGBFrame->m_ImageSize);
 
-        // tracker.Process(ball_finder->GetPosition(LinuxCamera::GetInstance()->fbuffer->m_HSVFrame));
-        ball_found = tracker.SearchAndTracking(ball_finder->GetPosition(LinuxCamera::GetInstance()->fbuffer->m_HSVFrame));
+        memcpy(rgb_ball->m_ImageData, LinuxCamera::GetInstance()->fbuffer->m_RGBFrame->m_ImageData, LinuxCamera::GetInstance()->fbuffer->m_RGBFrame->m_ImageSize);
+
+        tracker.Process(ball_finder->GetPosition(LinuxCamera::GetInstance()->fbuffer->m_HSVFrame));
+        follower.Process(tracker.ball_position);
 
         for (int i = 0; i < rgb_output->m_NumberOfPixels; i++)
         {
@@ -190,72 +192,47 @@ int main(void)
             Head::GetInstance()->m_Joint.SetEnableHeadOnly(true, true);
             Walking::GetInstance()->m_Joint.SetEnableBodyWithoutHead(true, true);
 
-            if (Walking::GetInstance()->IsRunning() == false && ball_found == 1)
+            if (follower.KickBall != 0)
             {
-                Walking::GetInstance()->X_MOVE_AMPLITUDE = -1.0;
-                Walking::GetInstance()->A_MOVE_AMPLITUDE = 0.0;
-                Walking::GetInstance()->Start();
-            }
+                LinuxActionScript::PlayMP3Wait("../../../../Data/mp3/target-acquired.mp3");
 
-            if (ball_found == 1)
-            {
-                follower.Process(tracker.ball_position);
+                Walking::GetInstance()->A_MOVE_AMPLITUDE = -10; // turn left
+                usleep(20 * 1000);
 
-                if (follower.KickBall != 0)
+                Walking::GetInstance()->Stop();
+
+                Action::GetInstance()->Start(15); // sit down
+                while (Action::GetInstance()->IsRunning())
+                    usleep(8 * 1000);
+
+                int number_of_joints = sizeof(rigth_arm_data_ready) / sizeof(rigth_arm_data_ready[0]);
+                for (int i = 0; i < number_of_joints; i++)
                 {
-                    Head::GetInstance()->m_Joint.SetEnableHeadOnly(true, true);
-                    Action::GetInstance()->m_Joint.SetEnableBodyWithoutHead(true, true);
+                    cm730.WriteByte(rigth_arm_data_ready[i].Id, MX28::P_P_GAIN, 6, 0);
+                    cm730.WriteWord(rigth_arm_data_ready[i].Id, MX28::P_GOAL_POSITION_L, rigth_arm_data_ready[i].Position, 0);
+                    WaitWhileServoMoving(cm730, rigth_arm_data_ready[i].Id);
+                }
 
-                    LinuxActionScript::PlayMP3Wait("../../../../Data/mp3/target-acquired.mp3");
+                if (follower.KickBall == -1) // right side
+                {
+                    cm730.WriteByte(JointData::ID_R_GRIPPER, MX28::P_P_GAIN, 8, 0);
 
-                    Walking::GetInstance()->A_MOVE_AMPLITUDE = -10; // turn left
-                    usleep(20 * 1000);
-
-                    Walking::GetInstance()->Stop();
-
-                    Action::GetInstance()->Start(15); // sit down
-                    while (Action::GetInstance()->IsRunning())
-                        usleep(8 * 1000);
-
-                    int number_of_joints = sizeof(rigth_arm_data_ready) / sizeof(rigth_arm_data_ready[0]);
                     for (int i = 0; i < number_of_joints; i++)
                     {
-                        cm730.WriteByte(rigth_arm_data_ready[i].Id, MX28::P_P_GAIN, 6, 0);
-                        cm730.WriteWord(rigth_arm_data_ready[i].Id, MX28::P_GOAL_POSITION_L, rigth_arm_data_ready[i].Position, 0);
-                        WaitWhileServoMoving(cm730, rigth_arm_data_ready[i].Id);
+                        cm730.WriteWord(rigth_arm_data_pickup[i].Id, MX28::P_GOAL_POSITION_L, rigth_arm_data_ready[i].Position, 0);
+                        WaitWhileServoMoving(cm730, rigth_arm_data_pickup[i].Id);
                     }
 
-                    if (follower.KickBall == -1) // right side
-                    {
-                        cm730.WriteByte(JointData::ID_R_GRIPPER, MX28::P_P_GAIN, 8, 0);
-
-                        for (int i = 0; i < number_of_joints; i++)
-                        {
-                            cm730.WriteWord(rigth_arm_data_pickup[i].Id, MX28::P_GOAL_POSITION_L, rigth_arm_data_ready[i].Position, 0);
-                            WaitWhileServoMoving(cm730, rigth_arm_data_pickup[i].Id);
-                        }
-
-                        fprintf(stderr, "picking up... \n");
-                    }
-                    else if (follower.KickBall == 1) // left side
-                    {
-                        fprintf(stderr, "object left side\n");
-                    }
-
-                    Action::GetInstance()->Start(16); // stand up
-                    while (Action::GetInstance()->IsRunning())
-                        usleep(8 * 1000);
+                    fprintf(stderr, "picking up... \n");
                 }
-            }
-            else if (ball_found == -1)
-            {
-                Walking::GetInstance()->X_MOVE_AMPLITUDE = -1.0;
-                Walking::GetInstance()->A_MOVE_AMPLITUDE = 10.0;
-            }
-            else
-            {
-                Walking::GetInstance()->X_MOVE_AMPLITUDE = -1.0;
-                Walking::GetInstance()->A_MOVE_AMPLITUDE = 0.0;
+                else if (follower.KickBall == 1) // left side
+                {
+                    fprintf(stderr, "object left side\n");
+                }
+
+                Action::GetInstance()->Start(16); // stand up
+                while (Action::GetInstance()->IsRunning())
+                    usleep(8 * 1000);
             }
         }
     }
