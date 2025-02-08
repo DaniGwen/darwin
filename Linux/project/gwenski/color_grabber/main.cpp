@@ -160,15 +160,18 @@ int main(void)
     while (Action::GetInstance()->IsRunning())
         usleep(8 * 1000);
 
-    int _ball_found = 0;
+    int ball_found = 0;
 
+    Head::GetInstance()->m_Joint.SetPGain(JointData::ID_HEAD_PAN, 5);
+    Head::GetInstance()->m_Joint.SetPGain(JointData::ID_HEAD_TILT, 5);
+    
     while (1)
     {
         LinuxCamera::GetInstance()->CaptureFrame();
         memcpy(rgb_output->m_ImageData, LinuxCamera::GetInstance()->fbuffer->m_RGBFrame->m_ImageData, LinuxCamera::GetInstance()->fbuffer->m_RGBFrame->m_ImageSize);
 
         // tracker.Process(ball_finder->GetPosition(LinuxCamera::GetInstance()->fbuffer->m_HSVFrame));
-        _ball_found = tracker.SearchAndTracking(ball_finder->GetPosition(LinuxCamera::GetInstance()->fbuffer->m_HSVFrame));
+        ball_found = tracker.SearchAndTracking(ball_finder->GetPosition(LinuxCamera::GetInstance()->fbuffer->m_HSVFrame));
 
         for (int i = 0; i < rgb_output->m_NumberOfPixels; i++)
         {
@@ -187,14 +190,14 @@ int main(void)
             Head::GetInstance()->m_Joint.SetEnableHeadOnly(true, true);
             Walking::GetInstance()->m_Joint.SetEnableBodyWithoutHead(true, true);
 
-            if (Walking::GetInstance()->IsRunning() == false && _ball_found == 1)
+            if (Walking::GetInstance()->IsRunning() == false && ball_found == 1)
             {
                 Walking::GetInstance()->X_MOVE_AMPLITUDE = -1.0;
                 Walking::GetInstance()->A_MOVE_AMPLITUDE = 0.0;
                 Walking::GetInstance()->Start();
             }
 
-            if (_ball_found == 1)
+            if (ball_found == 1)
             {
                 follower.Process(tracker.ball_position);
 
@@ -241,10 +244,10 @@ int main(void)
 
                     Action::GetInstance()->Start(16); // stand up
                     while (Action::GetInstance()->IsRunning())
-                    usleep(8 * 1000);
+                        usleep(8 * 1000);
                 }
             }
-            else if (_ball_found == -1)
+            else if (ball_found == -1)
             {
                 Walking::GetInstance()->X_MOVE_AMPLITUDE = -1.0;
                 Walking::GetInstance()->A_MOVE_AMPLITUDE = 10.0;
