@@ -5,6 +5,7 @@
  *      Author: zerom
  */
 
+ 
 #ifndef VISIONMODE_H_
 #define VISIONMODE_H_
 
