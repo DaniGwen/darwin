@@ -5,25 +5,24 @@
  *      Author: zerom
  */
 
+ #ifndef VISIONMODE_H_
+ #define VISIONMODE_H_
  
-#ifndef VISIONMODE_H_
-#define VISIONMODE_H_
-
-namespace Robot
-{
-
-class VisionMode
-{
-public:
-    enum {
-        RED     = 1,
-        YELLOW  = 2,
-        BLUE    = 4
-    };
-
-    static void Play(int color);
-};
-
-}
-
-#endif /* VISIONMODE_H_ */
+ namespace Robot
+ {
+ 
+ class VisionMode
+ {
+ public:
+     enum {
+         RED     = 1,
+         YELLOW  = 2,
+         BLUE    = 4
+     };
+ 
+     static void Play(int color);
+ };
+ 
+ }
+ 
+ #endif /* VISIONMODE_H_ */
