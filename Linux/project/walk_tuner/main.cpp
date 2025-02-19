@@ -207,6 +207,11 @@ int main(int argc, char *argv[])
 }
 
 void moveRightHand(){
+    cm730.WriteByte(JointData::ID_R_SHOULDER_PITCH, MX28::P_I_GAIN, 6, 0);
+    cm730.WriteByte(JointData::ID_R_SHOULDER_ROLL, MX28::P_P_GAIN, 6, 0);
+    cm730.WriteByte(JointData::ID_R_ELBOW, MX28::P_P_GAIN, 6, 0);
+    cm730.WriteByte(JointData::ID_R_WRIST, MX28::P_P_GAIN, 6, 0);
+
     cm730.WriteWord(JointData::ID_R_SHOULDER_ROLL, MX28::P_GOAL_POSITION_L, 1946, 0);
     WaitWhileServoMoving(cm730, JointData::ID_R_SHOULDER_ROLL);
 
