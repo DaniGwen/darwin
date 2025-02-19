@@ -34,6 +34,28 @@ void sighandler(int sig)
     exit(0);
 }
 
+void moveRightHand();
+
+bool WaitWhileServoMoving(CM730 &cm730, int servo_id)
+{
+    int moving_status;
+    int timeout = 100; // 100 * 10ms = 1 second timeout
+    while (
+        cm730.ReadByte(servo_id, MX28::P_MOVING, &moving_status, 0) == CM730::SUCCESS &&
+        moving_status == 1 &&
+        timeout-- > 0)
+    {
+        usleep(2*10000);
+    }
+
+    if (timeout <= 0)
+    {
+        printf("\nTimeout: Servo did not reach goal!\n");
+        return false;
+    }
+    return true;
+}
+
 int main(int argc, char *argv[])
 {
     signal(SIGABRT, &sighandler);
@@ -64,6 +86,7 @@ int main(int argc, char *argv[])
 
     DrawIntro(&cm730);
     MotionManager::GetInstance()->SetEnable(true);
+    moveRightHand();
 
     while(1)
     {
@@ -181,4 +204,18 @@ int main(int argc, char *argv[])
 
     DrawEnding();
     return 0;
+}
+
+void moveRightHand(){
+    cm730.WriteWord(JointData::ID_R_SHOULDER_ROLL, MX28::P_GOAL_POSITION_L, 1946, 0);
+    WaitWhileServoMoving(cm730, JointData::ID_R_SHOULDER_ROLL);
+
+    cm730.WriteWord(JointData::ID_R_SHOULDER_PITCH, MX28::P_GOAL_POSITION_L, 1660, 0);
+    WaitWhileServoMoving(cm730, JointData::ID_R_SHOULDER_PITCH);
+
+    cm730.WriteWord(JointData::ID_R_ELBOW, MX28::P_GOAL_POSITION_L, 2216, 0);
+    WaitWhileServoMoving(cm730, JointData::ID_R_ELBOW);
+
+    cm730.WriteWord(JointData::ID_R_WRIST, MX28::P_GOAL_POSITION_L, 2263, 0);
+    WaitWhileServoMoving(cm730, JointData::ID_R_WRIST);
 }
