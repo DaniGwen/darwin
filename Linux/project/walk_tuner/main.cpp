@@ -82,11 +82,11 @@ int main(int argc, char *argv[])
     MotionManager::GetInstance()->AddModule((MotionModule*)Walking::GetInstance());
     LinuxMotionTimer *motion_timer = new LinuxMotionTimer(MotionManager::GetInstance());
     motion_timer->Start();
+    moveRightHand();
     /////////////////////////////////////////////////////////////////////
 
     DrawIntro(&cm730);
     MotionManager::GetInstance()->SetEnable(true);
-    moveRightHand();
 
     while(1)
     {
