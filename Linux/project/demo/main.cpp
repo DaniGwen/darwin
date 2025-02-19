@@ -28,6 +28,7 @@
  #define SCRIPT_FILE_PATH    "script.asc"
  
  #define U2D_DEV_NAME0       "/dev/ttyUSB0"
+ #define U2D_DEV_NAME1       "/dev/ttyUSB1"
  
  LinuxCM730 linux_cm730(U2D_DEV_NAME0);
  CM730 cm730(&linux_cm730);
@@ -89,7 +90,7 @@
      //////////////////// Framework Initialize ////////////////////////////
      if(MotionManager::GetInstance()->Initialize(&cm730) == false)
      {
-         linux_cm730.SetPortName(U2D_DEV_NAME0);
+        linux_cm730.SetPortName(U2D_DEV_NAME1);
          if(MotionManager::GetInstance()->Initialize(&cm730) == false)
          {
              printf("Fail to initialize Motion Manager!\n");
