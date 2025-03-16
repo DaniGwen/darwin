@@ -45,7 +45,7 @@ int main()
 		while(1)
 		{
 			Prompt(gID);
-			gets(input);
+			fgets(input, sizeof(input), stdin);
 			fflush(stdin);
 			input_len = strlen(input);
 			if(input_len == 0)

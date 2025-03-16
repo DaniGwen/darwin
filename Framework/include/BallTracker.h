@@ -20,7 +20,7 @@ namespace Robot
 	private:
 		int NoBallCount;
 		static const int NoBallMaxCount = 15, NotFoundMaxCount = 100;
-        static const double TiltTopLimit = 25, TiltBottomLimit = -12, PanLimit = 65;
+        static constexpr double TiltTopLimit = 25, TiltBottomLimit = -12, PanLimit = 65;
 
 	public:
         Point2D     ball_position;
