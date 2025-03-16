@@ -9,15 +9,16 @@
 
 TARGET = rx_tx_serial_test
 
-CXX = g++
 INCLUDE_DIRS = -I../../../include -I../../../../Framework/include
-CXXFLAGS +=	-O2 -DLINUX -g -Wall -fmessage-length=0 $(INCLUDE_DIRS)
-LIBS += -lpthread -lrt
 
-OBJS =	main.o
+CXX = g++
+CXXFLAGS += -O2 -DLINUX -Wall $(INCLUDE_DIRS)
+#CXXFLAGS += -O2 -DDEBUG -DLINUX -Wall $(INCLUDE_DIRS)
+LFLAGS += -lpthread -ljpeg -lrt
 
+OBJECTS =   main.o
 
-all: darwin.a $(TARGET)
+all: $(TARGET)
 
 clean:
 	rm -f *.a *.o $(TARGET) core *~ *.so *.lo
@@ -30,8 +31,8 @@ distclean: clean libclean
 darwin.a:
 	make -C ../../../build
 
-$(TARGET): $(OBJS) ../../../lib/darwin.a
-	$(CXX) -o $(TARGET) $(OBJS) ../../../lib/darwin.a $(LIBS)
+$(TARGET): darwin.a $(OBJECTS)
+	$(CXX) $(CFLAGS) $(OBJECTS) ../../../lib/darwin.a -o $(TARGET) $(LFLAGS)
 	chmod 755 $(TARGET)
 
 # useful to make a backup "make tgz"
