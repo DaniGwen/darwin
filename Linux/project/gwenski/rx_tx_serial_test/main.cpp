@@ -12,19 +12,21 @@
 
 int main()
 {
-    CM730 cm730(CM730::DEFAULT_BAUDRATE);
-    if (!cm730.Connect()) {
-        std::cerr << "Failed to connect to CM-730." << std::endl;
-        return -1;
-    }
-rx
-    std::cout << "Turning GREEN LED ON" << std::endl;
-    cm730.WriteByte(CM730::ID_CM, CM730::P_LED_PANEL, 0x04, nullptr); // 0x04 for Green LED
+    LinuxCM730 linux_cm730("/dev/ttyUSB0");
+	CM730 cm730(&linux_cm730);
+	if(cm730.Connect() == false)
+	{
+		printf("Fail to connect CM-730!\n");
+		return 0;
+	}
+
+    cm730.WriteWord(CM730::ID_CM, CM730::P_LED_EYE_L, cm730.MakeColor(255, 0, 0), 0);
     sleep(1); // Wait for 1 second
 
-    std::cout << "Turning GREEN LED OFF" << std::endl;
-    cm730.WriteByte(CM730::ID_CM, CM730::P_LED_PANEL, 0x00, nullptr); // 0x00 to turn off
-    
+    cm730.WriteWord(CM730::ID_CM, CM730::P_LED_EYE_L, cm730.MakeColor(0, 0, 255), 0);
+    sleep(1); // Wait for 1 second
+    cm730.WriteWord(CM730::ID_CM, CM730::P_LED_EYE_L, cm730.MakeColor(0, 100, 0), 0);
+
     cm730.Disconnect(); // Close connection
     return 0;
 }
