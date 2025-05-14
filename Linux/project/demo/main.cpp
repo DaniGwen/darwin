@@ -90,7 +90,6 @@
      //////////////////// Framework Initialize ////////////////////////////
      if(MotionManager::GetInstance()->Initialize(&cm730) == false)
      {
-        linux_cm730.SetPortName(U2D_DEV_NAME1);
          if(MotionManager::GetInstance()->Initialize(&cm730) == false)
          {
              printf("Fail to initialize Motion Manager!\n");
