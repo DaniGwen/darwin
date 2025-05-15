@@ -18,7 +18,7 @@ sudo apt update
 	• Install the Edge TPU runtime and library: 
 Bash
 
-sudo apt install libedgetpu1-dev libedgetpu-dev
+sudo apt install libedgetpu1-std libedgetpu-dev
 
 The libedgetpu-dev package should include the necessary header files for the Edge TPU library.
 2. Install TensorFlow Lite Development Headers:
