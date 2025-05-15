@@ -166,6 +166,8 @@ int main(void)
     minIni* ini = new minIni(INI_FILE_PATH);
     // You could load MODEL_PATH, LABELS_PATH, DETECTION_THRESHOLD from ini here
 
+
+
     // --- Initialize Edge TPU ---
     // 1. Load Model
     std::unique_ptr<tflite::FlatBufferModel> model = tflite::FlatBufferModel::BuildFromFile(MODEL_PATH);
