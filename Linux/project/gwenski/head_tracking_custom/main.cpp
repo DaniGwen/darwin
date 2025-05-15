@@ -284,7 +284,7 @@ int main(void)
         // perform them here.
         unsigned char *input_image_ptr = current_cam_rgb_frame->m_ImageData;
                 int input_width = current_cam_rgb_frame->m_Width;
-                int input_height = current_cam_rgb_frame->m_Height;
+        int input_height = current_cam_rgb_frame->m_Height;
                 // The Task Library handles internal resizing if the input dimensions
         // don't match the model's expected input size.
 
