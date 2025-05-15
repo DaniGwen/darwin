@@ -23,10 +23,9 @@ sudo apt install libedgetpu1-std libedgetpu-dev
 The libedgetpu-dev package should include the necessary header files for the Edge TPU library.
 2. Install TensorFlow Lite Development Headers:
 While the Coral installation often pulls in relevant TFLite components, explicitly installing the development headers is good practice if you plan to compile applications directly against the TensorFlow Lite library.
-	• You can often install the TensorFlow Lite development library using apt: 
 Bash
 
-sudo apt install libtensorflowlite-dev
+pip install tflite-runtime
 
 This package provides the necessary header files (.h) and libraries (.so) for compiling applications that use TensorFlow Lite.
 	
