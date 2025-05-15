@@ -45,10 +45,10 @@
 
 // --- Edge TPU Configuration ---
 // These should ideally be configurable (e.g., from INI_FILE_PATH or command line)
-const char* MODEL_PATH = "your_model_edgetpu.tflite"; // IMPORTANT: Path to your Edge TPU model
-const char* LABELS_PATH = "your_labels.txt";         // IMPORTANT: Path to your labels file
-const float DETECTION_THRESHOLD = 0.5f;              // Minimum confidence score
-const int MAX_DETECTIONS = 10;                       // Max objects to detect per frame
+const char* MODEL_PATH = "../../../../Data/models/ssd_mobilenet_v2_coco_quant_postprocess_edgetpu.tflite"; // IMPORTANT: Path to your Edge TPU model
+const char* LABELS_PATH = "../../../../Data/models/imagenet_labels.txt";                                   // IMPORTANT: Path to your labels file
+const float DETECTION_THRESHOLD = 0.5f;                                                                    // Minimum confidence score
+const int MAX_DETECTIONS = 10;                                                                             // Max objects to detect per frame
 
 // Structure to hold detection results
 struct DetectionResult {
@@ -128,7 +128,7 @@ void DrawBoundingBox(Image* image, const DetectionResult& detection) {
     }
     // You would typically draw the label text here as well.
     // For simplicity, printing to console:
-    // std::cout << "Detected: " << detection.label << " (" << detection.score << ")" << std::endl;
+     std::cout << "Detected: " << detection.label << " (" << detection.score << ")" << std::endl;
 }
 
 // --- Helper: Image Preprocessing (Resize) ---
