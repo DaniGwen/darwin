@@ -1,0 +1,32 @@
+ UART settings and latency
+ /dev/
+ The CM-730/Dynamixel bus runs at 1,000,000 bps (1 Mbps), so your code must set 
+cfsetispeed /
+ cfsetospeed to B1000000. The Linux 
+ftdi_sio driver does support 1 Mbps on FT232 chips, so 1 Mbps
+ is a standard setting. (If it fails, check 
+dmesg for 
+ftdi_sio errors like “failed to set baudrate.”) In your
+ serial port setup (PlatformCM730 or termios), disable any flow control and use raw mode (e.g.
+ cfmakeraw() , and 
+c_cflag |= CLOCAL|CREAD; c_cflag &= ~CRTSCTS; ). This ensures no stray
+ signals or buffering interfere. 
+By default FTDI chips impose a 16 ms USB latency timer (they buffer data and wait up to 16 ms before
+ sending a packet). For real-time control this is often too slow. Set the latency to 1 ms. For example, run: 
+echo 1 | sudo tee /sys/bus/usb-serial/devices/ttyUSB0/latency_timer
+ (This must be done each time the device is re-plugged, or automate via a udev rule.) Lowering the latency
+ can dramatically improve throughput: it reduces the response latency from ~16 ms to ~1 ms . (The
+ Robotis Dynamixel SDK discussion notes that enabling 
+4
+ ASYNC_LOW_LATENCY on Linux makes
+ communication “16 times faster” by dropping the latency from 16 ms to 1 ms .) 
+4
+ 1
+To automate this, you can add a udev rule (e.g. 
+/etc/udev/rules.d/99-dynamixelsdk-usb.rules )
+ with content like: 
+ACTION=="add", SUBSYSTEM=="usb-serial", DRIVER=="ftdi_sio", ATTR{latency_timer}
+ ="1"
+ and reload udev (
+ sudo udevadm control --reload-rules && sudo udevadm trigger ). After this,
+ the latency will be set to 1 ms automatically upon device attach 
