@@ -1,0 +1,25 @@
+ UART settings and latency
+By default FTDI chips impose a 16 ms USB latency timer (they buffer data and wait up to 16 ms before
+ sending a packet). For real-time control this is often too slow. Set the latency to 1 ms. 
+ For example, run: 
+
+echo 1 | sudo tee /sys/bus/usb-serial/devices/ttyUSB0/latency_timer
+
+ (This must be done each time the device is re-plugged, or automate via a udev rule.) Lowering the latency
+ can dramatically improve throughput: it reduces the response latency from ~16 ms to ~1 ms .The
+ Robotis Dynamixel SDK discussion notes that enabling ASYNC_LOW_LATENCY on Linux makes communication 
+ “16 times faster” by dropping the latency from 16 ms to 1 ms .
+To automate this, you can add a udev rule 
+
+sudo nano /etc/udev/rules.d/99-dynamixelsdk-usb.rules
+
+with content: 
+
+ACTION=="add", SUBSYSTEM=="usb-serial", DRIVER=="ftdi_sio", ATTR{latency_timer}
+ ="1"
+
+ and reload udev 
+
+ sudo udevadm control --reload-rules && sudo udevadm trigger
+ 
+After this,the latency will be set to 1 ms automatically upon device attach 
