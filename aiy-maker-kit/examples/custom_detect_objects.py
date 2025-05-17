@@ -17,6 +17,16 @@ Performs object detection on a single image file using tflite_runtime and pycora
 and outputs detection results to standard output.
 Bypasses aiymakerkit.vision for image loading/processing.
 """
+# --- Temporary Debugging Lines ---
+import sys
+import PIL
+try:
+    print(f"DEBUG: Python Executable: {sys.executable}", file=sys.stderr)
+    print(f"DEBUG: Pillow Version: {PIL.__version__}", file=sys.stderr)
+    print(f"DEBUG: Pillow Location: {PIL.__file__}", file=sys.stderr)
+except Exception as e:
+    print(f"DEBUG: Error getting PIL info: {e}", file=sys.stderr)
+# --- End Temporary Debugging Lines ---
 
 import sys
 import os
@@ -40,7 +50,7 @@ import models
 # Use the model path from models.py
 MODEL_PATH = models.OBJECT_DETECTION_MODEL
 # Labels path is often MODEL_PATH with .tflite replaced by .txt
-LABELS_PATH = MODEL_PATH.replace('.tflite', '.txt')
+LABELS_PATH = '/home/darwin/darwin/aiy-maker-kit/examples/models/coco_labels.txt'
 DETECTION_THRESHOLD = 0.4 # Use the threshold you were using
 # MAX_DETECTIONS = 10 # The model outputs a fixed number, we'll filter by threshold
 
