@@ -27,7 +27,7 @@
 #define U2D_DEV_NAME        "/dev/ttyUSB0"
 
 const char *PYTHON_SCRIPT_PATH = "../../../../aiy-maker-kit/examples/custom_detect_objects.py";
-const char *PYTHON_INTERPRETER = "/home/darwin/.local/bin/python3";
+const char *PYTHON_INTERPRETER = "/usr/bin/python3";
 
 // Structure to hold parsed detection results (assuming Python outputs at least label/ID)
 // Add more fields (score, bounding box) if your Python script will output them
