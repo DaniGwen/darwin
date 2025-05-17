@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 # Copyright 2021 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -13,18 +15,18 @@
 # limitations under the License.
 
 """
-Performs object detection on a single image file using tflite_runtime and pycoral,
-and outputs detection results to standard output.
-Bypasses aiymakerkit.vision for image loading/processing.
+Performs object detection by communicating with a C++ program via Unix Domain Socket.
+Receives raw image data, performs inference, and sends detection results back.
 """
 
 import sys
 import os
+import socket
+import struct # For packing/unpacking integers
 import time
-# Import Pillow for image loading and basic preprocessing
-from PIL import Image
-# Import numpy for image data manipulation
 import numpy as np
+from PIL import Image
+
 # Import tflite_runtime for the interpreter
 from tflite_runtime.interpreter import Interpreter
 # Import pycoral utilities for Edge TPU
@@ -36,14 +38,19 @@ from pycoral.utils import dataset
 # Or if models.py is just in the same directory:
 import models
 
-# --- Configuration ---
+# --- Socket Configuration ---
+SOCKET_PATH = "/tmp/darwin_detector.sock"
+
+# --- Model Configuration ---
 # Use the model path from models.py
 MODEL_PATH = models.OBJECT_DETECTION_MODEL
-LABELS_PATH = '/home/darwin/darwin/aiy-maker-kit/examples/models/coco_labels.txt'
-DETECTION_THRESHOLD = 0.4 # Use the threshold you were using
+# Labels path is often MODEL_PATH with .tflite replaced by .txt
+LABELS_PATH = MODEL_PATH.replace('.tflite', '.txt')
+DETECTION_THRESHOLD = 0.5 # Use the threshold you want
 # MAX_DETECTIONS = 10 # The model outputs a fixed number, we'll filter by threshold
 
 # --- Helper function to load labels ---
+# Modified to always return a dictionary {id: label}
 def load_labels(path):
     """Loads the labels file, returning a dictionary {id: label}."""
     print(f"DEBUG: Loading labels from: {path}", file=sys.stderr) # Debug print
@@ -90,6 +97,18 @@ def load_labels(path):
         print(f"Error loading labels file {path}: {e}", file=sys.stderr)
         return {} # Return empty dictionary on error
 
+
+# --- Helper function to receive exact number of bytes ---
+def recvall(sock, n):
+    """Helper function to receive n bytes or return None if disconnected"""
+    data = b''
+    while len(data) < n:
+        packet = sock.recv(n - len(data))
+        if not packet:
+            return None
+        data += packet
+    return data
+
 # --- Helper function to parse detection results from output tensors ---
 # This is specific to the SSD-like model architecture (like SSD MobileNet)
 # Output tensors are typically:
@@ -103,108 +122,158 @@ def get_output_tensors(interpreter):
     # Adjust indices based on your specific model if necessary
     # You can inspect your model with Netron (https://netron.app/)
     # to confirm output tensor order, shape, and type.
+    # Assuming standard output order: boxes, classes, scores, num_detections
     boxes = interpreter.get_tensor(output_details[0]['index'])[0]
     classes = interpreter.get_tensor(output_details[1]['index'])[0]
     scores = interpreter.get_tensor(output_details[2]['index'])[0]
     count = int(interpreter.get_tensor(output_details[3]['index'])[0])
     return boxes, classes, scores, count
 
+
 # --- Main execution block ---
 if __name__ == "__main__":
-    # Check if an image file path was provided as a command-line argument
-    if len(sys.argv) != 2:
-        print("Usage: python3 detect_objects.py <image_path>", file=sys.stderr)
-        sys.exit(1)
+    print(f"INFO: Starting Python detector script. Connecting to socket {SOCKET_PATH}...", file=sys.stderr)
 
-    image_path = sys.argv[1]
-
-    # Check if the file exists
-    if not os.path.exists(image_path):
-        print(f"Error: Image file not found at {image_path}", file=sys.stderr)
+    # --- Connect to C++ Socket Server ---
+    client_socket = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+    try:
+        client_socket.connect(SOCKET_PATH)
+        print("INFO: Successfully connected to C++ program.", file=sys.stderr)
+    except socket.error as e:
+        print(f"ERROR: Failed to connect to socket {SOCKET_PATH}: {e}", file=sys.stderr)
         sys.exit(1)
 
     try:
-        # --- Load Model and Create Interpreter ---
-        # This is done once when the script starts
+        # --- Load Model and Create Interpreter (Done Once) ---
         interpreter = make_interpreter(MODEL_PATH)
         interpreter.allocate_tensors()
 
         # Get model input details
         input_details = interpreter.get_input_details()[0]
         input_shape = input_details['shape'] # Expected input shape (1, height, width, channels)
-        input_height = input_shape[1]
-        input_width = input_shape[2]
+        model_input_height = input_shape[1]
+        model_input_width = input_shape[2]
+        model_input_channels = input_shape[3]
         input_type = input_details['dtype'] # Expected input data type (e.g., uint8)
+
+        print(f"INFO: Model expects input HxWxC: {model_input_height}x{model_input_width}x{model_input_channels}", file=sys.stderr)
 
         # Load labels
         labels = load_labels(LABELS_PATH)
+        if not labels:
+            print("WARNING: No labels loaded. Detections will only show class IDs.", file=sys.stderr)
 
-        # --- Load and Preprocess the Image ---
-        # Load image using Pillow
-        pil_image = Image.open(image_path).convert('RGB')
+        # --- Main Loop: Receive Frame, Detect, Send Results ---
+        print("INFO: Entering main detection loop...", file=sys.stderr)
+        while True:
+            # --- Receive Frame Dimensions ---
+            width_data = recvall(client_socket, 4)
+            if not width_data: # Connection closed
+                print("INFO: Connection closed by C++ program.", file=sys.stderr)
+                break
+            frame_width = struct.unpack('<I', width_data)[0] # '<I' is little-endian unsigned int
 
-        # Resize image to model input size using Pillow
-        resized_image = pil_image.resize((input_width, input_height), Image.Resampling.LANCZOS)
+            height_data = recvall(client_socket, 4)
+            if not height_data: # Connection closed
+                print("INFO: Connection closed by C++ program.", file=sys.stderr)
+                break
+            frame_height = struct.unpack('<I', height_data)[0]
 
-        # Convert resized image to numpy array
-        input_data = np.array(resized_image)
+            frame_data_size = frame_width * frame_height * 3 # Assuming 3 channels (RGB)
 
-        # Models might expect different input types (uint8 or float32)
-        # For uint8 models, data is typically [0, 255].
-        # For float32 models, data is often normalized to [0, 1] or [-1, 1].
-        # Check your model's requirements. Most Edge TPU models are quantized (uint8).
-        if input_type == np.uint8:
-            # Data is already uint8 [0, 255] from np.array, no further scaling needed for typical models.
-            pass
-        elif input_type == np.float32:
-            # Example: Normalize uint8 [0, 255] to float32 [0, 1]
-            input_data = input_data.astype(np.float32) / 255.0
-            # Example: Normalize uint8 [0, 255] to float32 [-1, 1]
-            # input_data = (input_data.astype(np.float32) - 127.5) / 127.5
-        else:
-             print(f"Error: Unsupported input tensor type: {input_type}", file=sys.stderr)
-             sys.exit(1)
+            # --- Receive Raw Frame Data ---
+            raw_frame_data = recvall(client_socket, frame_data_size)
+            if not raw_frame_data: # Connection closed
+                print("INFO: Connection closed by C++ program.", file=sys.stderr)
+                break
 
-        # Add batch dimension (models expect input in shape [batch_size, height, width, channels])
-        input_data = np.expand_dims(input_data, axis=0) # Shape becomes [1, height, width, channels]
+            # --- Process Frame Data ---
+            # Convert raw bytes to numpy array
+            # Assuming C++ sends RGB, uint8
+            image_numpy_array = np.frombuffer(raw_frame_data, dtype=np.uint8).reshape((frame_height, frame_width, 3))
 
-        # --- Copy Image Data to Input Tensor ---
-        interpreter.set_tensor(input_details['index'], input_data)
+            # Convert numpy array to PIL Image for resizing
+            pil_image = Image.fromarray(image_numpy_array, 'RGB')
 
-        # --- Run Inference ---
-        interpreter.invoke()
+            # Resize image to model input size using Pillow
+            # Use Image.Resampling.LANCZOS for Pillow 9.0.0+
+            # For older Pillow, use Image.LANCZOS or Image.BICUBIC
+            try:
+                _resample_filter = Image.Resampling.LANCZOS
+            except AttributeError:
+                _resample_filter = Image.LANCZOS # Fallback for older Pillow
 
-        # --- Get and Parse Output Tensors ---
-        boxes, classes, scores, count = get_output_tensors(interpreter)
+            resized_image = pil_image.resize((model_input_width, model_input_height), _resample_filter)
 
-        # --- Output Detection Results to Standard Output ---
-        # Print results in a parseable format for the C++ program
-        # Format: label score xmin ymin xmax ymax (normalized 0-1)
-        # Print each detection on a new line.
-        # Filter by threshold and count
-        for i in range(count):
-            if scores[i] >= DETECTION_THRESHOLD:
-                # Get label from class ID
-                class_id = int(classes[i])
-                label = labels.get(class_id, 'unknown') # Get label from ID, default to 'unknown'
+            # Convert resized image back to numpy array and prepare for model input
+            input_data = np.array(resized_image)
 
-                # Get bounding box coordinates (already normalized)
-                ymin, xmin, ymax, xmax = boxes[i]
+            # Ensure input data type matches model (usually uint8)
+            if input_type == np.uint8:
+                pass # Data is already uint8 [0, 255]
+            elif input_type == np.float32:
+                 input_data = input_data.astype(np.float32) / 255.0 # Example normalization
+            else:
+                 print(f"WARNING: Unsupported input tensor type: {input_type}", file=sys.stderr)
+                 # Handle or skip frame if type is unexpected
+                 continue # Skip processing this frame
 
-                # Print the formatted output
-                print(f"{label} {scores[i]} {xmin} {ymin} {xmax} {ymax}")
+            # Add batch dimension
+            input_data = np.expand_dims(input_data, axis=0)
 
-        # Important: Flush the standard output buffer
-        # This is crucial to ensure the C++ program receives the output immediately
-        sys.stdout.flush()
+            # --- Copy Image Data to Input Tensor ---
+            interpreter.set_tensor(interpreter.get_input_details()[0]['index'], input_data)
+
+            # --- Run Inference ---
+            interpreter.invoke()
+
+            # --- Get and Parse Output Tensors ---
+            boxes, classes, scores, count = get_output_tensors(interpreter)
+
+            # --- Format Detection Results ---
+            detection_results_string = ""
+            # Filter by threshold and count
+            for i in range(count):
+                if scores[i] >= DETECTION_THRESHOLD:
+                    # Get label from class ID
+                    class_id = int(classes[i])
+                    # Use labels dictionary, fallback to ID if not found
+                    label = labels.get(class_id, f'ID_{class_id}')
+
+                    # Get bounding box coordinates (already normalized)
+                    ymin, xmin, ymax, xmax = boxes[i]
+
+                    # Append to the result string
+                    detection_results_string += f"{label} {scores[i]} {xmin} {ymin} {xmax} {ymax}\n"
+
+            # Remove trailing newline if any detections were added
+            if detection_results_string:
+                detection_results_string = detection_results_string.rstrip('\n')
+
+            # --- Send Detection Results Back to C++ ---
+            # Send the size of the string first (as 4-byte integer)
+            result_bytes = detection_results_string.encode('utf-8')
+            result_size = len(result_bytes)
+            size_header = struct.pack('<I', result_size) # '<I' is little-endian unsigned int
+
+            try:
+                client_socket.sendall(size_header)
+                if result_size > 0:
+                    client_socket.sendall(result_bytes)
+            except socket.error as e:
+                print(f"ERROR: Failed to send detection results: {e}", file=sys.stderr)
+                break # Exit loop on send error
 
     except FileNotFoundError:
         print(f"Error: Model file not found at {MODEL_PATH}", file=sys.stderr)
-        sys.exit(1)
     except Exception as e:
         # Catch any other errors during processing
         print(f"An error occurred during processing: {e}", file=sys.stderr)
-        sys.exit(1)
 
-    # The script will automatically exit after the last line is executed.
-    # sys.exit(0) # Explicitly indicate success if needed
+    finally:
+        # --- Cleanup ---
+        print("INFO: Closing socket connection.", file=sys.stderr)
+        client_socket.close()
+        # The C++ program is responsible for unlinking the socket file
+
+    sys.exit(0) # Indicate successful script execution (even if loop broke)
