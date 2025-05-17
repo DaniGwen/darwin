@@ -248,25 +248,42 @@ bool initialize_motion_framework(minIni *ini)
     MotionManager::GetInstance()->SetEnable(true); // Enable the motion manager
 
     // Explicitly enable head joints and set gains
-    std::cout << "INFO: Enabling head joints and setting gains..." << std::endl;
-    Head::GetInstance()->m_Joint.SetEnableHeadOnly(true, true);        // Enable torque for head pan and tilt
-    Head::GetInstance()->m_Joint.SetPGain(JointData::ID_HEAD_PAN, 8);  // Set P-gain for pan
-    Head::GetInstance()->m_Joint.SetPGain(JointData::ID_HEAD_TILT, 8); // Set P-gain for tilt
+    std::cout << "INFO: Attempting to enable head joints and setting gains..." << std::endl;
 
-    // Optional: Add a small delay to allow settings to take effect
-    usleep(100000); // 100ms delay
+    int pan_torque_status = 0, pan_error = 0;
+    int tilt_torque_status = 0, tilt_error = 0;
+    int retry_count = 0;
+    const int max_retries = 5; // Retry a few times if torque doesn't enable immediately
 
-    // Optional: Read back motor status to confirm torque is enabled
-    int pan_torque_status = 0, pan_error = 0;   // Declare variables for ReadByte output
-    int tilt_torque_status = 0, tilt_error = 0; // Declare variables for ReadByte output
+    // Loop to enable torque and verify
+    while ((pan_torque_status != 1 || tilt_torque_status != 1) && retry_count < max_retries)
+    {
+        Head::GetInstance()->m_Joint.SetEnableHeadOnly(true, true);        // Enable torque for head pan and tilt
+        Head::GetInstance()->m_Joint.SetPGain(JointData::ID_HEAD_PAN, 8);  // Set P-gain for pan
+        Head::GetInstance()->m_Joint.SetPGain(JointData::ID_HEAD_TILT, 8); // Set P-gain for tilt
 
-    // Corrected calls to ReadByte with 4 arguments
-    cm730.ReadByte(JointData::ID_HEAD_PAN, MX28::P_TORQUE_ENABLE, &pan_torque_status, &pan_error);
-    cm730.ReadByte(JointData::ID_HEAD_TILT, MX28::P_TORQUE_ENABLE, &tilt_torque_status, &tilt_error);
+        // Add a delay to allow settings to take effect
+        usleep(200000); // Increased delay to 200ms (tune this if needed)
 
-    std::cout << "INFO: Head Pan Torque Enable Status: " << pan_torque_status << " (Error: " << pan_error << ")" << std::endl;
-    std::cout << "INFO: Head Tilt Torque Enable Status: " << tilt_torque_status << " (Error: " << tilt_error << ")" << std::endl;
-    // If these are not 1, torque is not enabled. Error should be 0 on success.
+        // Read back motor status to confirm torque is enabled
+        cm730.ReadByte(JointData::ID_HEAD_PAN, MX28::P_TORQUE_ENABLE, &pan_torque_status, &pan_error);
+        cm730.ReadByte(JointData::ID_HEAD_TILT, MX28::P_TORQUE_ENABLE, &tilt_torque_status, &tilt_error);
+
+        std::cout << "INFO: Retry " << (retry_count + 1) << ": Pan Torque Status: " << pan_torque_status << " (Error: " << pan_error << "), Tilt Torque Status: " << tilt_torque_status << " (Error: " << tilt_error << ")" << std::endl;
+
+        retry_count++;
+    }
+
+    if (pan_torque_status != 1 || tilt_torque_status != 1)
+    {
+        std::cerr << "ERROR: Failed to enable head motor torque after multiple retries." << std::endl;
+        // Depending on desired behavior, you might return false here to stop the program
+        // return false;
+    }
+    else
+    {
+        std::cout << "INFO: Head motor torque successfully enabled." << std::endl;
+    }
 
     std::cout << "INFO: Motion framework initialized." << std::endl;
     return true;
