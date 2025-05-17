@@ -16,7 +16,7 @@
 #include <fstream>
 #include <algorithm>
 #include <cstdio>
-#include <sstream>
+#include <sstream> // Required for std::stringstream
 
 // Headers for Unix Domain Sockets
 #include <sys/socket.h>
@@ -219,11 +219,14 @@ int main(void)
     MotionManager::GetInstance()->SetEnable(true);
     /////////////////////////////////////////////////////////////////////
 
-    BallTracker tracker = BallTracker();
-
     Head::GetInstance()->m_Joint.SetEnableHeadOnly(true, true);
     Head::GetInstance()->m_Joint.SetPGain(JointData::ID_HEAD_PAN, 8);
     Head::GetInstance()->m_Joint.SetPGain(JointData::ID_HEAD_TILT, 8);
+
+    // --- Tracking State Variables ---
+    int NoTargetCount = 0;
+    const int NoTargetMaxCount = 30; // Number of frames to wait before initiating scan (tune this)
+    // Point2D last_tracked_position; // Optional: store last known position if you want to hold
 
     std::cout << "INFO: Starting main loop..." << std::endl;
     while (1)
@@ -304,7 +307,7 @@ int main(void)
         // --- Parse and Use Detection Results ---
         std::vector<ParsedDetection> detections = parse_detection_output(detection_output);
 
-        bool target_found = false;
+        bool person_found_in_frame = false; // Flag for the current frame
         Point2D tracked_object_center_for_head;
 
         // Example: Find the first "person" detection
@@ -312,33 +315,45 @@ int main(void)
         {
             DrawBoundingBox(rgb_display_frame, det); // Draw all detections
 
-            // --- Modified: Check if the detected label is "person" ---
+            // --- Check if the detected label is "person" ---
             if (det.label == "person") // Look for the label "person"
             {
                 // Calculate center of the bounding box in original image pixel coordinates
                 tracked_object_center_for_head.X = (det.xmin + det.xmax) / 2.0 * Camera::WIDTH;
                 tracked_object_center_for_head.Y = (det.ymin + det.ymax) / 2.0 * Camera::HEIGHT;
-                target_found = true;
+                person_found_in_frame = true; // A person was found in this frame
                 // For simplicity, track the first person found.
                 // For better tracking, you might want to track the largest or closest person.
                 break; // Stop searching after finding the first person
             }
         }
 
-        // --- Head Tracking ---
-        if (target_found)
+        // --- Head Tracking State Management ---
+        if (person_found_in_frame)
         {
+            NoTargetCount = 0; // Reset the counter since a target was found
             Point2D P_err;
             // Normalize pixel coordinates to -1.0 to 1.0 range (approx)
             P_err.X = (tracked_object_center_for_head.X - (Camera::WIDTH / 2.0)) / (Camera::WIDTH / 2.0);
             P_err.Y = (tracked_object_center_for_head.Y - (Camera::HEIGHT / 2.0)) / (Camera::HEIGHT / 2.0);
 
-            tracker.Process(P_err); // Update tracker with the new position
+            Head::GetInstance()->MoveTracking(P_err); // Actively track the person
         }
-        else
+        else // No person found in the current frame
         {
-            // No target found, perhaps make the head look forward or scan
-            // Head::GetInstance()->MoveTracking(Point2D(0.0, 0.0)); // Stop active tracking
+            if(NoTargetCount < NoTargetMaxCount)
+            {
+                // Continue tracking based on the last known position or stop active tracking
+                // Head::GetInstance()->MoveTracking(); // Original BallTracker behavior (might hold last pos)
+                Head::GetInstance()->MoveTracking(Point2D(0.0, 0.0)); // Alternative: stop active tracking and center head slowly
+                NoTargetCount++; // Increment counter
+            }
+            else
+            {
+                // No target for too long, initiate scan or return to initial position
+                Head::GetInstance()->InitTracking(); // Return to initial tracking position/scan
+                // NoTargetCount remains at or above NoTargetMaxCount
+            }
         }
 
         streamer->send_image(rgb_display_frame);
