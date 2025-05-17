@@ -22,4 +22,8 @@ ACTION=="add", SUBSYSTEM=="usb-serial", DRIVER=="ftdi_sio", ATTR{latency_timer}
 
  sudo udevadm control --reload-rules && sudo udevadm trigger
  
-After this,the latency will be set to 1 ms automatically upon device attach 
+After this,the latency will be set to 1 ms automatically upon device attach
+
+
+Robotis Manual
+https://emanual.robotis.com/docs/en/platform/op/maintenance/#recoveryubuntu-910
