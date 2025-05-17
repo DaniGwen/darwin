@@ -219,6 +219,8 @@ int main(void)
     MotionManager::GetInstance()->SetEnable(true);
     /////////////////////////////////////////////////////////////////////
 
+    BallTracker tracker = BallTracker();
+
     Head::GetInstance()->m_Joint.SetEnableHeadOnly(true, true);
     Head::GetInstance()->m_Joint.SetPGain(JointData::ID_HEAD_PAN, 8);
     Head::GetInstance()->m_Joint.SetPGain(JointData::ID_HEAD_TILT, 8);
@@ -331,7 +333,7 @@ int main(void)
             P_err.X = (tracked_object_center_for_head.X - (Camera::WIDTH / 2.0)) / (Camera::WIDTH / 2.0);
             P_err.Y = (tracked_object_center_for_head.Y - (Camera::HEIGHT / 2.0)) / (Camera::HEIGHT / 2.0);
 
-            Head::GetInstance()->MoveTracking(P_err);
+            tracker.Process(P_err); // Update tracker with the new position
         }
         else
         {
