@@ -53,68 +53,68 @@ void change_current_dir()
 // Returns the path to the saved file, or an empty string on failure.
 std::string save_frame_to_temp_file(Image *frame)
 {
-    if (!frame || !frame->m_ImageData || frame->m_PixelSize != 3) // Assuming 3 channels (RGB)
-    {
-        std::cerr << "Error: Invalid frame data or not RGB for saving." << std::endl;
-        return "";
-    }
+    if (!frame || !frame->m_ImageData || frame->m_PixelSize != 3) // Assuming 3 channels (RGB)
+    {
+        std::cerr << "Error: Invalid frame data or not RGB for saving." << std::endl;
+        return "";
+    }
 
-    // --- Debugging Steps ---
-    char temp_filename_template[] = "/tmp/frame_XXXXXX.ppm"; // Original template
-    // char temp_filename_template[] = "/tmp/XXXXXX";         // Try the absolute simplest template
-    std::cerr << "DEBUG: Attempting to create temp file with template: '" << temp_filename_template << "'" << std::endl;
-    // --- End Debugging Steps ---
-
-
-    int fd = mkstemp(temp_filename_template); // mkstemp modifies the string IN PLACE
-    if (fd < 0)
-    {
-        int temp_errno = errno; // Capture errno immediately
-        std::cerr << "Error creating temp file using template '" << temp_filename_template << "': "
-                  << strerror(temp_errno) << " (errno " << temp_errno << ")" << std::endl;
-        return "";
-    }
-
-    // --- Debugging Step ---
-    std::cerr << "DEBUG: Successfully created temp file: '" << temp_filename_template << "' with fd: " << fd << std::endl;
-    // --- End Debugging Step ---
+    // --- Debugging Steps ---
+    char temp_filename_template[] = "/tmp/frame_XXXXXX.ppm"; // Original template
+    // char temp_filename_template[] = "/tmp/XXXXXX";         // Try the absolute simplest template
+    std::cerr << "DEBUG: Attempting to create temp file with template: '" << temp_filename_template << "'" << std::endl;
+    // --- End Debugging Steps ---
 
 
-    // Associate a FILE* stream with the file descriptor
-    FILE *temp_file = fdopen(fd, "wb"); // Open in write binary mode
-    if (!temp_file)
-    {
-        int temp_errno = errno; // Capture errno immediately
-        std::cerr << "Error opening temp file stream for '" << temp_filename_template << "': "
-                  << strerror(temp_errno) << " (errno " << temp_errno << ")" << std::endl;
-        close(fd); // Close the file descriptor obtained from mkstemp
-        // Using unlink to clean up the file immediately in case of fopen error
-        unlink(temp_filename_template);
-        return "";
-    }
+    int fd = mkstemp(temp_filename_template); // mkstemp modifies the string IN PLACE
+    if (fd < 0)
+    {
+        int temp_errno = errno; // Capture errno immediately
+        std::cerr << "Error creating temp file using template '" << temp_filename_template << "': "
+                  << strerror(temp_errno) << " (errno " << temp_errno << ")" << std::endl;
+        return "";
+    }
 
-    // Write PPM header (P6 format)
-    fprintf(temp_file, "P6\n%d %d\n255\n", frame->m_Width, frame->m_Height);
-
-    // Write pixel data
-    size_t data_size = frame->m_NumberOfPixels * frame->m_PixelSize;
-    if (fwrite(frame->m_ImageData, 1, data_size, temp_file) != data_size)
-    {
-        int temp_errno = errno; // Capture errno immediately
-        std::cerr << "Error writing data to temp file '" << temp_filename_template << "': "
-                  << strerror(temp_errno) << " (errno " << temp_errno << ")" << std::endl;
-        fclose(temp_file);
-        // Using unlink to clean up the file immediately in case of write error
-        unlink(temp_filename_template);
-        return "";
-    }
-
-    fclose(temp_file); // Close the FILE* stream (also closes the fd)
-
-    // std::cout << "Saved frame to: " << temp_filename_template << std::endl; // Debug print
+    // --- Debugging Step ---
+    std::cerr << "DEBUG: Successfully created temp file: '" << temp_filename_template << "' with fd: " << fd << std::endl;
+    // --- End Debugging Step ---
 
 
-    return temp_filename_template; // Return the modified string with the unique name
+    // Associate a FILE* stream with the file descriptor
+    FILE *temp_file = fdopen(fd, "wb"); // Open in write binary mode
+    if (!temp_file)
+    {
+        int temp_errno = errno; // Capture errno immediately
+        std::cerr << "Error opening temp file stream for '" << temp_filename_template << "': "
+                  << strerror(temp_errno) << " (errno " << temp_errno << ")" << std::endl;
+        close(fd); // Close the file descriptor obtained from mkstemp
+        // Using unlink to clean up the file immediately in case of fopen error
+        unlink(temp_filename_template);
+        return "";
+    }
+
+    // Write PPM header (P6 format)
+    fprintf(temp_file, "P6\n%d %d\n255\n", frame->m_Width, frame->m_Height);
+
+    // Write pixel data
+    size_t data_size = frame->m_NumberOfPixels * frame->m_PixelSize;
+    if (fwrite(frame->m_ImageData, 1, data_size, temp_file) != data_size)
+    {
+        int temp_errno = errno; // Capture errno immediately
+        std::cerr << "Error writing data to temp file '" << temp_filename_template << "': "
+                  << strerror(temp_errno) << " (errno " << temp_errno << ")" << std::endl;
+        fclose(temp_file);
+        // Using unlink to clean up the file immediately in case of write error
+        unlink(temp_filename_template);
+        return "";
+    }
+
+    fclose(temp_file); // Close the FILE* stream (also closes the fd)
+
+    // std::cout << "Saved frame to: " << temp_filename_template << std::endl; // Debug print
+
+
+    return temp_filename_template; // Return the modified string with the unique name
 }
 
 // TODO: Implement a function to parse the output from the Python script.
