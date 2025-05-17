@@ -26,7 +26,7 @@
 #define INI_FILE_PATH       "config.ini"
 #define U2D_DEV_NAME        "/dev/ttyUSB0"
 
-const char *PYTHON_SCRIPT_PATH = "../../../aiy-maker-kit/examples/custom_detect_objects.py";
+const char *PYTHON_SCRIPT_PATH = "../../../../aiy-maker-kit/examples/custom_detect_objects.py";
 const char *PYTHON_INTERPRETER = "python3"; // Or just "python" depending on your system
 
 // Structure to hold parsed detection results (assuming Python outputs at least label/ID)
