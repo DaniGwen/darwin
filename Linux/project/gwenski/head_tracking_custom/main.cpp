@@ -340,6 +340,8 @@ int main(void)
             pixel_offset_from_center.X = tracked_object_center_for_head.X - (Camera::WIDTH / 2.0);
             pixel_offset_from_center.Y = tracked_object_center_for_head.Y - (Camera::HEIGHT / 2.0);
 
+            // --- Invert X-axis error to correct tracking direction ---
+            pixel_offset_from_center.X *= -1;
             // Invert Y-axis (if needed, depends on your framework's coordinate system)
             // pixel_offset_from_center.Y *= -1;
 
