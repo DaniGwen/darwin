@@ -59,7 +59,7 @@ std::string save_frame_to_temp_file(Image *frame)
         return "";
     }
 
-    char temp_filename[] = "/tmp/frame_XXXXXX.ppm"; // Use a unique temp file name
+    char temp_filename[] = "/tmp/XXXXXX"; // Use a unique temp file name
     int fd = mkstemp(temp_filename);  // Creates and opens file uniquely, prevents race conditions
     if (fd < 0)
     {
