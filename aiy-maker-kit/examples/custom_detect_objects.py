@@ -40,7 +40,7 @@ import models
 # Use the model path from models.py
 MODEL_PATH = models.OBJECT_DETECTION_MODEL
 # Labels path is often MODEL_PATH with .tflite replaced by .txt
-LABELS_PATH = MODEL_PATH.replace('.tflite', '.txt')
+LABELS_PATH = '/home/darwin/darwin/aiy-maker-kit/examples/models/coco_labels.txt'
 DETECTION_THRESHOLD = 0.4 # Use the threshold you were using
 # MAX_DETECTIONS = 10 # The model outputs a fixed number, we'll filter by threshold
 
