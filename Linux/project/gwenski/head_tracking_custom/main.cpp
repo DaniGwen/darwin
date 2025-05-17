@@ -333,10 +333,21 @@ int main(void)
         {
             NoTargetCount = 0; // Reset the counter since a target was found
             Point2D P_err;
-            // Normalize pixel coordinates to -1.0 to 1.0 range (approx)
-            P_err.X = (tracked_object_center_for_head.X - (Camera::WIDTH / 2.0)) / (Camera::WIDTH / 2.0);
-            P_err.Y = (tracked_object_center_for_head.Y - (Camera::HEIGHT / 2.0)) / (Camera::HEIGHT / 2.0);
 
+            // --- Modified: Calculate angular error similar to original BallTracker ---
+            // Calculate pixel offset from center
+            Point2D pixel_offset_from_center;
+            pixel_offset_from_center.X = tracked_object_center_for_head.X - (Camera::WIDTH / 2.0);
+            pixel_offset_from_center.Y = tracked_object_center_for_head.Y - (Camera::HEIGHT / 2.0);
+
+            // Invert Y-axis (if needed, depends on your framework's coordinate system)
+            // pixel_offset_from_center.Y *= -1;
+
+            // Scale pixel offset to angles (degrees)
+            P_err.X = pixel_offset_from_center.X * (Camera::VIEW_H_ANGLE / (double)Camera::WIDTH);
+            P_err.Y = pixel_offset_from_center.Y * (Camera::VIEW_V_ANGLE / (double)Camera::HEIGHT);
+
+            // Pass angular error to MoveTracking
             Head::GetInstance()->MoveTracking(P_err); // Actively track the person
         }
         else // No person found in the current frame
