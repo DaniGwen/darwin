@@ -33,7 +33,7 @@
 const char *SOCKET_PATH = "/tmp/darwin_detector.sock";
 
 #define INI_FILE_PATH "config.ini"
-#define U2D_DEV_NAME "/dev/ttyUSB0"
+#define U2D_DEV_NAME "/dev/ttyUSB0" // Verify this path is correct!
 
 void change_current_dir()
 {
@@ -51,7 +51,7 @@ struct ParsedDetection
 };
 
 // Function to parse the detection string received from Python
-// Expected format: "label score xmin ymin xmax ymax\nlabel score xmin ymin xmax ymax\n..."
+// Expected format: "label score xmin ymin xmax y码\nlabel score xmin ymin xmax ymax\n..."
 std::vector<ParsedDetection> parse_detection_output(const std::string &output)
 {
     std::vector<ParsedDetection> detections;
@@ -248,25 +248,43 @@ bool initialize_motion_framework(minIni *ini)
     MotionManager::GetInstance()->SetEnable(true); // Enable the motion manager
 
     // Explicitly enable head joints and set gains
-    std::cout << "INFO: Enabling head joints and setting gains..." << std::endl;
-    Head::GetInstance()->m_Joint.SetEnableHeadOnly(true, true);        // Enable torque for head pan and tilt
-    Head::GetInstance()->m_Joint.SetPGain(JointData::ID_HEAD_PAN, 8);  // Set P-gain for pan
-    Head::GetInstance()->m_Joint.SetPGain(JointData::ID_HEAD_TILT, 8); // Set P-gain for tilt
+    std::cout << "INFO: Attempting to enable head joints and setting gains..." << std::endl;
 
-    // Optional: Add a small delay to allow settings to take effect
-    usleep(100000); // 100ms delay
+    int pan_torque_status = 0, pan_error = 0;
+    int tilt_torque_status = 0, tilt_error = 0;
+    int retry_count = 0;
+    const int max_retries = 10;        // Increased retries
+    const int retry_delay_us = 300000; // Increased delay to 300ms
 
-    // Optional: Read back motor status to confirm torque is enabled
-    int pan_torque_status = 0, pan_error = 0;   // Declare variables for ReadByte output
-    int tilt_torque_status = 0, tilt_error = 0; // Declare variables for ReadByte output
+    // Loop to enable torque and verify
+    while ((pan_torque_status != 1 || tilt_torque_status != 1) && retry_count < max_retries)
+    {
+        Head::GetInstance()->m_Joint.SetEnableHeadOnly(true, true);        // Enable torque for head pan and tilt
+        Head::GetInstance()->m_Joint.SetPGain(JointData::ID_HEAD_PAN, 8);  // Set P-gain for pan
+        Head::GetInstance()->m_Joint.SetPGain(JointData::ID_HEAD_TILT, 8); // Set P-gain for tilt
 
-    // Corrected calls to ReadByte with 4 arguments
-    cm730.ReadByte(JointData::ID_HEAD_PAN, MX28::P_TORQUE_ENABLE, &pan_torque_status, &pan_error);
-    cm730.ReadByte(JointData::ID_HEAD_TILT, MX28::P_TORQUE_ENABLE, &tilt_torque_status, &tilt_error);
+        // Add a delay to allow settings to take effect
+        usleep(retry_delay_us);
 
-    std::cout << "INFO: Head Pan Torque Enable Status: " << pan_torque_status << " (Error: " << pan_error << ")" << std::endl;
-    std::cout << "INFO: Head Tilt Torque Enable Status: " << tilt_torque_status << " (Error: " << tilt_error << ")" << std::endl;
-    // If these are not 1, torque is not enabled. Error should be 0 on success.
+        // Read back motor status to confirm torque is enabled
+        cm730.ReadByte(JointData::ID_HEAD_PAN, MX28::P_TORQUE_ENABLE, &pan_torque_status, &pan_error);
+        cm730.ReadByte(JointData::ID_HEAD_TILT, MX28::P_TORQUE_ENABLE, &tilt_torque_status, &tilt_error);
+
+        std::cout << "INFO: Torque Enable Retry " << (retry_count + 1) << ": Pan Status: " << pan_torque_status << " (Error: " << pan_error << "), Tilt Status: " << tilt_torque_status << " (Error: " << tilt_error << ")" << std::endl;
+
+        retry_count++;
+    }
+
+    if (pan_torque_status != 1 || tilt_torque_status != 1)
+    {
+        std::cerr << "ERROR: Failed to enable head motor torque after multiple retries." << std::endl;
+        // Depending on desired behavior, you might return false here to stop the program
+        // return false;
+    }
+    else
+    {
+        std::cout << "INFO: Head motor torque successfully enabled." << std::endl;
+    }
 
     std::cout << "INFO: Motion framework initialized." << std::endl;
     return true;
@@ -379,10 +397,30 @@ int run_main_loop(int client_sock, mjpg_streamer *streamer)
         return -1;
     }
 
+    // Assuming CM730 object is accessible via MotionManager or a global instance
+    // If not, you might need to pass it to this function.
+    // For now, let's assume MotionManager::GetInstance()->m_cm730 is accessible or similar.
+    // Note: Accessing m_cm730 directly might break encapsulation depending on the framework.
+    // A safer approach would be to add a method to MotionManager to read motor status.
+    LinuxCM730 *linux_cm730_instance = dynamic_cast<LinuxCM730 *>(MotionManager::GetInstance()->GetCM730());
+    CM730 *cm730_instance = nullptr;
+    if (linux_cm730_instance)
+    {
+        cm730_instance = linux_cm730_instance; // Assuming LinuxCM730 inherits from CM730
+    }
+    else
+    {
+        std::cerr << "WARNING: Could not get CM730 instance for motor status checks in main loop." << std::endl;
+    }
+
     // Tracking State Variables
     int NoTargetCount = 0;
     const int NoTargetMaxCount = 30; // Number of frames to wait before initiating scan (tune this)
     // Point2D last_tracked_position; // Optional: store last known position if you want to hold
+
+    // Variables for periodic motor status check
+    int frame_counter = 0;
+    const int status_check_interval = 30; // Check status every 30 frames
 
     std::cout << "INFO: Starting main loop..." << std::endl;
     while (1)
@@ -474,8 +512,43 @@ int run_main_loop(int client_sock, mjpg_streamer *streamer)
             {
                 // No target for too long, initiate scan or return to initial position
                 Head::GetInstance()->InitTracking(); // Return to initial tracking position/scan
-                                                     // NoTargetCount remains at or above NoTargetMaxCount
+                // NoTargetCount remains at or above NoTargetMaxCount
             }
+        }
+
+        // --- Periodic Motor Status Check ---
+        frame_counter++;
+        if (frame_counter >= status_check_interval && cm730_instance)
+        {
+            int pan_torque_status = 0, pan_error = 0;
+            int tilt_torque_status = 0, tilt_error = 0;
+            int pan_moving = 0, tilt_moving = 0;
+            int pan_present_load = 0, tilt_present_load = 0;
+            int pan_present_temp = 0, tilt_present_temp = 0;
+
+            cm730_instance->ReadByte(JointData::ID_HEAD_PAN, MX28::P_TORQUE_ENABLE, &pan_torque_status, &pan_error);
+            cm730_instance->ReadByte(JointData::ID_HEAD_TILT, MX28::P_TORQUE_ENABLE, &tilt_torque_status, &tilt_error);
+            cm730_instance->ReadByte(JointData::ID_HEAD_PAN, MX28::P_MOVING, &pan_moving, &pan_error); // Check if motor is moving
+            cm730_instance->ReadByte(JointData::ID_HEAD_TILT, MX28::P_MOVING, &tilt_moving, &tilt_error);
+            cm730_instance->ReadWord(JointData::ID_HEAD_PAN, MX28::P_PRESENT_LOAD_L, &pan_present_load, &pan_error); // Check load
+            cm730_instance->ReadWord(JointData::ID_HEAD_TILT, MX28::P_PRESENT_LOAD_L, &tilt_present_load, &tilt_error);
+            cm730_instance->ReadByte(JointData::ID_HEAD_PAN, MX28::P_PRESENT_TEMPERATURE, &pan_present_temp, &pan_error); // Check temperature
+            cm730_instance->ReadByte(JointData::ID_HEAD_TILT, MX28::P_PRESENT_TEMPERATURE, &tilt_present_temp, &tilt_error);
+            // You could also read the Error Status register (MX28::P_REGISTERED_INSTRUCTION or similar)
+
+            std::cout << "DEBUG: Motor Status - Pan: Torque=" << pan_torque_status << " Moving=" << pan_moving << " Load=" << pan_present_load << " Temp=" << pan_present_temp << " Error=" << pan_error << std::endl;
+            std::cout << "DEBUG: Motor Status - Tilt: Torque=" << tilt_torque_status << " Moving=" << tilt_moving << " Load=" << tilt_present_load << " Temp=" << tilt_present_temp << " Error=" << tilt_error << std::endl;
+
+            // If torque is off, try re-enabling it
+            if (pan_torque_status != 1 || tilt_torque_status != 1)
+            {
+                std::cerr << "WARNING: Head motor torque lost. Attempting to re-enable." << std::endl;
+                Head::GetInstance()->m_Joint.SetEnableHeadOnly(true, true);
+                // Add a small delay after re-enabling
+                usleep(100000); // 100ms
+            }
+
+            frame_counter = 0; // Reset counter
         }
 
         streamer->send_image(rgb_display_frame);
