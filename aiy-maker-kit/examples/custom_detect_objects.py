@@ -17,16 +17,6 @@ Performs object detection on a single image file using tflite_runtime and pycora
 and outputs detection results to standard output.
 Bypasses aiymakerkit.vision for image loading/processing.
 """
-# --- Temporary Debugging Lines ---
-import sys
-import PIL
-try:
-    print(f"DEBUG: Python Executable: {sys.executable}", file=sys.stderr)
-    print(f"DEBUG: Pillow Version: {PIL.__version__}", file=sys.stderr)
-    print(f"DEBUG: Pillow Location: {PIL.__file__}", file=sys.stderr)
-except Exception as e:
-    print(f"DEBUG: Error getting PIL info: {e}", file=sys.stderr)
-# --- End Temporary Debugging Lines ---
 
 import sys
 import os
