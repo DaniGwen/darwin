@@ -1,0 +1,5 @@
+sudo nano /boot/config.txt
+
+arm_freq=2000    # Set CPU frequency to 2000MHz (2.0GHz). Can try higher like 2100, 2150, etc.
+over_voltage=6    # Set voltage level. 6 is commonly used for 2GHz+ and generally considered safe for warranty.
+gpu_freq=750      # Set GPU frequency to 750MHz.
