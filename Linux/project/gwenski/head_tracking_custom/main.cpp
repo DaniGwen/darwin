@@ -16,6 +16,7 @@
 #include <fstream>
 #include <algorithm>
 #include <cstdio>
+#include <sstream>
 
 // Headers for Unix Domain Sockets
 #include <sys/socket.h>
