@@ -3,391 +3,337 @@
  *
  * Created on: 2011. 1. 4.
  * Author: robotis
- * Modified for Edge TPU Object Detection using Coral Task Library
+ * Modified for Object Detection via external Python script
  */
 
 #include <stdio.h>
 #include <unistd.h>
 #include <string.h>
 #include <libgen.h>
-#include <vector>     // For storing detection results
-#include <memory>     // For std::unique_ptr
-#include <iostream>   // For std::cerr, std::cout
-#include <fstream>    // For std::ifstream (reading labels, although Task Library can often do this)
-#include <algorithm>  // For std::max, std::min
+#include <vector>     // For storing detection results (parsed from Python)
+#include <string>     // For handling labels and filenames
+#include <iostream>   // For std::cerr, std::cout
+#include <fstream>    // For file operations (saving image)
+#include <algorithm>  // For std::max, std::min
+#include <cstdio>     // For popen, pclose, fgets, mkstemp, unlink
+#include <sstream>  // For parsing string output from Python
 
 #include "Camera.h"
 #include "mjpg_streamer.h"
 #include "LinuxDARwIn.h" // Assuming this provides basic robot control structures
 
-// Coral C++ Task Library headers
-#include "coral/detection/object_detector.h" // For the ObjectDetector class
-#include "coral/tflite_utils.h"              // Potentially useful utilities
-#include "coral/error_reporter.h"            // For handling errors
+// --- Configuration ---
+#define INI_FILE_PATH       "config.ini"
+#define U2D_DEV_NAME        "/dev/ttyUSB0"
 
-// --- Edge TPU Configuration ---
-// These should ideally be configurable (e.g., from INI_FILE_PATH or command line)
-const char *MODEL_PATH = "../../../../Data/models/ssd_mobilenet_v2_coco_quant_postprocess_edgetpu.tflite"; // IMPORTANT: Path to your Edge TPU model
-// LABELS_PATH is often not needed explicitly if labels.txt is next to the model, but can be used
-// const char* LABELS_PATH = "../../../../Data/models/imagenet_labels.txt";
-const float DETECTION_THRESHOLD = 0.5f;
-                                                                    // Minimum confidence score
-    const int MAX_DETECTIONS = 10;
-                                                                            // Max objects to detect per frame
+const char *PYTHON_SCRIPT_PATH = "../../../../aiy-maker-kit/examples/my_examples/detect_objects.py";
+const char *PYTHON_INTERPRETER = "python3"; // Or just "python" depending on your system
 
-#define INI_FILE_PATH       "config.ini"
-#define U2D_DEV_NAME        "/dev/ttyUSB0"
+// Structure to hold parsed detection results (assuming Python outputs at least label/ID)
+// Add more fields (score, bounding box) if your Python script will output them
+struct ParsedDetection {
+    std::string label;  // Detected class label
+    int class_id = -1;  // Detected class ID (if Python outputs ID or you can map label to ID)
+    float score = 0.0f; // Confidence score (if Python outputs score)
+    // Add bounding box if Python outputs it and you need it for drawing/tracking:
+    // float xmin, ymin, xmax, ymax; // Bounding box (normalized 0.0-1.0)
+};
 
-    void
-    change_current_dir()
+void change_current_dir()
 {
-        char exepath[1024] = {0};
-        if (readlink("/proc/self/exe", exepath, sizeof(exepath)) != -1)
-        chdir(dirname(exepath));
+    char exepath[1024] = {0};
+    if (readlink("/proc/self/exe", exepath, sizeof(exepath)) != -1)
+        chdir(dirname(exepath));
 }
 
-// Basic function to draw bounding boxes on the RGB image
-// NOTE: This is a simplified drawing function. You might need a more robust one.
-// Using coral::Detection struct from the Task Library
-void DrawBoundingBox(Image *image, const coral::Detection &detection, const std::vector<std::string> &labels)
+// TODO: Implement a function to save the current camera frame to a temporary file.
+// This is a critical part. Saving in a standard format like JPG or PNG is recommended.
+// Requires an image library (e.g., integrate stb_image_write.h or use OpenCV if available).
+// This example provides a basic (and inefficient/large) PPM writer.
+// Returns the path to the saved file, or an empty string on failure.
+std::string save_frame_to_temp_file(Image *frame)
 {
-        if (!image || !image->m_ImageData) return;
+    if (!frame || !frame->m_ImageData || frame->m_PixelSize != 3) // Assuming 3 channels (RGB)
+    {
+        std::cerr << "Error: Invalid frame data or not RGB for saving." << std::endl;
+        return "";
+    }
 
-        int img_width = image->m_Width;
-        int img_height = image->m_Height;
+    char temp_filename[] = "/tmp/frame_XXXXXX.ppm"; // Use a unique temp file name
+    int fd = mkstemp(temp_filename);  // Creates and opens file uniquely, prevents race conditions
+    if (fd < 0)
+    {
+        std::cerr << "Error creating temp file: " << strerror(errno) << std::endl;
+        return "";
+    }
+    // Associate a FILE* stream with the file descriptor
+    FILE *temp_file = fdopen(fd, "wb"); // Open in write binary mode
+    if (!temp_file)
+    {
+        std::cerr << "Error opening temp file stream: " << strerror(errno) << std::endl;
+        close(fd); // Close the file descriptor
+        return "";
+    }
 
-        // Bounding box coordinates from coral::Detection are normalized [0.0, 1.0]
-    int xmin = static_cast<int>(detection.bounding_box.xmin * img_width);
-        int ymin = static_cast<int>(detection.bounding_box.ymin * img_height);
-        int xmax = static_cast<int>(detection.bounding_box.xmax * img_width);
-        int ymax = static_cast<int>(detection.bounding_box.ymax * img_height);
+    // Write PPM header (P6 format)
+    fprintf(temp_file, "P6\n%d %d\n255\n", frame->m_Width, frame->m_Height);
 
-        // Clamp coordinates to image boundaries
-    xmin = std::max(0, std::min(xmin, img_width - 1));
-        ymin = std::max(0, std::min(ymin, img_height - 1));
-        xmax = std::max(0, std::min(xmax, img_width - 1));
-        ymax = std::max(0, std::min(ymax, img_height - 1));
+    // Write pixel data
+    size_t data_size = frame->m_NumberOfPixels * frame->m_PixelSize;
+    if (fwrite(frame->m_ImageData, 1, data_size, temp_file) != data_size)
+    {
+        std::cerr << "Error writing data to temp file: " << strerror(errno) << std::endl;
+        fclose(temp_file);
+        // Using unlink to clean up the file immediately in case of write error
+        unlink(temp_filename);
+        return "";
+    }
 
-        // Draw a simple red box (assuming RGB_PIXEL_SIZE = 3)
-    unsigned char r = 255, g = 0, b = 0;
+    fclose(temp_file); // Close the FILE* stream (also closes the fd)
 
-        for (int x = xmin; x <= xmax; ++x)
-    { // Top and bottom lines
-                if (ymin >= 0 && ymin < img_height)
-        {
-                        image->m_ImageData[(ymin * img_width + x) * image->m_PixelSize + 0] = r;
-                        image->m_ImageData[(ymin * img_width + x) * image->m_PixelSize + 1] = g;
-                        image->m_ImageData[(ymin * img_width + x) * image->m_PixelSize + 2] = b;
-                   
-        }
-                if (ymax >= 0 && ymax < img_height)
-        {
-                        image->m_ImageData[(ymax * img_width + x) * image->m_PixelSize + 0] = r;
-                        image->m_ImageData[(ymax * img_width + x) * image->m_PixelSize + 1] = g;
-                        image->m_ImageData[(ymax * img_width + x) * image->m_PixelSize + 2] = b;
-                   
-        }
-           
-    }
-        for (int y = ymin; y <= ymax; ++y)
-    { // Left and right lines
-                if (xmin >= 0 && xmin < img_width)
-        {
-                        image->m_ImageData[(y * img_width + xmin) * image->m_PixelSize + 0] = r;
-                        image->m_ImageData[(y * img_width + xmin) * image->m_PixelSize + 1] = g;
-                        image->m_ImageData[(y * img_width + xmin) * image->m_PixelSize + 2] = b;
-                   
-        }
-                if (xmax >= 0 && xmax < img_width)
-        {
-                        image->m_ImageData[(y * img_width + xmax) * image->m_PixelSize + 0] = r;
-                        image->m_ImageData[(y * img_width + xmax) * image->m_PixelSize + 1] = g;
-                        image->m_ImageData[(y * img_width + xmax) * image->m_PixelSize + 2] = b;
-                   
-        }
-           
-    }
-
-        // Get label from class ID using the provided labels vector
-    std::string label_text = "Unknown";
-        if (detection.class_id >= 0 && detection.class_id < labels.size())
-    {
-                label_text = labels[detection.class_id];
-           
-    }
-    else if (!labels.empty())
-    {
-                // If labels were loaded but ID is out of bounds
-        label_text = "ID_" + std::to_string(detection.class_id);
-           
-    }
-    else
-    {
-                // If no labels file was loaded
-        label_text = "ID_" + std::to_string(detection.class_id);
-           
-    }
-
-        // For simplicity, printing to console:
-    std::cout << "Detected: " << label_text << " (" << detection.score << ") at ["
-              << xmin << "," << ymin << "]-[" << xmax << "," << ymax << "]" << std::endl;
-
-        // Drawing the text label on the image is more complex and requires a font rendering library.
-    // This example only draws the box.
+    // std::cout << "Saved frame to: " << temp_filename << std::endl; // Debug print
+    return temp_filename;
 }
 
-// --- Helper: Image Preprocessing (Resize) ---
-// The Task Library often handles resizing internally based on model requirements.
-// You primarily need to provide the image data in the correct format (uint8 RGB).
-// If your camera provides a different format or you need specific preprocessing,
-// you'd implement it here or use a library like OpenCV.
-// This placeholder remains, but the *need* for manual resize might be reduced
-// if the Task Library handles it when you pass the original image dimensions.
-void resize_rgb_image(const unsigned char *in_data, int in_w, int in_h,
-                      unsigned char *out_data, int out_w, int out_h)
+// TODO: Implement a function to parse the output from the Python script.
+// This needs to match the EXACT format your MODIFIED Python script prints to stdout.
+// Assumes Python prints the label (and optionally score/ID) on a single line and exits.
+ParsedDetection parse_python_output(FILE *python_output)
 {
-        // Basic nearest-neighbor scaling (example, not recommended for quality)
-    if (!in_data || !out_data) return;
-        for (int y_out = 0; y_out < out_h; ++y_out)
-    {
-                for (int x_out = 0; x_out < out_w; ++x_out)
-        {
-                        int y_in = static_cast<int>((static_cast<float>(y_out) / out_h) * in_h);
-                        int x_in = static_cast<int>((static_cast<float>(x_out) / out_w) * in_w);
+    ParsedDetection detection;
+    char buffer[256]; // Buffer to read output line
 
-                        y_in = std::min(y_in, in_h - 1); // Clamp
-                        x_in = std::min(x_in, in_w - 1); // Clamp
+    // Read one line of output from the pipe
+    if (fgets(buffer, sizeof(buffer), python_output) != NULL)
+    {
+        // Attempt to parse the line.
+        // This basic example assumes Python prints just the label string.
+        // If Python prints more (like "label score"), adjust sscanf or use stringstream.
 
-                        const unsigned char *p_in = &in_data[(y_in * in_w + x_in) * 3]; // Assuming 3 channels (RGB)
-                        unsigned char *p_out = &out_data[(y_out * out_w + x_out) * 3];
-                        p_out[0] = p_in[0];
-                        p_out[1] = p_in[1];
-                        p_out[2] = p_in[2];
-                   
-        }
-           
-    }
+        // Example parsing for just a label string:
+        std::string output_line = buffer;
+        // Trim potential trailing newline or whitespace from the label
+        size_t last = output_line.find_last_not_of(" \t\n\r\f\v");
+        if (std::string::npos != last) {
+            output_line = output_line.substr(0, last + 1);
+        } else {
+            output_line.clear(); // Handle case with only whitespace
+        }
+
+        detection.label = output_line;
+
+        // If Python prints "label score":
+        // std::stringstream ss(buffer);
+        // if (ss >> detection.label >> detection.score) {
+        //   // Successfully parsed label and score
+        // } else {
+        //   std::cerr << "Warning: Could not parse label and score from Python output: " << buffer << std::endl;
+        //   detection.label = "Parse Error"; // Indicate parsing failure
+        // }
+
+        // If Python prints more, adjust parsing logic here.
+    }
+    else
+    {
+        // Failed to read from pipe (e.g., Python script printed nothing or crashed)
+        std::cerr << "Warning: No output or error reading from Python script pipe." << std::endl;
+        detection.label = "No Detection"; // Indicate no output
+    }
+
+    return detection;
 }
+
+// Drawing function remains, but we'll use the ParsedDetection struct
+// This version assumes we only have label, potentially score, but no bounding box
+// If Python outputs bounding boxes, update ParsedDetection and this function.
+// This simple version just prints the label.
+void DrawDetectionInfo(Image *image, const ParsedDetection &detection)
+{
+    if (!image || !image->m_ImageData) return;
+
+    // For simplicity, we are just printing to console and streaming the original image.
+    // Drawing bounding boxes requires bounding box data from Python output.
+    if (!detection.label.empty()) {
+        std::cout << "Detected: " << detection.label;
+        if (detection.score > 0) { // Check if score was parsed
+            printf(" (%.2f)", detection.score);
+        }
+        std::cout << std::endl;
+    } else {
+        // std::cout << "No object detected." << std::endl; // Avoid excessive printing
+    }
+
+    // If Python script provides bounding boxes, update ParsedDetection and implement drawing here
+    // Based on the previous DrawBoundingBox logic, but using ParsedDetection coordinates.
+}
+
 
 int main(void)
 {
-        printf("\n===== Head tracking with Edge TPU Object Detection for DARwIn =====\n\n");
+    printf("\n===== Head tracking with Object Detection via Python Script for DARwIn =====\n\n");
 
-        change_current_dir();
+    change_current_dir();
 
-        minIni *ini = new minIni(INI_FILE_PATH);
-        // You could load MODEL_PATH, LABELS_PATH, DETECTION_THRESHOLD from ini here
+    minIni *ini = new minIni(INI_FILE_PATH);
 
-    // --- Initialize Coral Object Detector ---
-    // The ObjectDetector constructor handles loading the model,
-    // setting up the TFLite interpreter, applying the Edge TPU delegate,
-    // and allocating tensors.
-    std::unique_ptr<coral::ObjectDetector> object_detector;
-        std::unique_ptr<coral::ErrorReporter> error_reporter =
-        std::make_unique<coral::StderrReporter>(); // Use stderr for errors
+    // Initialize and configure the camera
+    Image *rgb_display_frame = new Image(Camera::WIDTH, Camera::HEIGHT, Image::RGB_PIXEL_SIZE);
+    LinuxCamera::GetInstance()->Initialize(0);
+    LinuxCamera::GetInstance()->LoadINISettings(ini);
+    // Ensure camera is providing RGB data.
 
-        // Create options for the detector
-    coral::DetectionOptions options;
-        options.threshold = DETECTION_THRESHOLD; // Set the confidence threshold
-        options.top_k = MAX_DETECTIONS;
-            // Set the maximum number of detections
-    // You can also specify a device path here if needed, e.g., options.device = ":0";
+    // Initialize the MJPG streamer
+    mjpg_streamer *streamer = new mjpg_streamer(Camera::WIDTH, Camera::HEIGHT);
 
-    object_detector = coral::ObjectDetector::Create(MODEL_PATH, options, error_reporter.get());
+    // --- Robot Framework Initialization ---
+    LinuxCM730 linux_cm730(U2D_DEV_NAME);
+    CM730 cm730(&linux_cm730);
+    if (MotionManager::GetInstance()->Initialize(&cm730) == false)
+    {
+        printf("Fail to initialize Motion Manager!\n");
+        return 0;
+    }
+    MotionManager::GetInstance()->LoadINISettings(ini);
+    MotionManager::GetInstance()->AddModule((MotionModule *)Head::GetInstance());
+    LinuxMotionTimer *motion_timer = new LinuxMotionTimer(MotionManager::GetInstance());
+    motion_timer->Start();
 
-        if (!object_detector)
-    {
-                std::cerr << "ERROR: Failed to create Coral ObjectDetector. Check model path and Edge TPU connection." << std::endl;
-                // Detailed error might be in error_reporter
-        return -1;
-           
-    }
-        std::cout << "INFO: Coral ObjectDetector initialized successfully." << std::endl;
+    MotionStatus::m_CurrentJoints.SetEnableBodyWithoutHead(false);
+    MotionManager::GetInstance()->SetEnable(true);
 
-        // The Task Library can often load labels automatically if a file named
-    // the same as the model (but with .txt extension) is in the same directory.
-    // If not, you can load them manually or pass a labels file path to options
-    // if the API supports it (check Coral docs).
-    // For drawing, we'll get labels from the detector if available.
-    const std::vector<std::string> &labels = object_detector->GetLabels();
-        if (labels.empty())
-    {
-                std::cerr << "WARNING: Labels could not be loaded by the ObjectDetector. Detections will only have IDs." << std::endl;
-           
-    }
+    Head::GetInstance()->m_Joint.SetEnableHeadOnly(true, true);
+    Head::GetInstance()->m_Joint.SetPGain(JointData::ID_HEAD_PAN, 8);
+    Head::GetInstance()->m_Joint.SetPGain(JointData::ID_HEAD_TILT, 8);
 
-        // Get model input tensor details from the detector (useful for preprocessing)
-    // The Task Library might handle resizing internally, but knowing the expected
-    // input size is good if you need custom preprocessing before passing data.
-    const auto &input_tensor_shape = object_detector->GetInputTensorShape(); // Assuming typical HWC format
-        const int model_input_height = input_tensor_shape[1];
-        const int model_input_width = input_tensor_shape[2];
-        const int model_input_channels = input_tensor_shape[3];
-        std::cout << "INFO: Model expects input HxWxC: " << model_input_height << "x" << model_input_width << "x" << model_input_channels << std::endl;
+    // --- Robot Framework Initial Pose/State (Optional) ---
+    // MotionManager::GetInstance()->PlayAction(MotionManager::GetInstance()->GetActionIndex("WalkingReady")); // Example
+    // usleep(1000000); // Wait for action to complete
 
-        // Image buffer for the output frame with detections drawn on it
-    Image *rgb_display_frame = new Image(Camera::WIDTH, Camera::HEIGHT, Image::RGB_PIXEL_SIZE);
 
-        LinuxCamera::GetInstance()->Initialize(0);
-        LinuxCamera::GetInstance()->LoadINISettings(ini);
-        // Ensure camera is providing RGB data. If it's BGR or YUV, you'll need conversion.
+    std::cout << "INFO: Starting main loop..." << std::endl;
+    while (1)
+    {
+        // 1. Capture Frame from Camera
+        LinuxCamera::GetInstance()->CaptureFrame();
+        Image *current_cam_rgb_frame = LinuxCamera::GetInstance()->fbuffer->m_RGBFrame;
 
-    mjpg_streamer *streamer = new mjpg_streamer(Camera::WIDTH, Camera::HEIGHT);
+        if (!current_cam_rgb_frame || !current_cam_rgb_frame->m_ImageData)
+        {
+            usleep(10000); // Wait if frame not ready
+            continue;
+        }
 
-        // --- Remove or Adapt Old Ball Finder/Tracker ---
-    // ColorFinder* ball_finder = new ColorFinder(); // Original
-    // ball_finder->LoadINISettings(ini);            // Original
-    // httpd::ball_finder = ball_finder;             // Original (if mjpg_streamer used this for overlays)
-    // BallTracker tracker = BallTracker();          // Original
-    Point2D tracked_object_center_for_head; // This will hold the target for head tracking
+        // 2. Save the Frame to a Temporary File
+        std::string temp_image_path = save_frame_to_temp_file(current_cam_rgb_frame);
+        if (temp_image_path.empty())
+        {
+            std::cerr << "Error saving frame to temp file. Skipping detection for this frame." << std::endl;
+            // Decide if you want to continue the loop or break
+            continue;
+        }
 
-        //////////////////// Framework Initialize ////////////////////////////
-    LinuxCM730 linux_cm730(U2D_DEV_NAME);
-        CM730 cm730(&linux_cm730);
-        if (MotionManager::GetInstance()->Initialize(&cm730) == false)
-   
-    {
-        printf("Fail to initialize Motion Manager!\n");
-        return 0;
-    }
-        MotionManager::GetInstance()->LoadINISettings(ini);
-        MotionManager::GetInstance()->AddModule((MotionModule *)Head::GetInstance());
-        LinuxMotionTimer *motion_timer = new LinuxMotionTimer(MotionManager::GetInstance());
-        motion_timer->Start();
+        // 3. Construct the Command to Call the Python Script
+        // Example command: "python3 /path/to/script.py /tmp/frame_XXXXXX.ppm"
+        // Use snprintf or stringstream for more robust command construction if paths have spaces/special chars.
+        std::string command = std::string(PYTHON_INTERPRETER) + " " +
+                              std::string(PYTHON_SCRIPT_PATH) + " " +
+                              temp_image_path;
 
-        MotionStatus::m_CurrentJoints.SetEnableBodyWithoutHead(false);
-        MotionManager::GetInstance()->SetEnable(true);
-        /////////////////////////////////////////////////////////////////////
+        // 4. Execute the Python Script and Open a Pipe to Read its Output
+        FILE *python_output_pipe = popen(command.c_str(), "r"); // "r" means read standard output
+        if (!python_output_pipe)
+        {
+            std::cerr << "Error running Python script via popen: " << command << std::endl;
+            // Clean up the temporary file even if popen fails
+            unlink(temp_image_path.c_str());
+            continue; // Skip this frame
+        }
 
-    Head::GetInstance()->m_Joint.SetEnableHeadOnly(true, true);
-        Head::GetInstance()->m_Joint.SetPGain(JointData::ID_HEAD_PAN, 8);
-        Head::GetInstance()->m_Joint.SetPGain(JointData::ID_HEAD_TILT, 8);
+        // 5. Read and Parse Output from the Python Script
+        // This function reads the script's stdout and extracts the detection info.
+        // Assuming the script prints its result(s) and then exits.
+        // If the script can detect multiple objects per frame, your parse function
+        // needs to read multiple lines/parse a structure. For this simple example,
+        // we'll assume it prints one primary result or we only care about the first.
+        ParsedDetection latest_detection = parse_python_output(python_output_pipe);
 
-        std::cout << "INFO: Starting main loop..." << std::endl;
-        while (1)
-   
-    {
-                LinuxCamera::GetInstance()->CaptureFrame();
-                Image *current_cam_rgb_frame = LinuxCamera::GetInstance()->fbuffer->m_RGBFrame;
+        // 6. Close the Pipe and Wait for the Python Script to Finish
+        // It's important to close the pipe and wait for the child process to exit.
+        int pclose_status = pclose(python_output_pipe);
+        if (pclose_status != 0)
+        {
+            std::cerr << "Warning: Python script exited with non-zero status " << pclose_status << std::endl;
+            // Handle potential errors in the Python script execution
+        }
 
-                if (!current_cam_rgb_frame || !current_cam_rgb_frame->m_ImageData)
-        {
-                        usleep(10000); // Wait if frame not ready
-                        continue;
-                   
-        }
+        // 7. Clean up the Temporary Image File
+        unlink(temp_image_path.c_str()); // Delete the temp file
 
-                // --- Preprocessing for Edge TPU (if needed) ---
-        // The Task Library expects uint8_t RGB data.
-        // If your camera provides a different format or you need custom steps,
-        // perform them here.
-        unsigned char *input_image_ptr = current_cam_rgb_frame->m_ImageData;
-                int input_width = current_cam_rgb_frame->m_Width;
-        int input_height = current_cam_rgb_frame->m_Height;
-                // The Task Library handles internal resizing if the input dimensions
-        // don't match the model's expected input size.
 
-        // --- Run Inference using ObjectDetector ---
-        // Pass the image data and its dimensions.
-        std::vector<coral::Detection> detections =
-            object_detector->Detect(input_image_ptr, input_width, input_height);
+        // Copy original camera frame to the display frame for drawing (optional, based on your drawing needs)
+        memcpy(rgb_display_frame->m_ImageData, current_cam_rgb_frame->m_ImageData,
+               current_cam_rgb_frame->m_NumberOfPixels * current_cam_rgb_frame->m_PixelSize);
 
-                // --- Post-processing: Get Detection Results (already parsed by ObjectDetector) ---
-        // `detections` vector now contains parsed results (bounding box, score, class ID).
 
-        // Copy original camera frame to the display frame for drawing
-        memcpy(rgb_display_frame->m_ImageData, current_cam_rgb_frame->m_ImageData,
-               current_cam_rgb_frame->m_NumberOfPixels * current_cam_rgb_frame->m_PixelSize);
+        // --- Use the Detection Result for Robot Control ---
+        bool target_found = false;
+        Point2D tracked_object_center_for_head; // Center of the target for head tracking
 
-                // --- Draw Detections & Find Target for Head ---
-        bool target_found = false;
-                float largest_area = 0.0f; // To track the largest "person", for example
-                int target_class_id = -1;  // Example: ID for "person" - find this from your labels
+        // Example: Check if a "person" was detected
+        if (!latest_detection.label.empty() && latest_detection.label == "person")
+        {
+            target_found = true;
+            // TODO: If Python outputs bounding box, calculate center here.
+            // If Python doesn't output position, you might need a simpler tracking
+            // strategy based solely on the presence/absence of the object,
+            // or have Python output a simple "center_x, center_y" or just the label.
+            // For now, let's assume Python outputs normalized bounding box and we calculate center:
+            // tracked_object_center_for_head.X = (latest_detection.xmin + latest_detection.xmax) / 2.0 * Camera::WIDTH;
+            // tracked_object_center_for_head.Y = (latest_detection.ymin + latest_detection.ymax) / 2.0 * Camera::HEIGHT;
 
-                // If labels were loaded by the detector, find the ID for "person"
-        if (!labels.empty())
-        {
-                        for (size_t i = 0; i < labels.size(); ++i)
-            {
-                                if (labels[i] == "person")
-                { // Match your label string here
-                                        target_class_id = i;
-                                        break;
-                                   
-                }
-                           
-            }
-                   
-        }
-        else
-        {
-                        // Fallback if labels not loaded, assuming 'person' is class 0 (common in COCO)
-            target_class_id = 0; // **WARNING: This is a guess. Verify your model's class IDs.**
-                   
-        }
+            // If no bounding box is available from Python, you cannot do precise tracking.
+            // You could implement a simple "look around until person is detected" logic.
+            // For demonstration, let's assume Python outputs bounding box and we use it.
+            // *** If your Python script *only* outputs the label, you need to remove the bounding box logic here and in ParsedDetection struct. ***
+        }
 
-                for (const auto &det : detections)
-        {
-                        // The ObjectDetector already filtered by DETECTION_THRESHOLD and MAX_DETECTIONS
 
-            DrawBoundingBox(rgb_display_frame, det, labels); // Draw on the *original resolution* display frame
+        // --- Draw Detection Info (Optional, depends on data from Python) ---
+        // This function now just prints info or draws if bounding box is available.
+        DrawDetectionInfo(rgb_display_frame, latest_detection);
 
-                        // Example: Track the largest "person" object based on class ID
-            if (det.class_id == target_class_id)
-            {
-                                float area = (det.bounding_box.xmax - det.bounding_box.xmin) * (det.bounding_box.ymax - det.bounding_box.ymin); // Area in normalized coordinates
-                                if (area > largest_area)
-                {
-                                        largest_area = area;
-                                        // Calculate center of the bounding box in original image pixel coordinates
-                    tracked_object_center_for_head.X = (det.bounding_box.xmin + det.bounding_box.xmax) / 2.0 * Camera::WIDTH;
-                                        tracked_object_center_for_head.Y = (det.bounding_box.ymin + det.bounding_box.ymax) / 2.0 * Camera::HEIGHT;
-                                        target_found = true;
-                      
-                }
-                           
-            }
-                   
-        }
 
-                // --- Head Tracking ---
-        // Use `tracked_object_center_for_head`
-        if (target_found)
-        {
-                        // Convert pixel coordinates to the error signal expected by MoveTracking.
-            // (0,0) in P_err usually means "object is centered".
-            // X range could be -1 (far left) to 1 (far right).
-            // Y range could be -1 (far top) to 1 (far bottom) - Y direction might be inverted.
+        // --- Head Tracking ---
+        if (target_found)
+        {
+            // This part requires the target center (tracked_object_center_for_head)
+            // which depends on the Python script providing bounding box data.
+            // If Python only outputs label, you cannot use this precise tracking.
+            // Assuming bounding box is available from Python output:
+            Point2D P_err;
+            P_err.X = (tracked_object_center_for_head.X - (Camera::WIDTH / 2.0)) / (Camera::WIDTH / 2.0);
+            P_err.Y = (tracked_object_center_for_head.Y - (Camera::HEIGHT / 2.0)) / (Camera::HEIGHT / 2.0);
+            Head::GetInstance()->MoveTracking(P_err);
+        }
+        else
+        {
+            // No target found, perhaps implement a search behavior or look forward
+            // Head::GetInstance()->MoveTracking(Point2D(0.0, 0.0)); // Example: Stop active tracking
+        }
 
-            Point2D P_err;
-                        // Normalize to -1.0 to 1.0 range (approx)
-            P_err.X = (tracked_object_center_for_head.X - (Camera::WIDTH / 2.0)) / (Camera::WIDTH / 2.0);
-                        P_err.Y = (tracked_object_center_for_head.Y - (Camera::HEIGHT / 2.0)) / (Camera::HEIGHT / 2.0);
-                        // You might need to scale P_err.X and P_err.Y by some factor,
-            // or your Head::MoveTracking might handle this internally with its P-gains.
-            // The original BallTracker might have had more sophisticated logic (smoothing, PID).
+        streamer->send_image(rgb_display_frame);
 
-            Head::GetInstance()->MoveTracking(P_err);
-                   
-        }
-        else
-        {
-                        // No target found, perhaps make the head look forward or scan
-            // Head::GetInstance()->MoveTracking(Point2D(0.0, 0.0)); // Stop active tracking
-       
-        }
+        // The duration of each loop iteration is now dominated by
+        // Camera capture time + Image saving time + Python script execution time + Output parsing time.
+        // Remove usleep unless needed to lower the frame rate explicitly.
+        // usleep(10000);
+    }
 
-                streamer->send_image(rgb_display_frame);
+    // --- Cleanup ---
+    delete rgb_display_frame;
+    delete ini;
+    delete streamer;
+    // MotionManager cleanup if needed
 
-                // usleep(10000); // Optional delay
-   
-    }
-
-        // Cleanup
-    delete rgb_display_frame;
-        delete ini;
-        delete streamer;
-        // `object_detector` and `error_reporter` are unique_ptrs, will be auto-deleted.
-
-    return 0;
+    return 0;
 }
