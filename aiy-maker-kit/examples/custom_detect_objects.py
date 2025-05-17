@@ -41,6 +41,8 @@ class SimulatedFrame:
         # Add width and height attributes as they might be accessed
         self.width = numpy_array.shape[1]
         self.height = numpy_array.shape[0]
+        # *** Add the .shape attribute required by the error ***
+        self.shape = numpy_array.shape
 
 # --- Main execution block ---
 if __name__ == "__main__":
