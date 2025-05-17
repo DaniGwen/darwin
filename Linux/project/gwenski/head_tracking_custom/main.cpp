@@ -4,6 +4,7 @@
  * Created on: 2011. 1. 4.
  * Author: robotis
  * Modified for Edge TPU Object Detection via Unix Domain Socket
+ * Refactored for modularity
  */
 
 #include <stdio.h>
@@ -30,8 +31,6 @@
 // --- Socket Configuration ---
 // Define the path for the Unix Domain Socket
 const char *SOCKET_PATH = "/tmp/darwin_detector.sock";
-// Buffer size for receiving data from Python (adjust as needed)
-const int RECV_BUFFER_SIZE = 4096; // Note: This buffer size is less critical now that we read size first
 
 #define INI_FILE_PATH       "config.ini"
 #define U2D_DEV_NAME        "/dev/ttyUSB0"
@@ -128,16 +127,12 @@ void DrawBoundingBox(Image *image, const ParsedDetection &detection)
     // Drawing text label is more complex and omitted here.
 }
 
+// --- Modular Functions ---
 
-int main(void)
+// Initializes the Unix Domain Socket server and waits for connection
+// Returns client_sock file descriptor on success, -1 on failure
+int initialize_socket_server()
 {
-    printf("\n===== Head tracking with Object Detection via Unix Domain Socket =====\n\n");
-
-    change_current_dir();
-
-    minIni *ini = new minIni(INI_FILE_PATH);
-
-    // --- Setup Unix Domain Socket Server ---
     int server_sock, client_sock;
     struct sockaddr_un server_addr;
 
@@ -187,28 +182,31 @@ int main(void)
     // Close the listening socket, we only expect one client (the detector script)
     close(server_sock);
 
+    return client_sock;
+}
 
-    // Image buffer for the output frame with detections drawn on it
-    Image *rgb_display_frame = new Image(Camera::WIDTH, Camera::HEIGHT, Image::RGB_PIXEL_SIZE);
-
+// Initializes the Camera
+// Returns true on success, false on failure
+bool initialize_camera(minIni* ini)
+{
+    if (!ini) return false;
     LinuxCamera::GetInstance()->Initialize(0);
     LinuxCamera::GetInstance()->LoadINISettings(ini);
     // Ensure camera is providing RGB data (Image::RGB_PIXEL_SIZE = 3)
+    return true; // Assuming Initialize and LoadINISettings don't return explicit failure
+}
 
-    mjpg_streamer *streamer = new mjpg_streamer(Camera::WIDTH, Camera::HEIGHT);
-
-    // --- Head Tracking Setup ---
-    // ... (Your existing Head Tracking setup code) ...
-    //////////////////// Framework Initialize ////////////////////////////
+// Initializes the Motion Framework
+// Returns true on success, false on failure
+bool initialize_motion_framework(minIni* ini)
+{
+    if (!ini) return false;
     LinuxCM730 linux_cm730(U2D_DEV_NAME);
     CM730 cm730(&linux_cm730);
     if (MotionManager::GetInstance()->Initialize(&cm730) == false)
     {
         printf("Fail to initialize Motion Manager!\n");
-        // Cleanup socket before exiting
-        close(client_sock);
-        unlink(SOCKET_PATH);
-        return 0;
+        return false;
     }
     MotionManager::GetInstance()->LoadINISettings(ini);
     MotionManager::GetInstance()->AddModule((MotionModule *)Head::GetInstance());
@@ -217,16 +215,98 @@ int main(void)
 
     MotionStatus::m_CurrentJoints.SetEnableBodyWithoutHead(false);
     MotionManager::GetInstance()->SetEnable(true);
-    /////////////////////////////////////////////////////////////////////
 
     Head::GetInstance()->m_Joint.SetEnableHeadOnly(true, true);
     Head::GetInstance()->m_Joint.SetPGain(JointData::ID_HEAD_PAN, 8);
     Head::GetInstance()->m_Joint.SetPGain(JointData::ID_HEAD_TILT, 8);
 
-    // --- Tracking State Variables ---
+    return true;
+}
+
+// Handles sending frame data over the socket
+// Returns true on success, false on failure
+bool send_frame_data(int client_sock, Image* frame)
+{
+    if (!frame || !frame->m_ImageData) return false;
+
+    int frame_width = frame->m_Width;
+    int frame_height = frame->m_Height;
+    size_t frame_data_size = frame_width * frame_height * frame->m_PixelSize;
+
+    // Send width and height first (as 4-byte integers)
+    if (send(client_sock, &frame_width, sizeof(frame_width), 0) < 0 ||
+        send(client_sock, &frame_height, sizeof(frame_height), 0) < 0)
+    {
+        std::cerr << "ERROR: Failed to send frame dimensions: " << strerror(errno) << std::endl;
+        return false;
+    }
+
+    // Send the raw image data
+    if (send(client_sock, frame->m_ImageData, frame_data_size, 0) < 0)
+    {
+        std::cerr << "ERROR: Failed to send frame data: " << strerror(errno) << std::endl;
+        return false;
+    }
+    return true;
+}
+
+// Handles receiving detection results over the socket and parsing them
+// Returns vector of detections on success, empty vector on failure or no detections
+std::vector<ParsedDetection> receive_detection_results(int client_sock)
+{
+    std::string detection_output;
+    uint32_t result_size = 0;
+
+    // Receive the size of the detection string
+    ssize_t bytes_received = recv(client_sock, &result_size, sizeof(result_size), 0);
+    if (bytes_received <= 0)
+    {
+        if (bytes_received == 0)
+        {
+            std::cerr << "ERROR: Python script closed the connection." << std::endl;
+        }
+        else
+        {
+            std::cerr << "ERROR: Failed to receive result size: " << strerror(errno) << std::endl;
+        }
+        return {}; // Return empty vector on error or closed connection
+    }
+
+    // Receive the actual detection string
+    detection_output.resize(result_size, '\0'); // Resize string buffer
+    size_t total_received = 0;
+    while (total_received < result_size)
+    {
+        ssize_t current_recv = recv(client_sock, &detection_output[total_received], result_size - total_received, 0);
+        if (current_recv <= 0)
+        {
+            if (current_recv == 0)
+            {
+                std::cerr << "ERROR: Python script closed connection while receiving data." << std::endl;
+            }
+            else
+            {
+                std::cerr << "ERROR: Failed to receive detection data: " << strerror(errno) << std::endl;
+            }
+            return {}; // Return empty vector on error
+        }
+        total_received += current_recv;
+    }
+
+    // Parse and return detections
+    return parse_detection_output(detection_output);
+}
+
+// Handles the main processing loop (capture, send, receive, track)
+// Returns 0 on successful exit, -1 on error
+int run_main_loop(int client_sock, mjpg_streamer* streamer)
+{
+    // Image buffer for the output frame with detections drawn on it
+    Image *rgb_display_frame = new Image(Camera::WIDTH, Camera::HEIGHT, Image::RGB_PIXEL_SIZE);
+
+    // Tracking State Variables
     int NoTargetCount = 0;
     const int NoTargetMaxCount = 30; // Number of frames to wait before initiating scan (tune this)
-    // Point2D last_tracked_position; // Optional: store last known position if you want to hold
 
     std::cout << "INFO: Starting main loop..." << std::endl;
     while (1)
@@ -241,72 +321,28 @@ int main(void)
         }
 
         // --- Send Frame Data to Python Script ---
-        int frame_width = current_cam_rgb_frame->m_Width;
-        int frame_height = current_cam_rgb_frame->m_Height;
-        size_t frame_data_size = frame_width * frame_height * current_cam_rgb_frame->m_PixelSize;
-
-        // Send width and height first (as 4-byte integers)
-        if (send(client_sock, &frame_width, sizeof(frame_width), 0) < 0 ||
-            send(client_sock, &frame_height, sizeof(frame_height), 0) < 0)
+        if (!send_frame_data(client_sock, current_cam_rgb_frame))
         {
-            std::cerr << "ERROR: Failed to send frame dimensions: " << strerror(errno) << std::endl;
-            break; // Exit loop on send error
+            return -1; // Exit loop on send error
         }
 
-        // Send the raw image data
-        if (send(client_sock, current_cam_rgb_frame->m_ImageData, frame_data_size, 0) < 0)
+        // --- Receive and Parse Detection Results ---
+        std::vector<ParsedDetection> detections = receive_detection_results(client_sock);
+
+        if (detections.empty()) // Check if receive_detection_results failed or found nothing
         {
-            std::cerr << "ERROR: Failed to send frame data: " << strerror(errno) << std::endl;
-            break; // Exit loop on send error
+            // Handle error from receive_detection_results or no detections received
+            // If receive_detection_results printed an error, we might want to exit
+            // For now, assume empty vector means no detections or graceful no results.
+            // If the connection was closed, receive_detection_results printed an error and we'll exit later.
         }
 
-        // --- Receive Detection Results from Python Script ---
-        // First, receive the size of the detection string
-        uint32_t result_size = 0;
-        ssize_t bytes_received = recv(client_sock, &result_size, sizeof(result_size), 0);
-        if (bytes_received <= 0) // 0 indicates connection closed, <0 indicates error
-        {
-            if (bytes_received == 0)
-            {
-                std::cerr << "ERROR: Python script closed the connection." << std::endl;
-            }
-            else
-            {
-                std::cerr << "ERROR: Failed to receive result size: " << strerror(errno) << std::endl;
-            }
-            break; // Exit loop on receive error or connection closed
-        }
 
-        // Receive the actual detection string
-        std::string detection_output(result_size, '\0'); // Pre-allocate string buffer
-        size_t total_received = 0;
-        while (total_received < result_size)
-        {
-            ssize_t current_recv = recv(client_sock, &detection_output[total_received], result_size - total_received, 0);
-            if (current_recv <= 0)
-            {
-                if (current_recv == 0)
-                {
-                    std::cerr << "ERROR: Python script closed connection while receiving data." << std::endl;
-                }
-                else
-                {
-                    std::cerr << "ERROR: Failed to receive detection data: " << strerror(errno) << std::endl;
-                }
-                break; // Exit inner loop on error
-            }
-            total_received += current_recv;
-        }
+        // Copy original camera frame to the display frame for drawing
+        memcpy(rgb_display_frame->m_ImageData, current_cam_rgb_frame->m_ImageData,
+               current_cam_rgb_frame->m_NumberOfPixels * current_cam_rgb_frame->m_PixelSize);
 
-        if (total_received < result_size)
-        {
-            // Partial data received, indicates an issue
-            break; // Exit main loop
-        }
-
-        // --- Parse and Use Detection Results ---
-        std::vector<ParsedDetection> detections = parse_detection_output(detection_output);
-
+        // --- Process Detections and Update Tracking State ---
         bool person_found_in_frame = false; // Flag for the current frame
         Point2D tracked_object_center_for_head;
 
@@ -334,7 +370,7 @@ int main(void)
             NoTargetCount = 0; // Reset the counter since a target was found
             Point2D P_err;
 
-            // --- Modified: Calculate angular error similar to original BallTracker ---
+            // --- Calculate angular error similar to original BallTracker ---
             // Calculate pixel offset from center
             Point2D pixel_offset_from_center;
             pixel_offset_from_center.X = tracked_object_center_for_head.X - (Camera::WIDTH / 2.0);
@@ -374,14 +410,82 @@ int main(void)
         // usleep(10000); // Optional delay
     }
 
-    // --- Cleanup ---
-    std::cout << "INFO: Exiting main loop. Cleaning up..." << std::endl;
-    close(client_sock); // Close the client connection socket
-    unlink(SOCKET_PATH); // Remove the socket file
-
+    // Cleanup
     delete rgb_display_frame;
+    return 0; // Indicate successful loop termination (though unlikely in this infinite loop)
+}
+
+// Handles cleanup of resources
+void cleanup(int client_sock, minIni* ini, mjpg_streamer* streamer)
+{
+    std::cout << "INFO: Cleaning up..." << std::endl;
+    if (client_sock >= 0) {
+        close(client_sock); // Close the client connection socket
+    }
+    // The server socket was closed after accepting the connection.
+    // Remove the socket file
+    unlink(SOCKET_PATH);
+
+    // MotionManager, Head, LinuxMotionTimer are singletons managed by the framework.
+    // Depending on the framework's design, they might have their own cleanup methods
+    // or are expected to persist for the application's lifetime.
+    // Explicit deletion of singletons is often discouraged unless the framework
+    // provides specific cleanup functions.
+
+    // Delete dynamically allocated objects
     delete ini;
     delete streamer;
+    // rgb_display_frame is deleted in run_main_loop before returning
+}
 
-    return 0;
+
+int main(void)
+{
+    printf("\n===== Head tracking with Object Detection via Unix Domain Socket =====\n\n");
+
+    change_current_dir();
+
+    minIni *ini = new minIni(INI_FILE_PATH);
+    if (!ini) {
+        std::cerr << "ERROR: Failed to load INI file." << std::endl;
+        return -1;
+    }
+
+    // --- Initialize Socket Server ---
+    int client_sock = initialize_socket_server();
+    if (client_sock < 0) {
+        delete ini;
+        return -1;
+    }
+
+    // --- Initialize Camera ---
+    if (!initialize_camera(ini)) {
+        std::cerr << "ERROR: Failed to initialize camera." << std::endl;
+        cleanup(client_sock, ini, nullptr); // Pass nullptr for streamer as it's not initialized yet
+        return -1;
+    }
+
+    // --- Initialize Motion Framework ---
+    if (!initialize_motion_framework(ini)) {
+        std::cerr << "ERROR: Failed to initialize motion framework." << std::endl;
+        cleanup(client_sock, ini, nullptr); // Pass nullptr for streamer
+        return -1;
+    }
+
+    // --- Initialize MJPG Streamer ---
+    mjpg_streamer *streamer = new mjpg_streamer(Camera::WIDTH, Camera::HEIGHT);
+    if (!streamer) {
+        std::cerr << "ERROR: Failed to initialize MJPG streamer." << std::endl;
+        cleanup(client_sock, ini, nullptr); // Streamer is null
+        return -1;
+    }
+
+
+    // --- Run Main Processing Loop ---
+    int loop_status = run_main_loop(client_sock, streamer);
+
+    // --- Cleanup Resources ---
+    cleanup(client_sock, ini, streamer);
+
+    return loop_status;
 }
