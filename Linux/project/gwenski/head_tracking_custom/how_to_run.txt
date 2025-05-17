@@ -1,0 +1,21 @@
+### How to Compile and Run:
+
+1.  **Save the files:**
+    * Save the first code block as `main.cpp`.
+    * Save the second code block as `detector_socket.py` in the same directory where your `models.py` and `.tflite`/`.txt` files are located.
+2.  **Ensure Python Dependencies:** Make sure you have `tflite_runtime`, `pycoral`, `Pillow`, and `numpy` installed in the Python environment you will use to run `detector_socket.py`.
+3.  **Compile C++:** Compile the modified `main.cpp`. You will need to link against your DARwIn-OP framework libraries and potentially standard libraries like `stdc++fs` and `pthread` if they were required before. You no longer need to link against `tensorflowlite_c` or Coral C++ libraries if you are keeping detection in Python.
+    ```bash
+    # Example compilation command (adjust paths and libraries as needed)
+    g++ main.cpp -o your_executable_name `pkg-config --cflags --libs your_darwin_libs` -lstdc++fs -lpthread
+    ```
+4.  **Run the Python Script:** Open a terminal and start the Python script. It will wait for the C++ program to connect.
+    ```bash
+    python3 detector_socket.py
+    ```
+5.  **Run the C++ Program:** Open a *separate* terminal and run your compiled C++ executable.
+    ```bash
+    ./your_executable_name
+    ```
+
+The C++ program will create the socket, wait for the Python script to connect, and then the main loop will begin sending frames and receiving detection results over the socket. The Python script will process the frames and send results back.
