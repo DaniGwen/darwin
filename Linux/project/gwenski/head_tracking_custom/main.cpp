@@ -1,491 +1,548 @@
-/*
- * main.cpp
- *
- * Created on: 2011. 1. 4.
- * Author: robotis
- * Modified for Edge TPU Object Detection via Unix Domain Socket
- * Refactored for modularity
- */
+    /*
+     * main.cpp
+     *
+     * Created on: 2011. 1. 4.
+     * Author: robotis
+     * Modified for Edge TPU Object Detection via Unix Domain Socket
+     * Refactored for modularity and enhanced motion init check
+     */
 
-#include <stdio.h>
-#include <unistd.h>
-#include <string.h>
-#include <libgen.h>
-#include <vector>
-#include <memory>
-#include <iostream>
-#include <fstream>
-#include <algorithm>
-#include <cstdio>
-#include <sstream> // Required for std::stringstream
+    #include <stdio.h>
+    #include <unistd.h>
+    #include <string.h>
+    #include <libgen.h>
+    #include <vector>
+    #include <memory>
+    #include <iostream>
+    #include <fstream>
+    #include <algorithm>
+    #include <cstdio>
+    #include <sstream> // Required for std::stringstream
 
-// Headers for Unix Domain Sockets
-#include <sys/socket.h>
-#include <sys/un.h>
-#include <errno.h> // For errno and strerror
+    // Headers for Unix Domain Sockets
+    #include <sys/socket.h>
+    #include <sys/un.h>
+    #include <errno.h> // For errno and strerror
 
-#include "Camera.h"
-#include "mjpg_streamer.h"
-#include "LinuxDARwIn.h"
+    #include "Camera.h"
+    #include "mjpg_streamer.h"
+    #include "LinuxDARwIn.h"
 
-// --- Socket Configuration ---
-// Define the path for the Unix Domain Socket
-const char *SOCKET_PATH = "/tmp/darwin_detector.sock";
+    // --- Socket Configuration ---
+    // Define the path for the Unix Domain Socket
+    const char *SOCKET_PATH = "/tmp/darwin_detector.sock";
 
-#define INI_FILE_PATH       "config.ini"
-#define U2D_DEV_NAME        "/dev/ttyUSB0"
+    #define INI_FILE_PATH       "config.ini"
+    #define U2D_DEV_NAME        "/dev/ttyUSB0"
 
-void change_current_dir()
-{
-    char exepath[1024] = {0};
-    if (readlink("/proc/self/exe", exepath, sizeof(exepath)) != -1)
-        chdir(dirname(exepath));
-}
-
-// Structure to hold parsed detection data received from Python
-struct ParsedDetection
-{
-    std::string label;
-    float score;
-    float xmin, ymin, xmax, ymax; // Normalized coordinates [0.0, 1.0]
-};
-
-// Function to parse the detection string received from Python
-// Expected format: "label score xmin ymin xmax ymax\nlabel score xmin ymin xmax ymax\n..."
-std::vector<ParsedDetection> parse_detection_output(const std::string &output)
-{
-    std::vector<ParsedDetection> detections;
-    std::stringstream ss(output);
-    std::string line;
-
-    while (std::getline(ss, line, '\n'))
+    void change_current_dir()
     {
-        std::stringstream line_ss(line);
-        ParsedDetection det;
-        std::string label_str; // Read label as a string
+        char exepath[1024] = {0};
+        if (readlink("/proc/self/exe", exepath, sizeof(exepath)) != -1)
+            chdir(dirname(exepath));
+    }
 
-        // Use string stream to parse label and then numerical values
-        if (line_ss >> label_str >> det.score >> det.xmin >> det.ymin >> det.xmax >> det.ymax)
+    // Structure to hold parsed detection data received from Python
+    struct ParsedDetection
+    {
+        std::string label;
+        float score;
+        float xmin, ymin, xmax, ymax; // Normalized coordinates [0.0, 1.0]
+    };
+
+    // Function to parse the detection string received from Python
+    // Expected format: "label score xmin ymin xmax ymax\nlabel score xmin ymin xmax ymax\n..."
+    std::vector<ParsedDetection> parse_detection_output(const std::string &output)
+    {
+        std::vector<ParsedDetection> detections;
+        std::stringstream ss(output);
+        std::string line;
+
+        while (std::getline(ss, line, '\n'))
         {
-            det.label = label_str;
-            detections.push_back(det);
-        }
-    }
-    return detections;
-}
+            std::stringstream line_ss(line);
+            ParsedDetection det;
+            std::string label_str; // Read label as a string
 
-
-// Basic function to draw bounding boxes on the RGB image
-void DrawBoundingBox(Image *image, const ParsedDetection &detection)
-{
-    if (!image || !image->m_ImageData) return;
-
-    int img_width = image->m_Width;
-    int img_height = image->m_Height;
-
-    // Bounding box coordinates are normalized [0.0, 1.0]
-    int xmin = static_cast<int>(detection.xmin * img_width);
-    int ymin = static_cast<int>(detection.ymin * img_height);
-    int xmax = static_cast<int>(detection.xmax * img_width);
-    int ymax = static_cast<int>(detection.ymax * img_height);
-
-    // Clamp coordinates to image boundaries
-    xmin = std::max(0, std::min(xmin, img_width - 1));
-    ymin = std::max(0, std::min(ymin, img_height - 1));
-    xmax = std::max(0, std::min(xmax, img_width - 1));
-    ymax = std::max(0, std::min(ymax, img_height - 1));
-
-    // Draw a simple red box (assuming RGB_PIXEL_SIZE = 3)
-    unsigned char r = 255, g = 0, b = 0;
-
-    // Draw lines (simplified)
-    for (int x = xmin; x <= xmax; ++x) {
-        if (ymin >= 0 && ymin < img_height) {
-            unsigned char *p = &image->m_ImageData[(ymin * img_width + x) * image->m_PixelSize];
-            p[0] = r; p[1] = g; p[2] = b;
-        }
-        if (ymax >= 0 && ymax < img_height) {
-            unsigned char *p = &image->m_ImageData[(ymax * img_width + x) * image->m_PixelSize];
-            p[0] = r; p[1] = g; p[2] = b;
-        }
-    }
-    for (int y = ymin; y <= ymax; ++y) {
-        if (xmin >= 0 && xmin < img_width) {
-            unsigned char *p = &image->m_ImageData[(y * img_width + xmin) * image->m_PixelSize];
-            p[0] = r; p[1] = g; p[2] = b;
-        }
-        if (xmax >= 0 && xmax < img_width) {
-            unsigned char *p = &image->m_ImageData[(y * img_width + xmax) * image->m_PixelSize];
-            p[0] = r; p[1] = g; p[2] = b;
-        }
-    }
-
-    // For simplicity, printing to console:
-    std::cout << "Detected: " << detection.label << " (" << detection.score << ") at ["
-              << xmin << "," << ymin << "]-[" << xmax << "," << ymax << "]" << std::endl;
-
-    // Drawing text label is more complex and omitted here.
-}
-
-// --- Modular Functions ---
-
-// Initializes the Unix Domain Socket server and waits for connection
-// Returns client_sock file descriptor on success, -1 on failure
-int initialize_socket_server()
-{
-    int server_sock, client_sock;
-    struct sockaddr_un server_addr;
-
-    // Remove existing socket file if it exists
-    unlink(SOCKET_PATH);
-
-    // Create socket
-    server_sock = socket(AF_UNIX, SOCK_STREAM, 0);
-    if (server_sock < 0)
-    {
-        std::cerr << "ERROR: Failed to create socket: " << strerror(errno) << std::endl;
-        return -1;
-    }
-
-    // Bind socket to address
-    memset(&server_addr, 0, sizeof(server_addr));
-    server_addr.sun_family = AF_UNIX;
-    strncpy(server_addr.sun_path, SOCKET_PATH, sizeof(server_addr.sun_path) - 1);
-
-    if (bind(server_sock, (struct sockaddr *)&server_addr, sizeof(server_addr)) < 0)
-    {
-        std::cerr << "ERROR: Failed to bind socket to " << SOCKET_PATH << ": " << strerror(errno) << std::endl;
-        close(server_sock);
-        return -1;
-    }
-
-    // Listen for connections
-    if (listen(server_sock, 5) < 0) // Allow up to 5 pending connections
-    {
-        std::cerr << "ERROR: Failed to listen on socket: " << strerror(errno) << std::endl;
-        close(server_sock);
-        return -1;
-    }
-
-    std::cout << "INFO: Waiting for Python detector script connection on " << SOCKET_PATH << "..." << std::endl;
-
-    // Accept a connection (this will block until the Python script connects)
-    client_sock = accept(server_sock, NULL, NULL);
-    if (client_sock < 0)
-    {
-        std::cerr << "ERROR: Failed to accept client connection: " << strerror(errno) << std::endl;
-        close(server_sock);
-        return -1;
-    }
-
-    std::cout << "INFO: Python detector script connected." << std::endl;
-    // Close the listening socket, we only expect one client (the detector script)
-    close(server_sock);
-
-    return client_sock;
-}
-
-// Initializes the Camera
-// Returns true on success, false on failure
-bool initialize_camera(minIni* ini)
-{
-    if (!ini) return false;
-    LinuxCamera::GetInstance()->Initialize(0);
-    LinuxCamera::GetInstance()->LoadINISettings(ini);
-    // Ensure camera is providing RGB data (Image::RGB_PIXEL_SIZE = 3)
-    return true; // Assuming Initialize and LoadINISettings don't return explicit failure
-}
-
-// Initializes the Motion Framework
-// Returns true on success, false on failure
-bool initialize_motion_framework(minIni* ini)
-{
-    if (!ini) return false;
-    LinuxCM730 linux_cm730(U2D_DEV_NAME);
-    CM730 cm730(&linux_cm730);
-    if (MotionManager::GetInstance()->Initialize(&cm730) == false)
-    {
-        printf("Fail to initialize Motion Manager!\n");
-        return false;
-    }
-    MotionManager::GetInstance()->LoadINISettings(ini);
-    MotionManager::GetInstance()->AddModule((MotionModule *)Head::GetInstance());
-    LinuxMotionTimer *motion_timer = new LinuxMotionTimer(MotionManager::GetInstance());
-    motion_timer->Start();
-
-    MotionStatus::m_CurrentJoints.SetEnableBodyWithoutHead(false);
-    MotionManager::GetInstance()->SetEnable(true);
-
-    Head::GetInstance()->m_Joint.SetEnableHeadOnly(true, true);
-    Head::GetInstance()->m_Joint.SetPGain(JointData::ID_HEAD_PAN, 8);
-    Head::GetInstance()->m_Joint.SetPGain(JointData::ID_HEAD_TILT, 8);
-
-    return true;
-}
-
-// Handles sending frame data over the socket
-// Returns true on success, false on failure
-bool send_frame_data(int client_sock, Image* frame)
-{
-    if (!frame || !frame->m_ImageData) return false;
-
-    int frame_width = frame->m_Width;
-    int frame_height = frame->m_Height;
-    size_t frame_data_size = frame_width * frame_height * frame->m_PixelSize;
-
-    // Send width and height first (as 4-byte integers)
-    if (send(client_sock, &frame_width, sizeof(frame_width), 0) < 0 ||
-        send(client_sock, &frame_height, sizeof(frame_height), 0) < 0)
-    {
-        std::cerr << "ERROR: Failed to send frame dimensions: " << strerror(errno) << std::endl;
-        return false;
-    }
-
-    // Send the raw image data
-    if (send(client_sock, frame->m_ImageData, frame_data_size, 0) < 0)
-    {
-        std::cerr << "ERROR: Failed to send frame data: " << strerror(errno) << std::endl;
-        return false;
-    }
-    return true;
-}
-
-// Handles receiving detection results over the socket and parsing them
-// Returns vector of detections on success, empty vector on failure or no detections
-std::vector<ParsedDetection> receive_detection_results(int client_sock)
-{
-    std::string detection_output;
-    uint32_t result_size = 0;
-
-    // Receive the size of the detection string
-    ssize_t bytes_received = recv(client_sock, &result_size, sizeof(result_size), 0);
-    if (bytes_received <= 0)
-    {
-        if (bytes_received == 0)
-        {
-            std::cerr << "ERROR: Python script closed the connection." << std::endl;
-        }
-        else
-        {
-            std::cerr << "ERROR: Failed to receive result size: " << strerror(errno) << std::endl;
-        }
-        return {}; // Return empty vector on error or closed connection
-    }
-
-    // Receive the actual detection string
-    detection_output.resize(result_size, '\0'); // Resize string buffer
-    size_t total_received = 0;
-    while (total_received < result_size)
-    {
-        ssize_t current_recv = recv(client_sock, &detection_output[total_received], result_size - total_received, 0);
-        if (current_recv <= 0)
-        {
-            if (current_recv == 0)
+            // Use string stream to parse label and then numerical values
+            if (line_ss >> label_str >> det.score >> det.xmin >> det.ymin >> det.xmax >> det.ymax)
             {
-                std::cerr << "ERROR: Python script closed connection while receiving data." << std::endl;
+                det.label = label_str;
+                detections.push_back(det);
+            }
+        }
+        return detections;
+    }
+
+
+    // Basic function to draw bounding boxes on the RGB image
+    void DrawBoundingBox(Image *image, const ParsedDetection &detection)
+    {
+        if (!image || !image->m_ImageData) return;
+
+        int img_width = image->m_Width;
+        int img_height = image->m_Height;
+
+        // Bounding box coordinates are normalized [0.0, 1.0]
+        int xmin = static_cast<int>(detection.xmin * img_width);
+        int ymin = static_cast<int>(detection.ymin * img_height);
+        int xmax = static_cast<int>(detection.xmax * img_width);
+        int ymax = static_cast<int>(detection.ymax * img_height);
+
+        // Clamp coordinates to image boundaries
+        xmin = std::max(0, std::min(xmin, img_width - 1));
+        ymin = std::max(0, std::min(ymin, img_height - 1));
+        xmax = std::max(0, std::min(xmax, img_width - 1));
+        ymax = std::max(0, std::min(ymax, img_height - 1));
+
+        // Draw a simple red box (assuming RGB_PIXEL_SIZE = 3)
+        unsigned char r = 255, g = 0, b = 0;
+
+        // Draw lines (simplified)
+        for (int x = xmin; x <= xmax; ++x) {
+            if (ymin >= 0 && ymin < img_height) {
+                unsigned char *p = &image->m_ImageData[(ymin * img_width + x) * image->m_PixelSize];
+                p[0] = r; p[1] = g; p[2] = b;
+            }
+            if (ymax >= 0 && ymax < img_height) {
+                unsigned char *p = &image->m_ImageData[(ymax * img_width + x) * image->m_PixelSize];
+                p[0] = r; p[1] = g; p[2] = b;
+            }
+        }
+        for (int y = ymin; y <= ymax; ++y) {
+            if (xmin >= 0 && xmin < img_width) {
+                unsigned char *p = &image->m_ImageData[(y * img_width + xmin) * image->m_PixelSize];
+                p[0] = r; p[1] = g; p[2] = b;
+            }
+            if (xmax >= 0 && xmax < img_width) {
+                unsigned char *p = &image->m_ImageData[(y * img_width + xmax) * image->m_PixelSize];
+                p[0] = r; p[1] = g; p[2] = b;
+            }
+        }
+
+        // For simplicity, printing to console:
+        std::cout << "Detected: " << detection.label << " (" << detection.score << ") at ["
+                  << xmin << "," << ymin << "]-[" << xmax << "," << ymax << "]" << std::endl;
+
+        // Drawing text label is more complex and omitted here.
+    }
+
+    // --- Modular Functions ---
+
+    // Initializes the Unix Domain Socket server and waits for connection
+    // Returns client_sock file descriptor on success, -1 on failure
+    int initialize_socket_server()
+    {
+        int server_sock, client_sock;
+        struct sockaddr_un server_addr;
+
+        // Remove existing socket file if it exists
+        unlink(SOCKET_PATH);
+
+        // Create socket
+        server_sock = socket(AF_UNIX, SOCK_STREAM, 0);
+        if (server_sock < 0)
+        {
+            std::cerr << "ERROR: Failed to create socket: " << strerror(errno) << std::endl;
+            return -1;
+        }
+
+        // Bind socket to address
+        memset(&server_addr, 0, sizeof(server_addr));
+        server_addr.sun_family = AF_UNIX;
+        strncpy(server_addr.sun_path, SOCKET_PATH, sizeof(server_addr.sun_path) - 1);
+
+        if (bind(server_sock, (struct sockaddr *)&server_addr, sizeof(server_addr)) < 0)
+        {
+            std::cerr << "ERROR: Failed to bind socket to " << SOCKET_PATH << ": " << strerror(errno) << std::endl;
+            close(server_sock);
+            return -1;
+        }
+
+        // Listen for connections
+        if (listen(server_sock, 5) < 0) // Allow up to 5 pending connections
+        {
+            std::cerr << "ERROR: Failed to listen on socket: " << strerror(errno) << std::endl;
+            close(server_sock);
+            return -1;
+        }
+
+        std::cout << "INFO: Waiting for Python detector script connection on " << SOCKET_PATH << "..." << std::endl;
+
+        // Accept a connection (this will block until the Python script connects)
+        client_sock = accept(server_sock, NULL, NULL);
+        if (client_sock < 0)
+        {
+            std::cerr << "ERROR: Failed to accept client connection: " << strerror(errno) << std::endl;
+            close(server_sock);
+            return -1;
+        }
+
+        std::cout << "INFO: Python detector script connected." << std::endl;
+        // Close the listening socket, we only expect one client (the detector script)
+        close(server_sock);
+
+        return client_sock;
+    }
+
+    // Initializes the Camera
+    // Returns true on success, false on failure
+    bool initialize_camera(minIni* ini)
+    {
+        if (!ini) {
+            std::cerr << "ERROR: INI file not provided for camera initialization." << std::endl;
+            return false;
+        }
+        std::cout << "INFO: Initializing camera..." << std::endl;
+        // Assuming Initialize returns a status or indicates success/failure
+        // If Initialize doesn't return status, we assume it succeeds here.
+        LinuxCamera::GetInstance()->Initialize(0);
+        LinuxCamera::GetInstance()->LoadINISettings(ini);
+        // Ensure camera is providing RGB data (Image::RGB_PIXEL_SIZE = 3)
+        std::cout << "INFO: Camera initialized." << std::endl;
+        return true;
+    }
+
+    // Initializes the Motion Framework
+    // Returns true on success, false on failure
+    bool initialize_motion_framework(minIni* ini)
+    {
+        if (!ini) {
+            std::cerr << "ERROR: INI file not provided for motion framework initialization." << std::endl;
+            return false;
+        }
+        std::cout << "INFO: Initializing motion framework via " << U2D_DEV_NAME << "..." << std::endl;
+        LinuxCM730 linux_cm730(U2D_DEV_NAME);
+        CM730 cm730(&linux_cm730);
+
+        // Explicitly check the return value of Initialize
+        if (MotionManager::GetInstance()->Initialize(&cm730) == false)
+        {
+            std::cerr << "ERROR: Fail to initialize Motion Manager! Check CM730 connection and device path." << std::endl;
+            return false;
+        }
+        std::cout << "INFO: Motion Manager initialized." << std::endl;
+
+        MotionManager::GetInstance()->LoadINISettings(ini);
+        MotionManager::GetInstance()->AddModule((MotionModule *)Head::GetInstance());
+        LinuxMotionTimer *motion_timer = new LinuxMotionTimer(MotionManager::GetInstance());
+        motion_timer->Start(); // Assuming Start is blocking or non-critical for init success
+
+        MotionStatus::m_CurrentJoints.SetEnableBodyWithoutHead(false);
+        MotionManager::GetInstance()->SetEnable(true); // Enable the motion manager
+
+        // Explicitly enable head joints and set gains
+        std::cout << "INFO: Enabling head joints and setting gains..." << std::endl;
+        Head::GetInstance()->m_Joint.SetEnableHeadOnly(true, true); // Enable torque for head pan and tilt
+        Head::GetInstance()->m_Joint.SetPGain(JointData::ID_HEAD_PAN, 8); // Set P-gain for pan
+        Head::GetInstance()->m_Joint.SetPGain(JointData::ID_HEAD_TILT, 8); // Set P-gain for tilt
+
+        // Optional: Add a small delay to allow settings to take effect
+        usleep(100000); // 100ms delay
+
+        // Optional: Read back motor status to confirm torque is enabled
+        int pan_torque_status = cm730.ReadByte(JointData::ID_HEAD_PAN, MX28::P_TORQUE_ENABLE, 0);
+        int tilt_torque_status = cm730.ReadByte(JointData::ID_HEAD_TILT, MX28::P_TORQUE_ENABLE, 0);
+        std::cout << "INFO: Head Pan Torque Enable Status: " << pan_torque_status << std::endl;
+        std::cout << "INFO: Head Tilt Torque Enable Status: " << tilt_torque_status << std::endl;
+        // If these are not 1, torque is not enabled.
+
+        std::cout << "INFO: Motion framework initialized." << std::endl;
+        return true;
+    }
+
+    // Initializes the MJPG Streamer
+    // Returns streamer pointer on success, nullptr on failure
+    mjpg_streamer* initialize_streamer()
+    {
+        std::cout << "INFO: Initializing MJPG streamer..." << std::endl;
+        mjpg_streamer *streamer = new mjpg_streamer(Camera::WIDTH, Camera::HEIGHT);
+        if (!streamer) {
+            std::cerr << "ERROR: Failed to create MJPG streamer." << std::endl;
+            return nullptr;
+        }
+        std::cout << "INFO: MJPG streamer initialized." << std::endl;
+        return streamer;
+    }
+
+
+    // Handles sending frame data over the socket
+    // Returns true on success, false on failure
+    bool send_frame_data(int client_sock, Image* frame)
+    {
+        if (!frame || !frame->m_ImageData) {
+            // std::cerr << "ERROR: Invalid frame data provided for sending." << std::endl; // Too noisy
+            return false;
+        }
+
+        int frame_width = frame->m_Width;
+        int frame_height = frame->m_Height;
+        size_t frame_data_size = frame_width * frame_height * frame->m_PixelSize;
+
+        // Send width and height first (as 4-byte integers)
+        if (send(client_sock, &frame_width, sizeof(frame_width), 0) < 0 ||
+            send(client_sock, &frame_height, sizeof(frame_height), 0) < 0)
+        {
+            std::cerr << "ERROR: Failed to send frame dimensions: " << strerror(errno) << std::endl;
+            return false;
+        }
+
+        // Send the raw image data
+        if (send(client_sock, frame->m_ImageData, frame_data_size, 0) < 0)
+        {
+            std::cerr << "ERROR: Failed to send frame data: " << strerror(errno) << std::endl;
+            return false;
+        }
+        return true;
+    }
+
+    // Handles receiving detection results over the socket and parsing them
+    // Returns vector of detections on success, empty vector on failure or no detections
+    std::vector<ParsedDetection> receive_detection_results(int client_sock)
+    {
+        std::string detection_output;
+        uint32_t result_size = 0;
+
+        // Receive the size of the detection string
+        ssize_t bytes_received = recv(client_sock, &result_size, sizeof(result_size), 0);
+        if (bytes_received <= 0)
+        {
+            if (bytes_received == 0)
+            {
+                std::cerr << "ERROR: Python script closed the connection." << std::endl;
             }
             else
             {
-                std::cerr << "ERROR: Failed to receive detection data: " << strerror(errno) << std::endl;
+                std::cerr << "ERROR: Failed to receive result size: " << strerror(errno) << std::endl;
             }
-            return {}; // Return empty vector on error
+            return {}; // Return empty vector on error or closed connection
         }
-        total_received += current_recv;
+
+        // Receive the actual detection string
+        detection_output.resize(result_size, '\0'); // Resize string buffer
+        size_t total_received = 0;
+        while (total_received < result_size)
+        {
+            ssize_t current_recv = recv(client_sock, &detection_output[total_received], result_size - total_received, 0);
+            if (current_recv <= 0)
+            {
+                if (current_recv == 0)
+                {
+                    std::cerr << "ERROR: Python script closed connection while receiving data." << std::endl;
+                }
+                else
+                {
+                    std::cerr << "ERROR: Failed to receive detection data: " << strerror(errno) << std::endl;
+                }
+                return {}; // Return empty vector on error
+            }
+            total_received += current_recv;
+        }
+
+        // Parse and return detections
+        return parse_detection_output(detection_output);
     }
 
-    // Parse and return detections
-    return parse_detection_output(detection_output);
-}
-
-// Handles the main processing loop (capture, send, receive, track)
-// Returns 0 on successful exit, -1 on error
-int run_main_loop(int client_sock, mjpg_streamer* streamer)
-{
-    // Image buffer for the output frame with detections drawn on it
-    Image *rgb_display_frame = new Image(Camera::WIDTH, Camera::HEIGHT, Image::RGB_PIXEL_SIZE);
-
-    // Tracking State Variables
-    int NoTargetCount = 0;
-    const int NoTargetMaxCount = 30; // Number of frames to wait before initiating scan (tune this)
-
-    std::cout << "INFO: Starting main loop..." << std::endl;
-    while (1)
+    // Handles the main processing loop (capture, send, receive, track)
+    // Returns 0 on successful exit, -1 on error
+    int run_main_loop(int client_sock, mjpg_streamer* streamer)
     {
-        LinuxCamera::GetInstance()->CaptureFrame();
-        Image *current_cam_rgb_frame = LinuxCamera::GetInstance()->fbuffer->m_RGBFrame;
-
-        if (!current_cam_rgb_frame || !current_cam_rgb_frame->m_ImageData)
-        {
-            usleep(10000); // Wait if frame not ready
-            continue;
-        }
-
-        // --- Send Frame Data to Python Script ---
-        if (!send_frame_data(client_sock, current_cam_rgb_frame))
-        {
-            return -1; // Exit loop on send error
-        }
-
-        // --- Receive and Parse Detection Results ---
-        std::vector<ParsedDetection> detections = receive_detection_results(client_sock);
-
-        if (detections.empty()) // Check if receive_detection_results failed or found nothing
-        {
-            // Handle error from receive_detection_results or no detections received
-            // If receive_detection_results printed an error, we might want to exit
-            // For now, assume empty vector means no detections or graceful no results.
-            // If the connection was closed, receive_detection_results printed an error and we'll exit later.
+        // Image buffer for the output frame with detections drawn on it
+        Image *rgb_display_frame = new Image(Camera::WIDTH, Camera::HEIGHT, Image::RGB_PIXEL_SIZE);
+        if (!rgb_display_frame) {
+            std::cerr << "ERROR: Failed to create display frame buffer." << std::endl;
+            return -1;
         }
 
 
-        // Copy original camera frame to the display frame for drawing
-        memcpy(rgb_display_frame->m_ImageData, current_cam_rgb_frame->m_ImageData,
-               current_cam_rgb_frame->m_NumberOfPixels * current_cam_rgb_frame->m_PixelSize);
+        // Tracking State Variables
+        int NoTargetCount = 0;
+        const int NoTargetMaxCount = 30; // Number of frames to wait before initiating scan (tune this)
+        // Point2D last_tracked_position; // Optional: store last known position if you want to hold
 
-        // --- Process Detections and Update Tracking State ---
-        bool person_found_in_frame = false; // Flag for the current frame
-        Point2D tracked_object_center_for_head;
-
-        // Example: Find the first "person" detection
-        for (const auto &det : detections)
+        std::cout << "INFO: Starting main loop..." << std::endl;
+        while (1)
         {
-            DrawBoundingBox(rgb_display_frame, det); // Draw all detections
+            LinuxCamera::GetInstance()->CaptureFrame();
+            Image *current_cam_rgb_frame = LinuxCamera::GetInstance()->fbuffer->m_RGBFrame;
 
-            // --- Check if the detected label is "person" ---
-            if (det.label == "person") // Look for the label "person"
+            if (!current_cam_rgb_frame || !current_cam_rgb_frame->m_ImageData)
             {
-                // Calculate center of the bounding box in original image pixel coordinates
-                tracked_object_center_for_head.X = (det.xmin + det.xmax) / 2.0 * Camera::WIDTH;
-                tracked_object_center_for_head.Y = (det.ymin + det.ymax) / 2.0 * Camera::HEIGHT;
-                person_found_in_frame = true; // A person was found in this frame
-                // For simplicity, track the first person found.
-                // For better tracking, you might want to track the largest or closest person.
-                break; // Stop searching after finding the first person
+                usleep(10000); // Wait if frame not ready
+                continue;
             }
-        }
 
-        // --- Head Tracking State Management ---
-        if (person_found_in_frame)
-        {
-            NoTargetCount = 0; // Reset the counter since a target was found
-            Point2D P_err;
-
-            // --- Calculate angular error similar to original BallTracker ---
-            // Calculate pixel offset from center
-            Point2D pixel_offset_from_center;
-            pixel_offset_from_center.X = tracked_object_center_for_head.X - (Camera::WIDTH / 2.0);
-            pixel_offset_from_center.Y = tracked_object_center_for_head.Y - (Camera::HEIGHT / 2.0);
-
-            // --- Invert X-axis error to correct tracking direction ---
-            pixel_offset_from_center.X *= -1;
-            // Invert Y-axis (if needed, depends on your framework's coordinate system)
-            // pixel_offset_from_center.Y *= -1;
-
-            // Scale pixel offset to angles (degrees)
-            P_err.X = pixel_offset_from_center.X * (Camera::VIEW_H_ANGLE / (double)Camera::WIDTH);
-            P_err.Y = pixel_offset_from_center.Y * (Camera::VIEW_V_ANGLE / (double)Camera::HEIGHT);
-
-            // Pass angular error to MoveTracking
-            Head::GetInstance()->MoveTracking(P_err); // Actively track the person
-        }
-        else // No person found in the current frame
-        {
-            if(NoTargetCount < NoTargetMaxCount)
+            // --- Send Frame Data to Python Script ---
+            if (!send_frame_data(client_sock, current_cam_rgb_frame))
             {
-                // Continue tracking based on the last known position or stop active tracking
-                // Head::GetInstance()->MoveTracking(); // Original BallTracker behavior (might hold last pos)
-                Head::GetInstance()->MoveTracking(Point2D(0.0, 0.0)); // Alternative: stop active tracking and center head slowly
-                NoTargetCount++; // Increment counter
+                // send_frame_data prints error message
+                break; // Exit loop on send error
             }
-            else
+
+            // --- Receive and Parse Detection Results ---
+            std::vector<ParsedDetection> detections = receive_detection_results(client_sock);
+
+            // Check if receive_detection_results indicated a connection error
+            // An empty vector could mean no detections OR a connection issue if result_size was received as 0 unexpectedly.
+            // We rely on receive_detection_results printing an error for connection issues.
+            if (detections.empty() && result_size > 0) // result_size > 0 implies data was expected but parsing failed or no detections > threshold
             {
-                // No target for too long, initiate scan or return to initial position
-                Head::GetInstance()->InitTracking(); // Return to initial tracking position/scan
-                // NoTargetCount remains at or above NoTargetMaxCount
+                // No detections above threshold, but communication was okay.
+                // Continue to the 'else' block for tracking state.
             }
+            // If receive_detection_results returned empty and printed an error (bytes_received <= 0),
+            // we will break the loop implicitly later.
+
+
+            // Copy original camera frame to the display frame for drawing
+            memcpy(rgb_display_frame->m_ImageData, current_cam_rgb_frame->m_ImageData,
+                   current_cam_rgb_frame->m_NumberOfPixels * current_cam_rgb_frame->m_PixelSize);
+
+            // --- Process Detections and Update Tracking State ---
+            bool person_found_in_frame = false; // Flag for the current frame
+            Point2D tracked_object_center_for_head;
+
+            // Example: Find the first "person" detection
+            for (const auto &det : detections)
+            {
+                DrawBoundingBox(rgb_display_frame, det); // Draw all detections
+
+                // --- Check if the detected label is "person" ---
+                if (det.label == "person") // Look for the label "person"
+                {
+                    // Calculate center of the bounding box in original image pixel coordinates
+                    tracked_object_center_for_head.X = (det.xmin + det.xmax) / 2.0 * Camera::WIDTH;
+                    tracked_object_center_for_head.Y = (det.ymin + det.ymax) / 2.0 * Camera::HEIGHT;
+                    person_found_in_frame = true; // A person was found in this frame
+                    // For simplicity, track the first person found.
+                    // For better tracking, you might want to track the largest or closest person.
+                    break; // Stop searching after finding the first person
+                }
+            }
+
+            // --- Head Tracking State Management ---
+            if (person_found_in_frame)
+            {
+                NoTargetCount = 0; // Reset the counter since a target was found
+                Point2D P_err;
+
+                // --- Calculate angular error similar to original BallTracker ---
+                // Calculate pixel offset from center
+                Point2D pixel_offset_from_center;
+                pixel_offset_from_center.X = tracked_object_center_for_head.X - (Camera::WIDTH / 2.0);
+                pixel_offset_from_center.Y = tracked_object_center_for_head.Y - (Camera::HEIGHT / 2.0);
+
+                // --- Invert X-axis error to correct tracking direction ---
+                pixel_offset_from_center.X *= -1;
+                // Invert Y-axis (if needed, depends on your framework's coordinate system)
+                // pixel_offset_from_center.Y *= -1;
+
+                // Scale pixel offset to angles (degrees)
+                P_err.X = pixel_offset_from_center.X * (Camera::VIEW_H_ANGLE / (double)Camera::WIDTH);
+                P_err.Y = pixel_offset_from_center.Y * (Camera::VIEW_V_ANGLE / (double)Camera::HEIGHT);
+
+                // Pass angular error to MoveTracking
+                Head::GetInstance()->MoveTracking(P_err); // Actively track the person
+            }
+            else // No person found in the current frame
+            {
+                if(NoTargetCount < NoTargetMaxCount)
+                {
+                    // Continue tracking based on the last known position or stop active tracking
+                    // Head::GetInstance()->MoveTracking(); // Original BallTracker behavior (might hold last pos)
+                    Head::GetInstance()->MoveTracking(Point2D(0.0, 0.0)); // Alternative: stop active tracking and center head slowly
+                    NoTargetCount++; // Increment counter
+                }
+                else
+                {
+                    // No target for too long, initiate scan or return to initial position
+                    Head::GetInstance()->InitTracking(); // Return to initial tracking position/scan
+                    // NoTargetCount remains at or above NoTargetMaxCount
+                }
+            }
+
+            streamer->send_image(rgb_display_frame);
+
+            // usleep(10000); // Optional delay
         }
 
-        streamer->send_image(rgb_display_frame);
-
-        // usleep(10000); // Optional delay
+        // Cleanup
+        delete rgb_display_frame;
+        return 0; // Indicate successful loop termination (though unlikely in this infinite loop)
     }
 
-    // Cleanup
-    delete rgb_display_frame;
-    return 0; // Indicate successful loop termination (though unlikely in this infinite loop)
-}
+    // Handles cleanup of resources
+    void cleanup(int client_sock, minIni* ini, mjpg_streamer* streamer)
+    {
+        std::cout << "INFO: Cleaning up..." << std::endl;
+        if (client_sock >= 0) {
+            close(client_sock); // Close the client connection socket
+        }
+        // The server socket was closed after accepting the connection.
+        // Remove the socket file
+        unlink(SOCKET_PATH);
 
-// Handles cleanup of resources
-void cleanup(int client_sock, minIni* ini, mjpg_streamer* streamer)
-{
-    std::cout << "INFO: Cleaning up..." << std::endl;
-    if (client_sock >= 0) {
-        close(client_sock); // Close the client connection socket
-    }
-    // The server socket was closed after accepting the connection.
-    // Remove the socket file
-    unlink(SOCKET_PATH);
+        // MotionManager, Head, LinuxMotionTimer are singletons managed by the framework.
+        // Depending on the framework's design, they might have their own cleanup methods
+        // or are expected to persist for the application's lifetime.
+        // Explicit deletion of singletons is often discouraged unless the framework
+        // provides specific cleanup functions.
 
-    // MotionManager, Head, LinuxMotionTimer are singletons managed by the framework.
-    // Depending on the framework's design, they might have their own cleanup methods
-    // or are expected to persist for the application's lifetime.
-    // Explicit deletion of singletons is often discouraged unless the framework
-    // provides specific cleanup functions.
-
-    // Delete dynamically allocated objects
-    delete ini;
-    delete streamer;
-    // rgb_display_frame is deleted in run_main_loop before returning
-}
-
-
-int main(void)
-{
-    printf("\n===== Head tracking with Object Detection via Unix Domain Socket =====\n\n");
-
-    change_current_dir();
-
-    minIni *ini = new minIni(INI_FILE_PATH);
-    if (!ini) {
-        std::cerr << "ERROR: Failed to load INI file." << std::endl;
-        return -1;
-    }
-
-    // --- Initialize Socket Server ---
-    int client_sock = initialize_socket_server();
-    if (client_sock < 0) {
-        delete ini;
-        return -1;
-    }
-
-    // --- Initialize Camera ---
-    if (!initialize_camera(ini)) {
-        std::cerr << "ERROR: Failed to initialize camera." << std::endl;
-        cleanup(client_sock, ini, nullptr); // Pass nullptr for streamer as it's not initialized yet
-        return -1;
-    }
-
-    // --- Initialize Motion Framework ---
-    if (!initialize_motion_framework(ini)) {
-        std::cerr << "ERROR: Failed to initialize motion framework." << std::endl;
-        cleanup(client_sock, ini, nullptr); // Pass nullptr for streamer
-        return -1;
-    }
-
-    // --- Initialize MJPG Streamer ---
-    mjpg_streamer *streamer = new mjpg_streamer(Camera::WIDTH, Camera::HEIGHT);
-    if (!streamer) {
-        std::cerr << "ERROR: Failed to initialize MJPG streamer." << std::endl;
-        cleanup(client_sock, ini, nullptr); // Streamer is null
-        return -1;
+        // Delete dynamically allocated objects
+        if (ini) delete ini;
+        if (streamer) delete streamer;
+        // rgb_display_frame is deleted in run_main_loop before returning
     }
 
 
-    // --- Run Main Processing Loop ---
-    int loop_status = run_main_loop(client_sock, streamer);
+    int main(void)
+    {
+        printf("\n===== Head tracking with Object Detection via Unix Domain Socket =====\n\n");
 
-    // --- Cleanup Resources ---
-    cleanup(client_sock, ini, streamer);
+        change_current_dir();
 
-    return loop_status;
-}
+        minIni *ini = new minIni(INI_FILE_PATH);
+        if (!ini) {
+            std::cerr << "ERROR: Failed to load INI file." << std::endl;
+            return -1;
+        }
+
+        // --- Initialize Socket Server ---
+        int client_sock = initialize_socket_server();
+        if (client_sock < 0) {
+            delete ini; // Clean up ini
+            return -1;
+        }
+
+        // --- Initialize Camera ---
+        if (!initialize_camera(ini)) {
+            std::cerr << "ERROR: Failed to initialize camera." << std::endl;
+            cleanup(client_sock, ini, nullptr); // Pass nullptr for streamer as it's not initialized yet
+            return -1;
+        }
+
+        // --- Initialize Motion Framework ---
+        if (!initialize_motion_framework(ini)) {
+            std::cerr << "ERROR: Failed to initialize motion framework." << std::endl;
+            cleanup(client_sock, ini, nullptr); // Pass nullptr for streamer
+            return -1;
+        }
+
+        // --- Initialize MJPG Streamer ---
+        mjpg_streamer *streamer = initialize_streamer();
+        if (!streamer) {
+            std::cerr << "ERROR: Failed to initialize MJPG streamer." << std::endl;
+            cleanup(client_sock, ini, nullptr); // Streamer is null
+            return -1;
+        }
+
+
+        // --- Run Main Processing Loop ---
+        int loop_status = run_main_loop(client_sock, streamer);
+
+        // --- Cleanup Resources ---
+        cleanup(client_sock, ini, streamer);
+
+        return loop_status;
+    }
+    
