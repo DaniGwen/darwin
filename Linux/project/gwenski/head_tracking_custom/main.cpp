@@ -60,8 +60,8 @@ std::string save_frame_to_temp_file(Image *frame)
     }
 
     // --- Debugging Steps ---
-    char temp_filename_template[] = "/tmp/frame_XXXXXX.ppm"; // Original template
-    // char temp_filename_template[] = "/tmp/XXXXXX";         // Try the absolute simplest template
+    // char temp_filename_template[] = "/tmp/frame_XXXXXX.ppm"; // Original template
+    char temp_filename_template[] = "/tmp/XXXXXX";         // Try the absolute simplest template
     std::cerr << "DEBUG: Attempting to create temp file with template: '" << temp_filename_template << "'" << std::endl;
     // --- End Debugging Steps ---
 
