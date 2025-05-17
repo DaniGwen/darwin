@@ -24,6 +24,9 @@ ACTION=="add", SUBSYSTEM=="usb-serial", DRIVER=="ftdi_sio", ATTR{latency_timer}
  
 After this,the latency will be set to 1 ms automatically upon device attach
 
+Clean up build files, execute in darwin root folder
+	sudo find . -name "*.o" -type f -delete
+
 
 Robotis Manual
 https://emanual.robotis.com/docs/en/platform/op/maintenance/#recoveryubuntu-910
