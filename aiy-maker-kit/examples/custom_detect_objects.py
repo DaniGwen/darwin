@@ -55,14 +55,50 @@ DETECTION_THRESHOLD = 0.4 # Use the threshold you were using
 
 # --- Helper function to load labels ---
 def load_labels(path):
-    """Loads the labels file."""
-    with open(path, 'r', encoding='utf-8') as f:
-        lines = f.readlines()
-        # Handle potential class 0 being background
-        if not lines[0].strip(): # Check if first line is empty
-            return dataset.read_label_file(path) # Use pycoral's label reader if first line is empty
-        # Otherwise, assume standard line-by-line labels
-        return [line.strip() for line in lines]
+    """Loads the labels file, returning a dictionary {id: label}."""
+    print(f"DEBUG: Loading labels from: {path}", file=sys.stderr) # Debug print
+    try:
+        with open(path, 'r', encoding='utf-8') as f:
+            lines = f.readlines()
+
+        if not lines:
+            print(f"DEBUG: Label file is empty: {path}", file=sys.stderr) # Debug
+            return {}
+
+        # Check if the format is ID label (pycoral format like "0 background", "1 person")
+        # or just label per line ("background", "person")
+        # A simple check: see if the first non-empty line starts with a number followed by space
+        first_non_empty_line = next((line.strip() for line in lines if line.strip()), None)
+
+        if first_non_empty_line and first_non_empty_line.split(maxsplit=1)[0].isdigit():
+             # Likely ID label format, use pycoral reader
+             print(f"DEBUG: Assuming label file format is 'ID label': {path}", file=sys.stderr) # Debug
+             # Use dataset.read_label_file which returns a dict {id: label}
+             # This function can handle the case where ID 0 is empty for background
+             labels = dataset.read_label_file(path)
+             print(f"DEBUG: Loaded {len(labels)} labels using dataset.read_label_file", file=sys.stderr) # Debug
+             return labels
+        else:
+             # Assume simple label per line, index is the ID
+             print(f"DEBUG: Assuming label file format is 'label per line': {path}", file=sys.stderr) # Debug
+             labels = {}
+             # Start index from 0. If class 0 is background and first line is empty,
+             # the empty line will be skipped by .strip() but its index (0) will be used.
+             # If the file starts with a real label for class 0, its index (0) will be used.
+             # This matches how line-by-line labels often work with models where 0 is the first class.
+             for i, line in enumerate(lines):
+                 stripped_line = line.strip()
+                 if stripped_line: # Only add non-empty lines
+                     labels[i] = stripped_line
+             print(f"DEBUG: Loaded {len(labels)} labels using line index as ID", file=sys.stderr) # Debug
+             return labels
+
+    except FileNotFoundError:
+        print(f"Error: Labels file not found at {path}", file=sys.stderr)
+        return {} # Return empty dictionary on error
+    except Exception as e:
+        print(f"Error loading labels file {path}: {e}", file=sys.stderr)
+        return {} # Return empty dictionary on error
 
 # --- Helper function to parse detection results from output tensors ---
 # This is specific to the SSD-like model architecture (like SSD MobileNet)
