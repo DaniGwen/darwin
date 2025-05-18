@@ -6,8 +6,9 @@
  * Modified for Edge TPU Object Detection via Unix Domain Socket
  * Refactored into HeadTracking singleton class.
  * Added automatic startup of the Python detector script.
- * Motion Framework initialization moved to main.
+ * Motion Framework initialization AND CLEANUP moved to main.
  * Fixed multiple definition error for SOCKET_PATH.
+ * Added explicit motion framework shutdown steps.
  */
 
 #include <stdio.h>
@@ -71,7 +72,10 @@ int main(void)
       CM730 cm730(&linux_cm730);
 
       // Get MotionManager singleton and initialize it with the CM730 instance
-      if (MotionManager::GetInstance()->Initialize(&cm730) == false)
+      MotionManager* motion_manager = MotionManager::GetInstance();
+      Head* head_module = Head::GetInstance(); // Get Head singleton now as well
+
+      if (motion_manager->Initialize(&cm730) == false)
       {
             std::cerr << "ERROR: Failed to initialize Motion Manager in main!" << std::endl;
             delete ini;
@@ -79,12 +83,12 @@ int main(void)
       }
 
       // Load MotionManager settings from INI
-      MotionManager::GetInstance()->LoadINISettings(ini);
+      motion_manager->LoadINISettings(ini);
 
       // Start the Motion Timer (often needed for MotionManager to function)
       // Assuming LinuxMotionTimer is not a singleton and needs to be managed here.
       // If it's a singleton, get instance and start it.
-      LinuxMotionTimer *motion_timer = new LinuxMotionTimer(MotionManager::GetInstance());
+      LinuxMotionTimer *motion_timer = new LinuxMotionTimer(motion_manager);
       motion_timer->Start();
 
 
@@ -92,10 +96,16 @@ int main(void)
       HeadTracking* head_tracker = HeadTracking::GetInstance();
 
       // Pass the INI settings to HeadTracking for its specific configuration
+      // HeadTracking will get the MotionManager and Head singletons internally.
       if (!head_tracker->Initialize(ini)) {
             std::cerr << "ERROR: HeadTracking initialization failed. Exiting." << std::endl;
+            // Perform motion framework cleanup before exiting
+            motion_timer->Stop();
+            motion_manager->SetEnable(false);
+            motion_manager->RemoveModule((MotionModule *)head_module);
+            motion_manager->Release(); // Deinitialize MotionManager
             delete ini;
-            delete motion_timer; // Clean up timer if created here
+            delete motion_timer;
             return -1;
       }
 
@@ -103,13 +113,24 @@ int main(void)
       head_tracker->Run();
 
       // --- Cleanup Resources ---
-      // Cleanup is handled by the HeadTracking destructor when the program exits,
-      // or you could explicitly call head_tracker->Cleanup() here if needed
-      // before other cleanup (like deleting ini).
-      head_tracker->Cleanup(); // Explicitly call cleanup
+      // First, cleanup HeadTracking specific resources (socket, streamer, display frame)
+      head_tracker->Cleanup();
 
+      // Then, perform explicit motion framework shutdown in reverse order of initialization
+      std::cout << "INFO: Shutting down motion framework..." << std::endl;
+      motion_timer->Stop();
+      motion_manager->SetEnable(false); // Disable motion
+      motion_manager->RemoveModule((MotionModule *)head_module); // Remove Head module
+      motion_manager->Release(); // Deinitialize MotionManager
+
+      // LinuxCM730 and CM730 are stack allocated and will be cleaned up when main exits.
+      // Their destructors should handle closing the serial port.
+
+      // Finally, cleanup other dynamically allocated objects
       delete ini; // Clean up ini
       delete motion_timer; // Clean up timer
+
+      std::cout << "INFO: Main program exiting." << std::endl;
 
       return 0;
 }
