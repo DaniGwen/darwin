@@ -423,7 +423,7 @@ int run_main_loop(int client_sock, mjpg_streamer* streamer, minIni* ini)
             // --- Invert X-axis error to correct tracking direction ---
             pixel_offset_from_center.X *= -1;
             // Invert Y-axis (if needed, depends on your framework's coordinate system)
-            // pixel_offset_from_center.Y *= -1;
+            pixel_offset_from_center.Y *= -1;
 
             // Scale pixel offset to angles (degrees)
             P_err.X = pixel_offset_from_center.X * (Camera::VIEW_H_ANGLE / (double)Camera::WIDTH);
