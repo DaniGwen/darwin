@@ -78,7 +78,7 @@ bool HeadTracking::Initialize(minIni* ini, Robot::MotionManager* motion_manager,
     cm730_ = cm730;                 // Store passed pointer
 
     // Basic check if passed pointers are valid
-    if (!motion_manager_ || !head_module_) {
+    if (!motion_manager_ || !head_module_ || !cm730_) {
         std::cerr << "ERROR: HeadTracking initialization failed: Invalid MotionManager or Head pointer passed." << std::endl;
         // No cleanup needed for motion singletons as they are not owned.
         return false;
@@ -155,7 +155,6 @@ bool HeadTracking::Initialize(minIni* ini, Robot::MotionManager* motion_manager,
         tilt_deadband_deg_ = ini_settings_->getd("HeadTracking", "TiltDeadbandDeg", tilt_deadband_deg_);
         std::cout << "INFO: Loaded HeadTracking tuning parameters from INI." << std::endl;
     }
-
 
     std::cout << "INFO: HeadTracking initialization successful." << std::endl;
     return true;
