@@ -331,10 +331,10 @@ int run_main_loop(int client_sock, mjpg_streamer* streamer, minIni* ini)
 
     // --- Tuning Parameters for Centering ---
     // These values control how the calculated error is applied to the head movement.
-    const double PAN_ERROR_SCALE = 1.0; // Scale factor for horizontal error (tune this: 0.1 to 2.0 usually)
-    const double TILT_ERROR_SCALE = 1.0; // Scale factor for vertical error (tune this: 0.1 to 2.0 usually)
-    const double PAN_DEADBAND_DEG = 1.0; // Deadband in degrees for pan (tune this: 0.5 to 3.0 usually)
-    const double TILT_DEADBAND_DEG = 1.0; // Deadband in degrees for tilt (tune this: 0.5 to 3.0 usually)
+    const double PAN_ERROR_SCALE = 0.7; // Scale factor for horizontal error (tune this: 0.1 to 2.0 usually)
+    const double TILT_ERROR_SCALE = 0.7; // Scale factor for vertical error (tune this: 0.1 to 2.0 usually)
+    const double PAN_DEADBAND_DEG = 0.7; // Deadband in degrees for pan (tune this: 0.5 to 3.0 usually)
+    const double TILT_DEADBAND_DEG = 0.7; // Deadband in degrees for tilt (tune this: 0.5 to 3.0 usually)
 
 
     // Image buffer for the output frame with detections drawn on it
