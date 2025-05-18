@@ -544,7 +544,8 @@ void HeadTracking::UpdateHeadTracking(const std::vector<ParsedDetection> &detect
         // --- Check if the detected label is "person" ---
         if (det.label == "person") // Look for the label "person"
         {
-           cm730_->WriteWord(CM730::ID_CM, CM730::P_LED_EYE_L, cm730_->MakeColor(1, 0, 4), 0);
+            // Eye color - magenta
+           cm730_->WriteWord(CM730::ID_CM, CM730::P_LED_EYE_L, cm730_->MakeColor(255, 0, 255), 0);
 
             // Calculate center of the bounding box in original image pixel coordinates
             tracked_object_center_for_head.X = (det.xmin + det.xmax) / 2.0 * Camera::WIDTH;
