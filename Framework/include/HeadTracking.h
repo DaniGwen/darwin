@@ -37,8 +37,6 @@ struct ParsedDetection
 // Declare socket path using extern - the definition is in HeadTracking.cpp
 extern const char *SOCKET_PATH;
 
-// U2D_DEV_NAME is handled in main where CM730 is initialized.
-
 class HeadTracking
 {
 public:
@@ -49,7 +47,7 @@ public:
       // Requires the minIni instance for loading settings and
       // initialized MotionManager and Head singleton pointers.
       // Returns true on success, false on failure.
-      bool Initialize(minIni* ini, Robot::MotionManager* motion_manager, Robot::Head* head_module);
+      bool Initialize(minIni* ini, Robot::MotionManager* motion_manager, Robot::Head* head_module, CM730* cm730);
 
       // Main tracking loop
       // This function will run the main processing loop (capture, send, receive, track).

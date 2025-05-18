@@ -28,6 +28,9 @@ const char *SOCKET_PATH = "/tmp/darwin_detector.sock";
 // IMPORTANT: Set the correct path to your Python detector script
 const char *PYTHON_SCRIPT_PATH = "/home/darwin/darwin/aiy-maker-kit/examples/custom_detect_objects.py";
 
+// Color configuration path
+const char *COLOR_CONFIG_PATH = "./color_config.ini";
+
 
 // Static member initialization (singleton instance)
 HeadTracking* HeadTracking::GetInstance()
@@ -41,14 +44,21 @@ HeadTracking::HeadTracking()
     : client_socket_(-1),
       streamer_(nullptr),
       ini_settings_(nullptr),
-      motion_manager_(nullptr), // Will be passed in Initialize
-      head_module_(nullptr),    // Will be passed in Initialize
+      ini_color_settings_(nullptr),
+      motion_manager_(nullptr),
+      head_module_(nullptr),
+      cm730_(nullptr),
       rgb_display_frame_(nullptr),
       no_target_count_(0),
       pan_error_scale_(0.5), // Default values (can be overridden by INI)
       tilt_error_scale_(0.5),
       pan_deadband_deg_(1.0),
-      tilt_deadband_deg_(1.0)
+      tilt_deadband_deg_(1.0),
+      magenta_color_(5),
+      cyan_color_(6),
+      white_color_(7),
+      yellow_color_(3),
+      black_color_(0),
 {
     // Constructor is intentionally minimal.
     // Initialization that might fail or requires external resources
@@ -61,11 +71,13 @@ HeadTracking::~HeadTracking()
     Cleanup();
 }
 
-bool HeadTracking::Initialize(minIni* ini, Robot::MotionManager* motion_manager, Robot::Head* head_module)
+bool HeadTracking::Initialize(minIni* ini, Robot::MotionManager* motion_manager, Robot::Head* head_module,CM730* cm730)
 {
+    ini_color_settings_ = new minIni(COLOR_CONFIG_PATH); // Load color config
     ini_settings_ = ini; // Store pointer to INI settings
     motion_manager_ = motion_manager; // Store passed pointer
     head_module_ = head_module;      // Store passed pointer
+    cm730_ = cm730;                 // Store passed pointer
 
     // Basic check if passed pointers are valid
     if (!motion_manager_ || !head_module_) {
@@ -434,7 +446,6 @@ std::vector<ParsedDetection> HeadTracking::ParseDetectionOutput(const std::strin
     return detections;
 }
 
-
 void HeadTracking::DrawBoundingBox(Image *image, const ParsedDetection &detection)
 {
     if (!image || !image->m_ImageData) {
@@ -501,6 +512,8 @@ void HeadTracking::UpdateHeadTracking(const std::vector<ParsedDetection>& detect
         // --- Check if the detected label is "person" ---
         if (det.label == "person") // Look for the label "person"
         {
+             cm730_.WriteByte(CM730::P_LED_PANNEL, magenta_color_ , NULL);
+
             // Calculate center of the bounding box in original image pixel coordinates
             tracked_object_center_for_head.X = (det.xmin + det.xmax) / 2.0 * Camera::WIDTH;
             tracked_object_center_for_head.Y = (det.ymin + det.ymax) / 2.0 * Camera::HEIGHT;
@@ -570,6 +583,8 @@ void HeadTracking::UpdateHeadTracking(const std::vector<ParsedDetection>& detect
         }
         else
         {
+            cm730_.WriteByte(CM730::P_LED_PANNEL, black_color_ , NULL);
+            
             // No target for too long, return to initial position
             if (head_module_) {
                 head_module_->MoveToHome(); // Alternative: stop active tracking and center head slowl
