@@ -103,7 +103,6 @@ int main(void)
             motion_timer->Stop();
             motion_manager->SetEnable(false);
             motion_manager->RemoveModule((MotionModule *)head_module);
-            motion_manager->Release(); // Deinitialize MotionManager
             delete ini;
             delete motion_timer;
             return -1;
@@ -121,7 +120,6 @@ int main(void)
       motion_timer->Stop();
       motion_manager->SetEnable(false); // Disable motion
       motion_manager->RemoveModule((MotionModule *)head_module); // Remove Head module
-      motion_manager->Release(); // Deinitialize MotionManager
 
       // LinuxCM730 and CM730 are stack allocated and will be cleaned up when main exits.
       // Their destructors should handle closing the serial port.
