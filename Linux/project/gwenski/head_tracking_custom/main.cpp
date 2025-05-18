@@ -337,10 +337,10 @@ int run_main_loop(int client_sock, mjpg_streamer* streamer, minIni* ini)
 
     // --- Tuning Parameters for Centering ---
     // These values control how the calculated error is applied to the head movement.
-    const double PAN_ERROR_SCALE = 1.1; // Scale factor for horizontal error (tune this: 0.1 to 2.0 usually)
-    const double TILT_ERROR_SCALE = 1.1; // Scale factor for vertical error (tune this: 0.1 to 2.0 usually)
-    const double PAN_DEADBAND_DEG = 0.5; // Deadband in degrees for pan (tune this: 0.5 to 3.0 usually)
-    const double TILT_DEADBAND_DEG = 0.5; // Deadband in degrees for tilt (tune this: 0.5 to 3.0 usually)
+    const double PAN_ERROR_SCALE = 1.4; // Scale factor for horizontal error (tune this: 0.1 to 2.0 usually)
+    const double TILT_ERROR_SCALE = 1.4; // Scale factor for vertical error (tune this: 0.1 to 2.0 usually)
+    const double PAN_DEADBAND_DEG = 0.4; // Deadband in degrees for pan (tune this: 0.5 to 3.0 usually)
+    const double TILT_DEADBAND_DEG = 0.4; // Deadband in degrees for tilt (tune this: 0.5 to 3.0 usually)
 
 
     // Image buffer for the output frame with detections drawn on it
@@ -352,7 +352,7 @@ int run_main_loop(int client_sock, mjpg_streamer* streamer, minIni* ini)
 
     // Tracking State Variables
     int NoTargetCount = 0;
-    const int NoTargetMaxCount = 20; // Number of frames to wait before initiating scan (tune this)
+    const int NoTargetMaxCount = 25; // Number of frames to wait before initiating scan (tune this)
 
     std::cout << "INFO: Starting main loop..." << std::endl;
     while (1)
