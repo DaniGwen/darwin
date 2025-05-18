@@ -330,8 +330,8 @@ int run_main_loop(int client_sock, mjpg_streamer* streamer, minIni* ini)
     // --- Set P-Gains for Head Tracking ---
     // These values control how strongly the motor reacts to the error signal.
     // Tune these alongside the error scaling factors below for best results.
-    Head::GetInstance()->m_Joint.SetPGain(JointData::ID_HEAD_PAN, 8); // Set P-gain for pan
-    Head::GetInstance()->m_Joint.SetPGain(JointData::ID_HEAD_TILT, 8); // Set P-gain for tilt
+    Head::GetInstance()->m_Joint.SetPGain(JointData::ID_HEAD_PAN, 9); // Set P-gain for pan
+    Head::GetInstance()->m_Joint.SetPGain(JointData::ID_HEAD_TILT, 9); // Set P-gain for tilt
     // You might need to increase these values (e.g., to 12, 16, or higher)
     // if the head isn't moving quickly enough. Be cautious of oscillation.
 
@@ -352,7 +352,7 @@ int run_main_loop(int client_sock, mjpg_streamer* streamer, minIni* ini)
 
     // Tracking State Variables
     int NoTargetCount = 0;
-    const int NoTargetMaxCount = 25; // Number of frames to wait before initiating scan (tune this)
+    const int NoTargetMaxCount = 30; // Number of frames to wait before initiating scan (tune this)
 
     std::cout << "INFO: Starting main loop..." << std::endl;
     while (1)
@@ -458,8 +458,7 @@ int run_main_loop(int client_sock, mjpg_streamer* streamer, minIni* ini)
             }
             else
             {
-                // No target for too long, initiate scan or return to initial position
-                // Head::GetInstance()->InitTracking(); // Return to initial tracking position/scan
+                // No target for too long, return to initial position
                 Head::GetInstance()->MoveToHome(); // Alternative: stop active tracking and center head slowl
                 // NoTargetCount remains at or above NoTargetMaxCount
             }
