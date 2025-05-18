@@ -6,6 +6,7 @@
  * Modified for Edge TPU Object Detection via Unix Domain Socket
  * Removed repeated motion framework initialization from main loop.
  * Added explicit error scaling and deadband for centering.
+ * Added automatic startup of the Python detector script.
  */
 
 #include <stdio.h>
@@ -20,6 +21,7 @@
 #include <cstdio>
 #include <sstream> // Required for std::stringstream
 #include <cmath>   // Required for std::abs
+#include <cstdlib> // Required for system()
 
 // Headers for Unix Domain Sockets
 #include <sys/socket.h>
@@ -33,6 +35,10 @@
 // --- Socket Configuration ---
 // Define the path for the Unix Domain Socket
 const char *SOCKET_PATH = "/tmp/darwin_detector.sock";
+
+// --- Python Script Configuration ---
+// IMPORTANT: Set the correct path to your Python detector script
+const char *PYTHON_SCRIPT_PATH = "/home/darwin/darwin/aiy-maker-kit/examples/custom_detect_objects.py"; // Adjust this path as needed
 
 #define INI_FILE_PATH       "config.ini"
 #define U2D_DEV_NAME        "/dev/ttyUSB0" // Verify this path is correct!
@@ -331,10 +337,10 @@ int run_main_loop(int client_sock, mjpg_streamer* streamer, minIni* ini)
 
     // --- Tuning Parameters for Centering ---
     // These values control how the calculated error is applied to the head movement.
-    const double PAN_ERROR_SCALE = 0.7; // Scale factor for horizontal error (tune this: 0.1 to 2.0 usually)
-    const double TILT_ERROR_SCALE = 0.7; // Scale factor for vertical error (tune this: 0.1 to 2.0 usually)
-    const double PAN_DEADBAND_DEG = 0.7; // Deadband in degrees for pan (tune this: 0.5 to 3.0 usually)
-    const double TILT_DEADBAND_DEG = 0.7; // Deadband in degrees for tilt (tune this: 0.5 to 3.0 usually)
+    const double PAN_ERROR_SCALE = 0.5; // Scale factor for horizontal error (tune this: 0.1 to 2.0 usually)
+    const double TILT_ERROR_SCALE = 0.5; // Scale factor for vertical error (tune this: 0.1 to 2.0 usually)
+    const double PAN_DEADBAND_DEG = 1.0; // Deadband in degrees for pan (tune this: 0.5 to 3.0 usually)
+    const double TILT_DEADBAND_DEG = 1.0; // Deadband in degrees for tilt (tune this: 0.5 to 3.0 usually)
 
 
     // Image buffer for the output frame with detections drawn on it
@@ -505,6 +511,20 @@ int main(void)
         std::cerr << "ERROR: Failed to load INI file." << std::endl;
         return -1;
     }
+
+    // --- Auto-start the Python detector script ---
+    std::string command = "python3 ";
+    command += PYTHON_SCRIPT_PATH;
+    std::cout << "INFO: Starting Python detector script: " << command << std::endl;
+    int system_return = system(command.c_str());
+
+    if (system_return != 0) {
+        std::cerr << "WARNING: Failed to start Python script using system(). Make sure the path is correct and python3 is in PATH." << std::endl;
+        // Note: system() return value can vary; 0 usually means success, but check man page for specifics.
+    }
+    // Give the Python script a moment to start and create the socket
+    usleep(1000000); // 1 second delay (adjust if needed)
+
 
     // --- Initialize Socket Server ---
     int client_sock = initialize_socket_server();
