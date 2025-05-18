@@ -5,7 +5,7 @@
  * Author: robotis
  * Modified for Edge TPU Object Detection via Unix Domain Socket
  * Refactored into HeadTracking singleton class.
- * Added automatic startup of the Python detector script.
+ * Python script startup moved to HeadTracking::Initialize.
  * Motion Framework initialization and cleanup in main.
  * Fixed multiple definition error for SOCKET_PATH.
  * Passes initialized MotionManager and Head pointers to HeadTracking.
@@ -23,8 +23,7 @@
 #include "LinuxDARwIn.h"  // Include for Motion Framework components
 
 // --- Python Script Configuration ---
-// IMPORTANT: Set the correct path to your Python detector script
-const char *PYTHON_SCRIPT_PATH = "/home/darwin/darwin/aiy-maker-kit/examples/custom_detect_objects.py"; // Corrected path
+// PYTHON_SCRIPT_PATH is now defined in HeadTracking.cpp
 
 #define INI_FILE_PATH "config.ini"
 #define U2D_DEV_NAME "/dev/ttyUSB0" // Verify this path is correct!
@@ -50,26 +49,14 @@ int main(void)
         return -1;
     }
 
+    // --- Camera Initialization (kept in main) ---
+    // It's often good practice to initialize the camera early in main
+    // as it's a fundamental system resource.
+    std::cout << "INFO: Initializing camera..." << std::endl;
     LinuxCamera::GetInstance()->Initialize(0); // Initialize with device index 0
     LinuxCamera::GetInstance()->LoadINISettings(ini);
     std::cout << "INFO: Camera initialized and settings loaded." << std::endl;
 
-    // --- Auto-start the Python detector script ---
-    // Construct the command to execute the Python script
-    std::string command = "python3 ";
-    command += PYTHON_SCRIPT_PATH;
-    // Add '&' to run the command in the background, so the C++ program doesn't wait for it to finish
-    command += " &";
-    std::cout << "INFO: Starting Python detector script: " << command << std::endl;
-    int system_return = system(command.c_str());
-
-    if (system_return != 0)
-    {
-        std::cerr << "WARNING: Failed to start Python script using system(). Make sure the path is correct and python3 is in PATH." << std::endl;
-        // Note: system() return value can vary; 0 usually means success, but check man page for specifics.
-    }
-    // Give the Python script a moment to start and create the socket
-    usleep(1000000); // 1 second delay (adjust if needed)
 
     // --- Initialize Motion Framework Components (in main) ---
     // These are instantiated and initialized here before HeadTracking uses them.
@@ -100,6 +87,7 @@ int main(void)
     HeadTracking *head_tracker = HeadTracking::GetInstance();
 
     // Pass the INI settings and the initialized motion framework singletons to HeadTracking
+    // The Python script startup is now handled inside head_tracker->Initialize()
     if (!head_tracker->Initialize(ini, motion_manager, head_module))
     {
         std::cerr << "ERROR: HeadTracking initialization failed. Exiting." << std::endl;
