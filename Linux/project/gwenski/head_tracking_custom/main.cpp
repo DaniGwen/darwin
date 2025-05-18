@@ -352,7 +352,7 @@ int run_main_loop(int client_sock, mjpg_streamer* streamer, minIni* ini)
 
     // Tracking State Variables
     int NoTargetCount = 0;
-    const int NoTargetMaxCount = 30; // Number of frames to wait before initiating scan (tune this)
+    const int NoTargetMaxCount = 10; // Number of frames to wait before initiating scan (tune this)
 
     std::cout << "INFO: Starting main loop..." << std::endl;
     while (1)
