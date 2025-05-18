@@ -330,8 +330,8 @@ int run_main_loop(int client_sock, mjpg_streamer* streamer, minIni* ini)
     // --- Set P-Gains for Head Tracking ---
     // These values control how strongly the motor reacts to the error signal.
     // Tune these alongside the error scaling factors below for best results.
-    Head::GetInstance()->m_Joint.SetPGain(JointData::ID_HEAD_PAN, 13); // Set P-gain for pan
-    Head::GetInstance()->m_Joint.SetPGain(JointData::ID_HEAD_TILT, 13); // Set P-gain for tilt
+    Head::GetInstance()->m_Joint.SetPGain(JointData::ID_HEAD_PAN, 8); // Set P-gain for pan
+    Head::GetInstance()->m_Joint.SetPGain(JointData::ID_HEAD_TILT, 8); // Set P-gain for tilt
     // You might need to increase these values (e.g., to 12, 16, or higher)
     // if the head isn't moving quickly enough. Be cautious of oscillation.
 
@@ -339,8 +339,8 @@ int run_main_loop(int client_sock, mjpg_streamer* streamer, minIni* ini)
     // These values control how the calculated error is applied to the head movement.
     const double PAN_ERROR_SCALE = 0.5; // Scale factor for horizontal error (tune this: 0.1 to 2.0 usually)
     const double TILT_ERROR_SCALE = 0.5; // Scale factor for vertical error (tune this: 0.1 to 2.0 usually)
-    const double PAN_DEADBAND_DEG = 1.0; // Deadband in degrees for pan (tune this: 0.5 to 3.0 usually)
-    const double TILT_DEADBAND_DEG = 1.0; // Deadband in degrees for tilt (tune this: 0.5 to 3.0 usually)
+    const double PAN_DEADBAND_DEG = 0.5; // Deadband in degrees for pan (tune this: 0.5 to 3.0 usually)
+    const double TILT_DEADBAND_DEG = 0.5; // Deadband in degrees for tilt (tune this: 0.5 to 3.0 usually)
 
 
     // Image buffer for the output frame with detections drawn on it
