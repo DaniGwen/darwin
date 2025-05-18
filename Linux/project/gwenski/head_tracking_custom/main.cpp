@@ -337,8 +337,8 @@ int run_main_loop(int client_sock, mjpg_streamer* streamer, minIni* ini)
 
     // --- Tuning Parameters for Centering ---
     // These values control how the calculated error is applied to the head movement.
-    const double PAN_ERROR_SCALE = 0.9; // Scale factor for horizontal error (tune this: 0.1 to 2.0 usually)
-    const double TILT_ERROR_SCALE = 0.9; // Scale factor for vertical error (tune this: 0.1 to 2.0 usually)
+    const double PAN_ERROR_SCALE = 1.1; // Scale factor for horizontal error (tune this: 0.1 to 2.0 usually)
+    const double TILT_ERROR_SCALE = 1.1; // Scale factor for vertical error (tune this: 0.1 to 2.0 usually)
     const double PAN_DEADBAND_DEG = 0.5; // Deadband in degrees for pan (tune this: 0.5 to 3.0 usually)
     const double TILT_DEADBAND_DEG = 0.5; // Deadband in degrees for tilt (tune this: 0.5 to 3.0 usually)
 
@@ -460,7 +460,7 @@ int run_main_loop(int client_sock, mjpg_streamer* streamer, minIni* ini)
             {
                 // No target for too long, initiate scan or return to initial position
                 // Head::GetInstance()->InitTracking(); // Return to initial tracking position/scan
-                Head::GetInstance()->MoveTracking(Point2D(0.0, 0.0)); // Alternative: stop active tracking and center head slowl
+                Head::GetInstance()->MoveToHome(); // Alternative: stop active tracking and center head slowl
                 // NoTargetCount remains at or above NoTargetMaxCount
             }
         }
