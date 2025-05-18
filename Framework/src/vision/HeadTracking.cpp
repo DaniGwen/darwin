@@ -57,7 +57,7 @@ HeadTracking::HeadTracking()
       cyan_color_(6),
       white_color_(7),
       yellow_color_(3),
-      black_color_(0),
+      black_color_(0)
 {
     // Constructor is intentionally minimal.
     // Initialization that might fail or requires external resources
