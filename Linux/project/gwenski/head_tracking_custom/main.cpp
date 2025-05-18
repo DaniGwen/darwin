@@ -106,7 +106,7 @@ int main(void)
 
     // Pass the INI settings and the initialized motion framework singletons to HeadTracking
     // The Python script startup is now handled inside head_tracker->Initialize()
-    if (!head_tracker->Initialize(ini, motion_manager, head_module, &cm730))
+    if (!head_tracker->Initialize(ini, motion_manager, head_module, cm730))
     {
         std::cerr << "ERROR: HeadTracking initialization failed. Exiting." << std::endl;
         // Perform motion framework cleanup before exiting
