@@ -38,6 +38,7 @@ OBJS =  ../../Framework/src/MX28.o     	\
         ../../Framework/src/vision/Image.o  		\
         ../../Framework/src/vision/ImgProcess.o 	\
         ../../Framework/src/vision/Camera.o	\
+        ../../Framework/src/vision/HeadTracking.o \
         ../../Framework/src/minIni/minIni.o	\
 	../../Framework/src/gripper/GripperControl.o \
         streamer/httpd.o           \
