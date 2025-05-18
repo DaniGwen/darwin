@@ -76,7 +76,7 @@ private:
       // Pointers to DARwIn-OP framework singletons (passed in Initialize, not owned)
       Robot::MotionManager *motion_manager_;
       Robot::Head *head_module_;
-      // LinuxMotionTimer is assumed to be managed by MotionManager or main.
+      Robot::CM730 *cm730_;
 
       // Image buffer for the output frame with detections drawn on it
       Image *rgb_display_frame_;

@@ -44,7 +44,6 @@ HeadTracking::HeadTracking()
     : client_socket_(-1),
       streamer_(nullptr),
       ini_settings_(nullptr),
-      ini_color_settings_(nullptr),
       motion_manager_(nullptr),
       head_module_(nullptr),
       cm730_(nullptr),
@@ -73,7 +72,6 @@ HeadTracking::~HeadTracking()
 
 bool HeadTracking::Initialize(minIni* ini, Robot::MotionManager* motion_manager, Robot::Head* head_module,CM730* cm730)
 {
-    ini_color_settings_ = new minIni(COLOR_CONFIG_PATH); // Load color config
     ini_settings_ = ini; // Store pointer to INI settings
     motion_manager_ = motion_manager; // Store passed pointer
     head_module_ = head_module;      // Store passed pointer
@@ -584,7 +582,7 @@ void HeadTracking::UpdateHeadTracking(const std::vector<ParsedDetection>& detect
         else
         {
             cm730_.WriteByte(CM730::P_LED_PANNEL, black_color_ , NULL);
-            
+
             // No target for too long, return to initial position
             if (head_module_) {
                 head_module_->MoveToHome(); // Alternative: stop active tracking and center head slowl
