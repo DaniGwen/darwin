@@ -11,9 +11,9 @@
 #ifndef HEADTRACKING_H_
 #define HEADTRACKING_H_
 
-#include <string>    // For std::string
-#include <vector>    // For std::vector
-#include <memory>    // For std::unique_ptr
+#include <string>   // For std::string
+#include <vector>   // For std::vector
+#include <memory>   // For std::unique_ptr
 #include <iostream> // For std::cerr, std::cout
 
 // Headers for Unix Domain Sockets
@@ -24,7 +24,7 @@
 #include "Camera.h"
 #include "mjpg_streamer.h"
 #include "LinuxDARwIn.h" // Assuming this provides basic robot control structures (MotionManager, Head, Point2D, JointData)
-#include "minIni.h"       // For INI file loading
+#include "minIni.h"      // For INI file loading
 
 // Structure to hold parsed detection data received from Python
 struct ParsedDetection
@@ -41,13 +41,13 @@ class HeadTracking
 {
 public:
       // Singleton access method
-      static HeadTracking* GetInstance();
+      static HeadTracking *GetInstance();
 
       // Initialization method
       // Requires the minIni instance for loading settings and
       // initialized MotionManager and Head singleton pointers.
       // Returns true on success, false on failure.
-      bool Initialize(minIni* ini, Robot::MotionManager* motion_manager, Robot::Head* head_module, CM730* cm730);
+      bool Initialize(minIni *ini, Robot::MotionManager *motion_manager, Robot::Head *head_module, CM730 *cm730);
 
       // Main tracking loop
       // This function will run the main processing loop (capture, send, receive, track).
@@ -65,17 +65,17 @@ private:
       HeadTracking();
 
       // Delete copy constructor and assignment operator
-      HeadTracking(const HeadTracking&) = delete;
-      HeadTracking& operator=(const HeadTracking&) = delete;
+      HeadTracking(const HeadTracking &) = delete;
+      HeadTracking &operator=(const HeadTracking &) = delete;
 
       // --- Member Variables ---
-      int client_socket_;             // File descriptor for the client socket connection
-      mjpg_streamer* streamer_;    // Pointer to the MJPG streamer instance
-      minIni* ini_settings_;       // Pointer to loaded INI settings (owned by main)
+      int client_socket_;       // File descriptor for the client socket connection
+      mjpg_streamer *streamer_; // Pointer to the MJPG streamer instance
+      minIni *ini_settings_;    // Pointer to loaded INI settings (owned by main)
 
       // Pointers to DARwIn-OP framework singletons (passed in Initialize, not owned)
-      Robot::MotionManager* motion_manager_;
-      Robot::Head* head_module_;
+      Robot::MotionManager *motion_manager_;
+      Robot::Head *head_module_;
       // LinuxMotionTimer is assumed to be managed by MotionManager or main.
 
       // Image buffer for the output frame with detections drawn on it
@@ -91,6 +91,12 @@ private:
       double pan_deadband_deg_;
       double tilt_deadband_deg_;
 
+      // Eye color values for LED panel
+      int magenta_color_;
+      int cyan_color_;
+      int white_color_;
+      int yellow_color_;
+      int black_color_;
 
       // --- Private Helper Methods ---
 
@@ -108,7 +114,7 @@ private:
 
       // Handles sending frame data over the socket
       // Returns true on success, false on failure (e.g., connection closed)
-      bool SendFrameData(Image* frame);
+      bool SendFrameData(Image *frame);
 
       // Handles receiving detection results over the socket and parsing them
       // Returns vector of detections on success, empty vector on failure or no detections.
@@ -123,7 +129,7 @@ private:
 
       // Handles head tracking logic based on detection results
       // Uses the motion_manager_ and head_module_ member pointers.
-      void UpdateHeadTracking(const std::vector<ParsedDetection>& detections);
+      void UpdateHeadTracking(const std::vector<ParsedDetection> &detections);
 
       // Helper to receive exact number of bytes from socket
       // Returns received data or empty string on error/disconnect
