@@ -1365,7 +1365,7 @@ void NameCmd()
 	GoToCursor(CMD_COL, CMD_ROW);
 	printf("name: ");
 	char name[80] = {0};
-	fgets(name);
+	fgets(name, sizeof(name), stdin);
 	fflush(stdin);
 	for(int i=0; i<=Action::MAXNUM_NAME; i++)
 		Page.header.name[i] = name[i];
