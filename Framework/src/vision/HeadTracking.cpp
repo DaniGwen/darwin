@@ -80,13 +80,6 @@ bool HeadTracking::Initialize(minIni* ini, Robot::MotionManager* motion_manager,
         return false;
     }
 
-    // 2. Initialize Camera
-    if (!InitializeCamera()) {
-        std::cerr << "ERROR: HeadTracking initialization failed: Camera setup failed." << std::endl;
-        Cleanup(); // Clean up already initialized resources
-        return false;
-    }
-
     // 3. Initialize MJPG Streamer
     if (!InitializeStreamer()) {
         std::cerr << "ERROR: HeadTracking initialization failed: Streamer setup failed." << std::endl;
@@ -157,6 +150,17 @@ void HeadTracking::Run()
     }
 
     std::cout << "INFO: Starting HeadTracking main loop..." << std::endl;
+
+      std::cout << "INFO: Initializing camera..." << std::endl;
+    // Assuming LinuxCamera is a singleton
+    if (ini_settings_) {
+        LinuxCamera::GetInstance()->Initialize(0); // Initialize with device index 0
+        LinuxCamera::GetInstance()->LoadINISettings(ini_settings_);
+        std::cout << "INFO: Camera initialized and settings loaded." << std::endl;
+    } else {
+        std::cerr << "ERROR: INI settings not available for camera initialization." << std::endl;
+        return;
+    }
 
     // Add a small delay before the first frame capture
     usleep(500000); // 0.5 second delay
@@ -325,21 +329,6 @@ int HeadTracking::InitializeSocketServer()
     close(server_sock);
 
     return client_sock;
-}
-
-bool HeadTracking::InitializeCamera()
-{
-    std::cout << "INFO: Initializing camera..." << std::endl;
-    // Assuming LinuxCamera is a singleton
-    if (ini_settings_) {
-        LinuxCamera::GetInstance()->Initialize(0); // Initialize with device index 0
-        LinuxCamera::GetInstance()->LoadINISettings(ini_settings_);
-        std::cout << "INFO: Camera initialized and settings loaded." << std::endl;
-        return true;
-    } else {
-        std::cerr << "ERROR: INI settings not available for camera initialization." << std::endl;
-        return false;
-    }
 }
 
 bool HeadTracking::InitializeStreamer()
