@@ -303,7 +303,7 @@ int run_main_loop(int client_sock, mjpg_streamer* streamer, minIni* ini)
 
     if (MotionManager::GetInstance()->Initialize(&cm730) == false)
     {
-        // std::cerr << "WARNING: Failed to re-initialize Motion Manager in loop." << std::endl; // Too noisy
+        std::cerr << "WARNING: Failed to re-initialize Motion Manager in loop." << std::endl;
         return false;
     }
 
