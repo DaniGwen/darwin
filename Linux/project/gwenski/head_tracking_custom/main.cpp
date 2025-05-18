@@ -117,16 +117,7 @@ int main(void)
         delete motion_timer;
         return -1;
     }
-    {
-        std::cerr << "ERROR: HeadTracking initialization failed. Exiting." << std::endl;
-        // Perform motion framework cleanup before exiting
-        motion_timer->Stop();
-        motion_manager->SetEnable(false);
-        motion_manager->RemoveModule((MotionModule *)head_module);
-        delete ini;
-        delete motion_timer;
-        return -1;
-    }
+    
 
     // --- Create and Start HeadTracking Thread ---
     pthread_t tracking_thread;
