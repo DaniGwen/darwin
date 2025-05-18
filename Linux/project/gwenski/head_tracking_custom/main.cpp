@@ -4,7 +4,8 @@
  * Created on: 2011. 1. 4.
  * Author: robotis
  * Modified for Edge TPU Object Detection via Unix Domain Socket
- * Attempting to re-initialize motion framework in main loop
+ * Removed repeated motion framework initialization from main loop.
+ * Added explicit error scaling and deadband for centering.
  */
 
 #include <stdio.h>
@@ -18,6 +19,7 @@
 #include <algorithm>
 #include <cstdio>
 #include <sstream> // Required for std::stringstream
+#include <cmath>   // Required for std::abs
 
 // Headers for Unix Domain Sockets
 #include <sys/socket.h>
@@ -298,27 +300,42 @@ int run_main_loop(int client_sock, mjpg_streamer* streamer, minIni* ini)
         return false;
     }
 
+    // Initialize Motion Framework once before the loop
     LinuxCM730 linux_cm730(U2D_DEV_NAME);
     CM730 cm730(&linux_cm730);
 
     if (MotionManager::GetInstance()->Initialize(&cm730) == false)
     {
-        std::cerr << "WARNING: Failed to re-initialize Motion Manager in loop." << std::endl;
+        std::cerr << "ERROR: Failed to initialize Motion Manager before loop." << std::endl;
         return false;
     }
 
-    MotionManager::GetInstance()->LoadINISettings(ini); // Reload settings (might be needed)
-    MotionManager::GetInstance()->AddModule((MotionModule *)Head::GetInstance()); // Re-add Head module
+    MotionManager::GetInstance()->LoadINISettings(ini);
+    MotionManager::GetInstance()->AddModule((MotionModule *)Head::GetInstance());
     LinuxMotionTimer *motion_timer = new LinuxMotionTimer(MotionManager::GetInstance());
-        motion_timer->Start();
+    motion_timer->Start();
 
     MotionStatus::m_CurrentJoints.SetEnableBodyWithoutHead(false);
-    MotionManager::GetInstance()->SetEnable(true); // Re-enable the motion manager
+    MotionManager::GetInstance()->SetEnable(true);
 
-    // Explicitly enable head joints and set gains
-    Head::GetInstance()->m_Joint.SetEnableHeadOnly(true, true); // Enable torque for head pan and tilt
+    // Explicitly enable head joints and set gains once before the loop
+    Head::GetInstance()->m_Joint.SetEnableHeadOnly(true, true);
+
+    // --- Set P-Gains for Head Tracking ---
+    // These values control how strongly the motor reacts to the error signal.
+    // Tune these alongside the error scaling factors below for best results.
     Head::GetInstance()->m_Joint.SetPGain(JointData::ID_HEAD_PAN, 8); // Set P-gain for pan
     Head::GetInstance()->m_Joint.SetPGain(JointData::ID_HEAD_TILT, 8); // Set P-gain for tilt
+    // You might need to increase these values (e.g., to 12, 16, or higher)
+    // if the head isn't moving quickly enough. Be cautious of oscillation.
+
+    // --- Tuning Parameters for Centering ---
+    // These values control how the calculated error is applied to the head movement.
+    const double PAN_ERROR_SCALE = 0.5; // Scale factor for horizontal error (tune this: 0.1 to 2.0 usually)
+    const double TILT_ERROR_SCALE = 0.5; // Scale factor for vertical error (tune this: 0.1 to 2.0 usually)
+    const double PAN_DEADBAND_DEG = 1.0; // Deadband in degrees for pan (tune this: 0.5 to 3.0 usually)
+    const double TILT_DEADBAND_DEG = 1.0; // Deadband in degrees for tilt (tune this: 0.5 to 3.0 usually)
+
 
     // Image buffer for the output frame with detections drawn on it
     Image *rgb_display_frame = new Image(Camera::WIDTH, Camera::HEIGHT, Image::RGB_PIXEL_SIZE);
@@ -405,6 +422,23 @@ int run_main_loop(int client_sock, mjpg_streamer* streamer, minIni* ini)
             // Scale pixel offset to angles (degrees)
             P_err.X = pixel_offset_from_center.X * (Camera::VIEW_H_ANGLE / (double)Camera::WIDTH);
             P_err.Y = pixel_offset_from_center.Y * (Camera::VIEW_V_ANGLE / (double)Camera::HEIGHT);
+
+            // --- Apply Deadband and Error Scaling for Centering ---
+            // Apply deadband: only move if error is greater than the threshold
+            if (std::abs(P_err.X) < PAN_DEADBAND_DEG) {
+                P_err.X = 0.0; // Set error to zero within the deadband
+            } else {
+                // Apply additional scaling outside the deadband
+                P_err.X *= PAN_ERROR_SCALE;
+            }
+
+            if (std::abs(P_err.Y) < TILT_DEADBAND_DEG) {
+                P_err.Y = 0.0; // Set error to zero within the deadband
+            } else {
+                // Apply additional scaling outside the deadband
+                P_err.Y *= TILT_ERROR_SCALE;
+            }
+
 
             // Pass angular error to MoveTracking
             Head::GetInstance()->MoveTracking(P_err); // Actively track the person
