@@ -6,7 +6,7 @@
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
 #
-#     https://www.apache.org/licenses/LICENSE-2.0
+#     https://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
@@ -17,7 +17,7 @@
 """
 Performs object detection by communicating with a C++ program via Unix Domain Socket.
 Receives raw image data, performs inference, and sends detection results back.
-Refactored for modularity.
+Refactored for modularity and added retry logic for socket connection.
 """
 
 import sys
@@ -41,6 +41,8 @@ import models
 
 # --- Socket Configuration ---
 SOCKET_PATH = "/tmp/darwin_detector.sock"
+SOCKET_CONNECT_RETRIES = 10 # Number of times to retry socket connection
+SOCKET_RETRY_DELAY_SEC = 0.5 # Delay between socket connection retries in seconds
 
 # --- Model Configuration ---
 # Use the model path from models.py
@@ -132,17 +134,24 @@ def get_output_tensors(interpreter):
 
 # --- Modular Functions ---
 
-def connect_to_socket(socket_path):
-    """Connects to the Unix Domain Socket server."""
-    print(f"INFO: Connecting to socket {socket_path}...", file=sys.stderr)
-    client_socket = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-    try:
-        client_socket.connect(socket_path)
-        print("INFO: Successfully connected to C++ program.", file=sys.stderr)
-        return client_socket
-    except socket.error as e:
-        print(f"ERROR: Failed to connect to socket {socket_path}: {e}", file=sys.stderr)
-        return None
+def connect_to_socket(socket_path, retries=SOCKET_CONNECT_RETRIES, delay=SOCKET_RETRY_DELAY_SEC):
+    """Connects to the Unix Domain Socket server with retries."""
+    print(f"INFO: Attempting to connect to socket {socket_path}...", file=sys.stderr)
+    for i in range(retries):
+        try:
+            client_socket = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+            client_socket.connect(socket_path)
+            print("INFO: Successfully connected to C++ program.", file=sys.stderr)
+            return client_socket
+        except (socket.error, FileNotFoundError) as e:
+            print(f"WARNING: Connection attempt {i+1}/{retries} failed: {e}. Retrying in {delay} seconds...", file=sys.stderr)
+            time.sleep(delay)
+        except Exception as e:
+            print(f"ERROR: An unexpected error occurred during connection attempt {i+1}/{retries}: {e}", file=sys.stderr)
+            time.sleep(delay)
+
+    print(f"ERROR: Failed to connect to socket {socket_path} after {retries} attempts.", file=sys.stderr)
+    return None
 
 def load_model_and_labels(model_path, labels_path):
     """Loads the TFLite model and labels."""
@@ -279,8 +288,10 @@ def process_frame(client_socket, interpreter, labels, model_input_width, model_i
 def main():
     """Main function for the detector script."""
     # --- Connect to C++ Socket Server ---
+    # The connect_to_socket function now handles retries
     client_socket = connect_to_socket(SOCKET_PATH)
     if client_socket is None:
+        print("ERROR: Could not connect to C++ program after multiple retries. Exiting.", file=sys.stderr)
         sys.exit(1)
 
     # --- Load Model and Create Interpreter (Done Once) ---
@@ -295,6 +306,7 @@ def main():
         while True:
             if not process_frame(client_socket, interpreter, labels, model_input_width, model_input_height, input_type):
                 # process_frame returns False on connection closed or send error
+                print("INFO: Detection loop terminated.", file=sys.stderr)
                 break
     except Exception as e:
         # Catch any other errors during the main loop

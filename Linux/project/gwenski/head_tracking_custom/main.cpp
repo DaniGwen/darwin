@@ -38,7 +38,7 @@ const char *SOCKET_PATH = "/tmp/darwin_detector.sock";
 
 // --- Python Script Configuration ---
 // IMPORTANT: Set the correct path to your Python detector script
-const char *PYTHON_SCRIPT_PATH = "/home/darwin/darwin/aiy-maker-kit/examples/custom_detect_objects.py"; // Adjust this path as needed
+const char *PYTHON_SCRIPT_PATH = "/home/darwin/darwin/aiy-maker-kit/examples/custom_detect_objects.py"; // Corrected path
 
 #define INI_FILE_PATH       "config.ini"
 #define U2D_DEV_NAME        "/dev/ttyUSB0" // Verify this path is correct!
@@ -512,16 +512,12 @@ int main(void)
         return -1;
     }
 
-    // --- Initialize Socket Server ---
-    int client_sock = initialize_socket_server();
-    if (client_sock < 0) {
-        delete ini; // Clean up ini
-        return -1;
-    }
-
-     // --- Auto-start the Python detector script ---
+    // --- Auto-start the Python detector script ---
+    // Construct the command to execute the Python script
     std::string command = "python3 ";
     command += PYTHON_SCRIPT_PATH;
+    // Add '&' to run the command in the background, so the C++ program doesn't wait for it to finish
+    command += " &";
     std::cout << "INFO: Starting Python detector script: " << command << std::endl;
     int system_return = system(command.c_str());
 
@@ -531,6 +527,14 @@ int main(void)
     }
     // Give the Python script a moment to start and create the socket
     usleep(1000000); // 1 second delay (adjust if needed)
+
+
+    // --- Initialize Socket Server ---
+    int client_sock = initialize_socket_server();
+    if (client_sock < 0) {
+        delete ini; // Clean up ini
+        return -1;
+    }
 
     // --- Initialize Camera ---
     if (!initialize_camera(ini)) {
