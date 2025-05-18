@@ -18,16 +18,16 @@
 #include <iostream>
 #include <cstdlib> // Required for system()
 
-#include "minIni.h"     // For INI file loading
+#include "minIni.h"       // For INI file loading
 #include "HeadTracking.h" // Include the new HeadTracking class header (declares SOCKET_PATH)
-#include "LinuxDARwIn.h" // Include for Motion Framework components
+#include "LinuxDARwIn.h"  // Include for Motion Framework components
 
 // --- Python Script Configuration ---
 // IMPORTANT: Set the correct path to your Python detector script
 const char *PYTHON_SCRIPT_PATH = "/home/darwin/darwin/aiy-maker-kit/examples/custom_detect_objects.py"; // Corrected path
 
-#define INI_FILE_PATH       "config.ini"
-#define U2D_DEV_NAME        "/dev/ttyUSB0" // Verify this path is correct!
+#define INI_FILE_PATH "config.ini"
+#define U2D_DEV_NAME "/dev/ttyUSB0" // Verify this path is correct!
 
 void change_current_dir()
 {
@@ -44,7 +44,8 @@ int main(void)
 
     // Load INI settings
     minIni *ini = new minIni(INI_FILE_PATH);
-    if (!ini) {
+    if (!ini)
+    {
         std::cerr << "ERROR: Failed to load INI file." << std::endl;
         return -1;
     }
@@ -58,21 +59,17 @@ int main(void)
     std::cout << "INFO: Starting Python detector script: " << command << std::endl;
     int system_return = system(command.c_str());
 
-    if (system_return != 0) {
+    if (system_return != 0)
+    {
         std::cerr << "WARNING: Failed to start Python script using system(). Make sure the path is correct and python3 is in PATH." << std::endl;
         // Note: system() return value can vary; 0 usually means success, but check man page for specifics.
     }
     // Give the Python script a moment to start and create the socket
     usleep(1000000); // 1 second delay (adjust if needed)
 
-      if (*ini) {
-        LinuxCamera::GetInstance()->Initialize(0); // Initialize with device index 0
-        LinuxCamera::GetInstance()->LoadINISettings(*ini);
-        std::cout << "INFO: Camera initialized and settings loaded." << std::endl;
-    } else {
-        std::cerr << "ERROR: INI settings not available for camera initialization." << std::endl;
-        return;
-    }
+    LinuxCamera::GetInstance()->Initialize(0); // Initialize with device index 0
+    LinuxCamera::GetInstance()->LoadINISettings(ini);
+    std::cout << "INFO: Camera initialized and settings loaded." << std::endl;
 
     // --- Initialize Motion Framework Components (in main) ---
     // These are instantiated and initialized here before HeadTracking uses them.
@@ -80,8 +77,8 @@ int main(void)
     CM730 cm730(&linux_cm730);
 
     // Get MotionManager singleton and initialize it with the CM730 instance
-    Robot::MotionManager* motion_manager = Robot::MotionManager::GetInstance();
-    Robot::Head* head_module = Robot::Head::GetInstance(); // Get Head singleton now as well
+    Robot::MotionManager *motion_manager = Robot::MotionManager::GetInstance();
+    Robot::Head *head_module = Robot::Head::GetInstance(); // Get Head singleton now as well
 
     if (motion_manager->Initialize(&cm730) == false)
     {
@@ -99,12 +96,12 @@ int main(void)
     LinuxMotionTimer *motion_timer = new LinuxMotionTimer(motion_manager);
     motion_timer->Start();
 
-
     // --- Initialize and Run HeadTracking ---
-    HeadTracking* head_tracker = HeadTracking::GetInstance();
+    HeadTracking *head_tracker = HeadTracking::GetInstance();
 
     // Pass the INI settings and the initialized motion framework singletons to HeadTracking
-    if (!head_tracker->Initialize(ini, motion_manager, head_module)) {
+    if (!head_tracker->Initialize(ini, motion_manager, head_module))
+    {
         std::cerr << "ERROR: HeadTracking initialization failed. Exiting." << std::endl;
         // Perform motion framework cleanup before exiting
         motion_timer->Stop();
@@ -125,14 +122,14 @@ int main(void)
     // Then, perform explicit motion framework shutdown in reverse order of initialization
     std::cout << "INFO: Shutting down motion framework..." << std::endl;
     motion_timer->Stop();
-    motion_manager->SetEnable(false); // Disable motion
+    motion_manager->SetEnable(false);                          // Disable motion
     motion_manager->RemoveModule((MotionModule *)head_module); // Remove Head module
 
     // LinuxCM730 and CM730 are stack allocated and will be cleaned up when main exits.
     // Their destructors should handle closing the serial port.
 
     // Finally, cleanup other dynamically allocated objects
-    delete ini; // Clean up ini
+    delete ini;          // Clean up ini
     delete motion_timer; // Clean up timer
 
     std::cout << "INFO: Main program exiting." << std::endl;
