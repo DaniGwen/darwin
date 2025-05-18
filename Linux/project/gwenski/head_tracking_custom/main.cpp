@@ -4,7 +4,7 @@
  * Created on: 2011. 1. 4.
  * Author: robotis
  * Modified for Edge TPU Object Detection via Unix Domain Socket
- * Refactored for modularity and enhanced motion init check
+ * Attempting to re-initialize motion framework in main loop
  */
 
 #include <stdio.h>
@@ -32,8 +32,8 @@
 // Define the path for the Unix Domain Socket
 const char *SOCKET_PATH = "/tmp/darwin_detector.sock";
 
-#define INI_FILE_PATH "config.ini"
-#define U2D_DEV_NAME "/dev/ttyUSB0" // Verify this path is correct!
+#define INI_FILE_PATH       "config.ini"
+#define U2D_DEV_NAME        "/dev/ttyUSB0" // Verify this path is correct!
 
 void change_current_dir()
 {
@@ -51,7 +51,7 @@ struct ParsedDetection
 };
 
 // Function to parse the detection string received from Python
-// Expected format: "label score xmin ymin xmax y码\nlabel score xmin ymin xmax ymax\n..."
+// Expected format: "label score xmin ymin xmax ymax\nlabel score xmin ymin xmax ymax\n..."
 std::vector<ParsedDetection> parse_detection_output(const std::string &output)
 {
     std::vector<ParsedDetection> detections;
@@ -74,11 +74,11 @@ std::vector<ParsedDetection> parse_detection_output(const std::string &output)
     return detections;
 }
 
+
 // Basic function to draw bounding boxes on the RGB image
 void DrawBoundingBox(Image *image, const ParsedDetection &detection)
 {
-    if (!image || !image->m_ImageData)
-        return;
+    if (!image || !image->m_ImageData) return;
 
     int img_width = image->m_Width;
     int img_height = image->m_Height;
@@ -99,38 +99,24 @@ void DrawBoundingBox(Image *image, const ParsedDetection &detection)
     unsigned char r = 255, g = 0, b = 0;
 
     // Draw lines (simplified)
-    for (int x = xmin; x <= xmax; ++x)
-    {
-        if (ymin >= 0 && ymin < img_height)
-        {
+    for (int x = xmin; x <= xmax; ++x) {
+        if (ymin >= 0 && ymin < img_height) {
             unsigned char *p = &image->m_ImageData[(ymin * img_width + x) * image->m_PixelSize];
-            p[0] = r;
-            p[1] = g;
-            p[2] = b;
+            p[0] = r; p[1] = g; p[2] = b;
         }
-        if (ymax >= 0 && ymax < img_height)
-        {
+        if (ymax >= 0 && ymax < img_height) {
             unsigned char *p = &image->m_ImageData[(ymax * img_width + x) * image->m_PixelSize];
-            p[0] = r;
-            p[1] = g;
-            p[2] = b;
+            p[0] = r; p[1] = g; p[2] = b;
         }
     }
-    for (int y = ymin; y <= ymax; ++y)
-    {
-        if (xmin >= 0 && xmin < img_width)
-        {
+    for (int y = ymin; y <= ymax; ++y) {
+        if (xmin >= 0 && xmin < img_width) {
             unsigned char *p = &image->m_ImageData[(y * img_width + xmin) * image->m_PixelSize];
-            p[0] = r;
-            p[1] = g;
-            p[2] = b;
+            p[0] = r; p[1] = g; p[2] = b;
         }
-        if (xmax >= 0 && xmax < img_width)
-        {
+        if (xmax >= 0 && xmax < img_width) {
             unsigned char *p = &image->m_ImageData[(y * img_width + xmax) * image->m_PixelSize];
-            p[0] = r;
-            p[1] = g;
-            p[2] = b;
+            p[0] = r; p[1] = g; p[2] = b;
         }
     }
 
@@ -140,8 +126,6 @@ void DrawBoundingBox(Image *image, const ParsedDetection &detection)
 
     // Drawing text label is more complex and omitted here.
 }
-
-// --- Modular Functions ---
 
 // Initializes the Unix Domain Socket server and waits for connection
 // Returns client_sock file descriptor on success, -1 on failure
@@ -201,103 +185,68 @@ int initialize_socket_server()
 
 // Initializes the Camera
 // Returns true on success, false on failure
-bool initialize_camera(minIni *ini)
+bool initialize_camera(minIni* ini)
 {
-    if (!ini)
-    {
+    if (!ini) {
         std::cerr << "ERROR: INI file not provided for camera initialization." << std::endl;
         return false;
     }
     std::cout << "INFO: Initializing camera..." << std::endl;
-    // Assuming Initialize returns a status or indicates success/failure
-    // If Initialize doesn't return status, we assume it succeeds here.
     LinuxCamera::GetInstance()->Initialize(0);
     LinuxCamera::GetInstance()->LoadINISettings(ini);
-    // Ensure camera is providing RGB data (Image::RGB_PIXEL_SIZE = 3)
     std::cout << "INFO: Camera initialized." << std::endl;
     return true;
 }
 
-// Initializes the Motion Framework
+// Initializes the Motion Framework (including CM730, MotionManager, Head)
+// Note: This function is now called within the main loop.
 // Returns true on success, false on failure
-bool initialize_motion_framework(minIni *ini)
+bool initialize_motion_framework(minIni* ini)
 {
-    if (!ini)
-    {
-        std::cerr << "ERROR: INI file not provided for motion framework initialization." << std::endl;
+    if (!ini) {
+        // Error message already printed in main, just return false
         return false;
     }
-    std::cout << "INFO: Initializing motion framework via " << U2D_DEV_NAME << "..." << std::endl;
-    LinuxCM730 linux_cm730(U2D_DEV_NAME);
+    // std::cout << "INFO: Attempting to initialize motion framework in loop..." << std::endl; // Too noisy
+
+    // These objects might persist across loop iterations if they are singletons
+    // or managed by the framework. Re-initializing them directly like this
+    // might be problematic depending on the framework's design.
+    // This approach is for debugging torque loss by repeatedly trying to enable motors.
+    LinuxCM730 linux_cm730(U2D_DEV_NAME); // Re-create CM730 interface
     CM730 cm730(&linux_cm730);
 
-    // Explicitly check the return value of Initialize
+    // Re-initialize MotionManager and add modules
     if (MotionManager::GetInstance()->Initialize(&cm730) == false)
     {
-        std::cerr << "ERROR: Fail to initialize Motion Manager! Check CM730 connection and device path." << std::endl;
+        // std::cerr << "WARNING: Failed to re-initialize Motion Manager in loop." << std::endl; // Too noisy
         return false;
     }
-    std::cout << "INFO: Motion Manager initialized." << std::endl;
 
-    MotionManager::GetInstance()->LoadINISettings(ini);
-    MotionManager::GetInstance()->AddModule((MotionModule *)Head::GetInstance());
-    LinuxMotionTimer *motion_timer = new LinuxMotionTimer(MotionManager::GetInstance());
-    motion_timer->Start(); // Assuming Start is blocking or non-critical for init success
+    MotionManager::GetInstance()->LoadINISettings(ini); // Reload settings (might be needed)
+    MotionManager::GetInstance()->AddModule((MotionModule *)Head::GetInstance()); // Re-add Head module
+    // The MotionTimer is likely a singleton and shouldn't be re-created/started repeatedly.
+    // Assuming it persists from the initial setup in main.
 
     MotionStatus::m_CurrentJoints.SetEnableBodyWithoutHead(false);
-    MotionManager::GetInstance()->SetEnable(true); // Enable the motion manager
+    MotionManager::GetInstance()->SetEnable(true); // Re-enable the motion manager
 
     // Explicitly enable head joints and set gains
-    std::cout << "INFO: Attempting to enable head joints and setting gains..." << std::endl;
+    Head::GetInstance()->m_Joint.SetEnableHeadOnly(true, true); // Enable torque for head pan and tilt
+    Head::GetInstance()->m_Joint.SetPGain(JointData::ID_HEAD_PAN, 8); // Set P-gain for pan
+    Head::GetInstance()->m_Joint.SetPGain(JointData::ID_HEAD_TILT, 8); // Set P-gain for tilt
 
-    int pan_torque_status = 0, pan_error = 0;
-    int tilt_torque_status = 0, tilt_error = 0;
-    int retry_count = 0;
-    const int max_retries = 10;        // Increased retries
-    const int retry_delay_us = 300000; // Increased delay to 300ms
-
-    // Loop to enable torque and verify
-    while ((pan_torque_status != 1 || tilt_torque_status != 1) && retry_count < max_retries)
-    {
-        Head::GetInstance()->m_Joint.SetEnableHeadOnly(true, true);        // Enable torque for head pan and tilt
-        Head::GetInstance()->m_Joint.SetPGain(JointData::ID_HEAD_PAN, 8);  // Set P-gain for pan
-        Head::GetInstance()->m_Joint.SetPGain(JointData::ID_HEAD_TILT, 8); // Set P-gain for tilt
-
-        // Add a delay to allow settings to take effect
-        usleep(retry_delay_us);
-
-        // Read back motor status to confirm torque is enabled
-        cm730.ReadByte(JointData::ID_HEAD_PAN, MX28::P_TORQUE_ENABLE, &pan_torque_status, &pan_error);
-        cm730.ReadByte(JointData::ID_HEAD_TILT, MX28::P_TORQUE_ENABLE, &tilt_torque_status, &tilt_error);
-
-        std::cout << "INFO: Torque Enable Retry " << (retry_count + 1) << ": Pan Status: " << pan_torque_status << " (Error: " << pan_error << "), Tilt Status: " << tilt_torque_status << " (Error: " << tilt_error << ")" << std::endl;
-
-        retry_count++;
-    }
-
-    if (pan_torque_status != 1 || tilt_torque_status != 1)
-    {
-        std::cerr << "ERROR: Failed to enable head motor torque after multiple retries." << std::endl;
-        // Depending on desired behavior, you might return false here to stop the program
-        // return false;
-    }
-    else
-    {
-        std::cout << "INFO: Head motor torque successfully enabled." << std::endl;
-    }
-
-    std::cout << "INFO: Motion framework initialized." << std::endl;
     return true;
 }
 
+
 // Initializes the MJPG Streamer
 // Returns streamer pointer on success, nullptr on failure
-mjpg_streamer *initialize_streamer()
+mjpg_streamer* initialize_streamer()
 {
     std::cout << "INFO: Initializing MJPG streamer..." << std::endl;
     mjpg_streamer *streamer = new mjpg_streamer(Camera::WIDTH, Camera::HEIGHT);
-    if (!streamer)
-    {
+    if (!streamer) {
         std::cerr << "ERROR: Failed to create MJPG streamer." << std::endl;
         return nullptr;
     }
@@ -305,13 +254,12 @@ mjpg_streamer *initialize_streamer()
     return streamer;
 }
 
+
 // Handles sending frame data over the socket
 // Returns true on success, false on failure
-bool send_frame_data(int client_sock, Image *frame)
+bool send_frame_data(int client_sock, Image* frame)
 {
-    if (!frame || !frame->m_ImageData)
-    {
-        // std::cerr << "ERROR: Invalid frame data provided for sending." << std::endl; // Too noisy
+    if (!frame || !frame->m_ImageData) {
         return false;
     }
 
@@ -338,8 +286,6 @@ bool send_frame_data(int client_sock, Image *frame)
 
 // Handles receiving detection results over the socket and parsing them
 // Returns vector of detections on success, empty vector on failure or no detections
-// Note: This function now implicitly handles connection errors by returning an empty vector
-// and printing an error message.
 std::vector<ParsedDetection> receive_detection_results(int client_sock)
 {
     std::string detection_output;
@@ -387,40 +333,20 @@ std::vector<ParsedDetection> receive_detection_results(int client_sock)
 
 // Handles the main processing loop (capture, send, receive, track)
 // Returns 0 on successful exit, -1 on error
-int run_main_loop(int client_sock, mjpg_streamer *streamer)
+int run_main_loop(int client_sock, mjpg_streamer* streamer, minIni* ini)
 {
+    initialize_motion_framework(ini);
+
     // Image buffer for the output frame with detections drawn on it
     Image *rgb_display_frame = new Image(Camera::WIDTH, Camera::HEIGHT, Image::RGB_PIXEL_SIZE);
-    if (!rgb_display_frame)
-    {
+    if (!rgb_display_frame) {
         std::cerr << "ERROR: Failed to create display frame buffer." << std::endl;
         return -1;
-    }
-
-    // Assuming CM730 object is accessible via MotionManager or a global instance
-    // If not, you might need to pass it to this function.
-    // For now, let's assume MotionManager::GetInstance()->m_cm730 is accessible or similar.
-    // Note: Accessing m_cm730 directly might break encapsulation depending on the framework.
-    // A safer approach would be to add a method to MotionManager to read motor status.
-    LinuxCM730 *linux_cm730_instance = dynamic_cast<LinuxCM730 *>(MotionManager::GetInstance()->GetCM730());
-    CM730 *cm730_instance = nullptr;
-    if (linux_cm730_instance)
-    {
-        cm730_instance = linux_cm730_instance; // Assuming LinuxCM730 inherits from CM730
-    }
-    else
-    {
-        std::cerr << "WARNING: Could not get CM730 instance for motor status checks in main loop." << std::endl;
     }
 
     // Tracking State Variables
     int NoTargetCount = 0;
     const int NoTargetMaxCount = 30; // Number of frames to wait before initiating scan (tune this)
-    // Point2D last_tracked_position; // Optional: store last known position if you want to hold
-
-    // Variables for periodic motor status check
-    int frame_counter = 0;
-    const int status_check_interval = 30; // Check status every 30 frames
 
     std::cout << "INFO: Starting main loop..." << std::endl;
     while (1)
@@ -447,7 +373,8 @@ int run_main_loop(int client_sock, mjpg_streamer *streamer)
         // Check if receive_detection_results indicated a connection error by returning empty
         // If it returned empty due to a connection error, receive_detection_results
         // would have printed an error, and the next send/receive will likely fail,
-        // leading to a break. We don't need the result_size check here.
+        // leading to a break.
+
 
         // Copy original camera frame to the display frame for drawing
         memcpy(rgb_display_frame->m_ImageData, current_cam_rgb_frame->m_ImageData,
@@ -501,12 +428,12 @@ int run_main_loop(int client_sock, mjpg_streamer *streamer)
         }
         else // No person found in the current frame
         {
-            if (NoTargetCount < NoTargetMaxCount)
+            if(NoTargetCount < NoTargetMaxCount)
             {
                 // Continue tracking based on the last known position or stop active tracking
                 // Head::GetInstance()->MoveTracking(); // Original BallTracker behavior (might hold last pos)
                 Head::GetInstance()->MoveTracking(Point2D(0.0, 0.0)); // Alternative: stop active tracking and center head slowly
-                NoTargetCount++;                                      // Increment counter
+                NoTargetCount++; // Increment counter
             }
             else
             {
@@ -514,41 +441,6 @@ int run_main_loop(int client_sock, mjpg_streamer *streamer)
                 Head::GetInstance()->InitTracking(); // Return to initial tracking position/scan
                 // NoTargetCount remains at or above NoTargetMaxCount
             }
-        }
-
-        // --- Periodic Motor Status Check ---
-        frame_counter++;
-        if (frame_counter >= status_check_interval && cm730_instance)
-        {
-            int pan_torque_status = 0, pan_error = 0;
-            int tilt_torque_status = 0, tilt_error = 0;
-            int pan_moving = 0, tilt_moving = 0;
-            int pan_present_load = 0, tilt_present_load = 0;
-            int pan_present_temp = 0, tilt_present_temp = 0;
-
-            cm730_instance->ReadByte(JointData::ID_HEAD_PAN, MX28::P_TORQUE_ENABLE, &pan_torque_status, &pan_error);
-            cm730_instance->ReadByte(JointData::ID_HEAD_TILT, MX28::P_TORQUE_ENABLE, &tilt_torque_status, &tilt_error);
-            cm730_instance->ReadByte(JointData::ID_HEAD_PAN, MX28::P_MOVING, &pan_moving, &pan_error); // Check if motor is moving
-            cm730_instance->ReadByte(JointData::ID_HEAD_TILT, MX28::P_MOVING, &tilt_moving, &tilt_error);
-            cm730_instance->ReadWord(JointData::ID_HEAD_PAN, MX28::P_PRESENT_LOAD_L, &pan_present_load, &pan_error); // Check load
-            cm730_instance->ReadWord(JointData::ID_HEAD_TILT, MX28::P_PRESENT_LOAD_L, &tilt_present_load, &tilt_error);
-            cm730_instance->ReadByte(JointData::ID_HEAD_PAN, MX28::P_PRESENT_TEMPERATURE, &pan_present_temp, &pan_error); // Check temperature
-            cm730_instance->ReadByte(JointData::ID_HEAD_TILT, MX28::P_PRESENT_TEMPERATURE, &tilt_present_temp, &tilt_error);
-            // You could also read the Error Status register (MX28::P_REGISTERED_INSTRUCTION or similar)
-
-            std::cout << "DEBUG: Motor Status - Pan: Torque=" << pan_torque_status << " Moving=" << pan_moving << " Load=" << pan_present_load << " Temp=" << pan_present_temp << " Error=" << pan_error << std::endl;
-            std::cout << "DEBUG: Motor Status - Tilt: Torque=" << tilt_torque_status << " Moving=" << tilt_moving << " Load=" << tilt_present_load << " Temp=" << tilt_present_temp << " Error=" << tilt_error << std::endl;
-
-            // If torque is off, try re-enabling it
-            if (pan_torque_status != 1 || tilt_torque_status != 1)
-            {
-                std::cerr << "WARNING: Head motor torque lost. Attempting to re-enable." << std::endl;
-                Head::GetInstance()->m_Joint.SetEnableHeadOnly(true, true);
-                // Add a small delay after re-enabling
-                usleep(100000); // 100ms
-            }
-
-            frame_counter = 0; // Reset counter
         }
 
         streamer->send_image(rgb_display_frame);
@@ -562,11 +454,10 @@ int run_main_loop(int client_sock, mjpg_streamer *streamer)
 }
 
 // Handles cleanup of resources
-void cleanup(int client_sock, minIni *ini, mjpg_streamer *streamer)
+void cleanup(int client_sock, minIni* ini, mjpg_streamer* streamer)
 {
     std::cout << "INFO: Cleaning up..." << std::endl;
-    if (client_sock >= 0)
-    {
+    if (client_sock >= 0) {
         close(client_sock); // Close the client connection socket
     }
     // The server socket was closed after accepting the connection.
@@ -580,12 +471,11 @@ void cleanup(int client_sock, minIni *ini, mjpg_streamer *streamer)
     // provides specific cleanup functions.
 
     // Delete dynamically allocated objects
-    if (ini)
-        delete ini;
-    if (streamer)
-        delete streamer;
+    if (ini) delete ini;
+    if (streamer) delete streamer;
     // rgb_display_frame is deleted in run_main_loop before returning
 }
+
 
 int main(void)
 {
@@ -594,47 +484,37 @@ int main(void)
     change_current_dir();
 
     minIni *ini = new minIni(INI_FILE_PATH);
-    if (!ini)
-    {
+    if (!ini) {
         std::cerr << "ERROR: Failed to load INI file." << std::endl;
         return -1;
     }
 
     // --- Initialize Socket Server ---
     int client_sock = initialize_socket_server();
-    if (client_sock < 0)
-    {
+    if (client_sock < 0) {
         delete ini; // Clean up ini
         return -1;
     }
 
     // --- Initialize Camera ---
-    if (!initialize_camera(ini))
-    {
+    if (!initialize_camera(ini)) {
         std::cerr << "ERROR: Failed to initialize camera." << std::endl;
         cleanup(client_sock, ini, nullptr); // Pass nullptr for streamer as it's not initialized yet
         return -1;
     }
 
-    // --- Initialize Motion Framework ---
-    if (!initialize_motion_framework(ini))
-    {
-        std::cerr << "ERROR: Failed to initialize motion framework." << std::endl;
-        cleanup(client_sock, ini, nullptr); // Pass nullptr for streamer
-        return -1;
-    }
-
     // --- Initialize MJPG Streamer ---
     mjpg_streamer *streamer = initialize_streamer();
-    if (!streamer)
-    {
+    if (!streamer) {
         std::cerr << "ERROR: Failed to initialize MJPG streamer." << std::endl;
         cleanup(client_sock, ini, nullptr); // Streamer is null
         return -1;
     }
 
+
     // --- Run Main Processing Loop ---
-    int loop_status = run_main_loop(client_sock, streamer);
+    // Pass ini to the main loop so it can be used for re-initialization
+    int loop_status = run_main_loop(client_sock, streamer, ini);
 
     // --- Cleanup Resources ---
     cleanup(client_sock, ini, streamer);
