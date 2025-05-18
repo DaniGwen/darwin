@@ -26,7 +26,7 @@ const char *SOCKET_PATH = "/tmp/darwin_detector.sock";
 
 // --- Python Script Configuration ---
 // IMPORTANT: Set the correct path to your Python detector script
-const char *PYTHON_SCRIPT_PATH = "/home/darwin/darwin/aiy-maker-kit/examples/custom_detect_objects.py"; // Corrected path
+const char *PYTHON_SCRIPT_PATH = "/home/darwin/darwin/aiy-maker-kit/examples/custom_detect_objects.py";
 
 
 // Static member initialization (singleton instance)
@@ -59,8 +59,6 @@ HeadTracking::HeadTracking()
 HeadTracking::~HeadTracking()
 {
     Cleanup();
-    // Note: ini_settings_ is owned by main and should not be deleted here.
-    // Motion framework singletons (motion_manager_, head_module_) are not owned here.
 }
 
 bool HeadTracking::Initialize(minIni* ini, Robot::MotionManager* motion_manager, Robot::Head* head_module)
@@ -77,7 +75,6 @@ bool HeadTracking::Initialize(minIni* ini, Robot::MotionManager* motion_manager,
     }
 
     // --- Initialize Components ---
-
     // 0. Auto-start the Python detector script (moved from main)
     // Construct the command to execute the Python script
     std::string command = "python3 ";
@@ -102,14 +99,6 @@ bool HeadTracking::Initialize(minIni* ini, Robot::MotionManager* motion_manager,
         return false;
     }
 
-    // 2. Initialize Camera
-    // Note: Camera initialization is now done in main.cpp before calling HeadTracking::Initialize
-    // if (!InitializeCamera()) {
-    //     std::cerr << "ERROR: HeadTracking initialization failed: Camera setup failed." << std::endl;
-    //     Cleanup(); // Clean up already initialized resources
-    //     return false;
-    // }
-
     // 3. Initialize MJPG Streamer
     if (!InitializeStreamer()) {
         std::cerr << "ERROR: HeadTracking initialization failed: Streamer setup failed." << std::endl;
@@ -126,17 +115,8 @@ bool HeadTracking::Initialize(minIni* ini, Robot::MotionManager* motion_manager,
     // head_module_->LoadINISettings(ini_settings_);   // Optional: if not done in main
 
     // Check if the module is already added before adding
-    // This prevents issues if Initialize is called multiple times
-    // and AddModule doesn't handle duplicate additions gracefully.
-    // A simple check might involve iterating through existing modules if the API allows,
-    // or relying on the framework's AddModule behavior.
-    // For now, we'll assume AddModule is safe to call even if the module exists,
-    // or that Initialize is only called once with valid pointers.
     motion_manager_->AddModule((MotionModule *)head_module_);
 
-
-    // Assuming MotionManager::SetEnable and Head::SetEnableHeadOnly
-    // are safe to call repeatedly or the first call handles setup.
     MotionStatus::m_CurrentJoints.SetEnableBodyWithoutHead(false);
     motion_manager_->SetEnable(true);
 

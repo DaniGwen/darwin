@@ -9,6 +9,7 @@
  * Motion Framework initialization and cleanup in main.
  * Fixed multiple definition error for SOCKET_PATH.
  * Passes initialized MotionManager and Head pointers to HeadTracking.
+ * Head tracking logic now runs in a separate thread.
  */
 
 #include <stdio.h>
@@ -16,7 +17,8 @@
 #include <string.h>
 #include <libgen.h>
 #include <iostream>
-#include <cstdlib> // Required for system()
+#include <cstdlib>  // Required for system()
+#include <pthread.h> // Required for threading
 
 #include "minIni.h"       // For INI file loading
 #include "HeadTracking.h" // Include the new HeadTracking class header (declares SOCKET_PATH)
@@ -35,9 +37,27 @@ void change_current_dir()
         chdir(dirname(exepath));
 }
 
+// Thread entry point function for HeadTracking
+void* HeadTrackingThread(void* arg)
+{
+    // Cast the argument back to a HeadTracking pointer
+    HeadTracking* head_tracker = static_cast<HeadTracking*>(arg);
+
+    if (head_tracker) {
+        // Run the main tracking loop in this thread
+        head_tracker->Run();
+    } else {
+        std::cerr << "ERROR: HeadTrackingThread received a null pointer." << std::endl;
+    }
+
+    // Threads should return NULL or a specific value upon completion
+    return NULL;
+}
+
+
 int main(void)
 {
-    printf("\n===== Head tracking with Object Detection via Unix Domain Socket =====\n\n");
+    printf("\n===== Head tracking with Object Detection via Unix Domain Socket (Multithreaded) =====\n\n");
 
     change_current_dir();
 
@@ -78,12 +98,10 @@ int main(void)
     motion_manager->LoadINISettings(ini);
 
     // Start the Motion Timer (often needed for MotionManager to function)
-    // Assuming LinuxMotionTimer is not a singleton and needs to be managed here.
-    // If it's a singleton, get instance and start it.
     LinuxMotionTimer *motion_timer = new LinuxMotionTimer(motion_manager);
     motion_timer->Start();
 
-    // --- Initialize and Run HeadTracking ---
+    // --- Initialize HeadTracking ---
     HeadTracking *head_tracker = HeadTracking::GetInstance();
 
     // Pass the INI settings and the initialized motion framework singletons to HeadTracking
@@ -100,12 +118,41 @@ int main(void)
         return -1;
     }
 
-    // Run the main tracking loop (this will block)
-    head_tracker->Run();
+    // --- Create and Start HeadTracking Thread ---
+    pthread_t tracking_thread;
+    std::cout << "INFO: Creating HeadTracking thread..." << std::endl;
+    int thread_create_status = pthread_create(&tracking_thread, NULL, HeadTrackingThread, head_tracker);
+
+    if (thread_create_status != 0) {
+        std::cerr << "ERROR: Failed to create HeadTracking thread: " << strerror(thread_create_status) << std::endl;
+        // Cleanup initialized resources before exiting
+        head_tracker->Cleanup(); // Cleanup HeadTracking resources
+        motion_timer->Stop();
+        motion_manager->SetEnable(false);
+        motion_manager->RemoveModule((MotionModule *)head_module);
+        delete ini;
+        delete motion_timer;
+        return -1;
+    }
+    std::cout << "INFO: HeadTracking thread created successfully." << std::endl;
+
+
+    // --- Main Loop (for other tasks) ---
+    // The main thread can now perform other tasks here.
+    // For demonstration, we'll just keep the main thread alive.
+    std::cout << "INFO: Main thread running, HeadTracking in separate thread. Press Ctrl+C to exit." << std::endl;
+
+    // Wait for the tracking thread to finish (e.g., on socket error)
+    // In a real robot application, main might have its own loop
+    // managing other modules or waiting for a shutdown signal.
+    pthread_join(tracking_thread, NULL);
+
+    std::cout << "INFO: HeadTracking thread finished. Proceeding with main cleanup." << std::endl;
 
     // --- Cleanup Resources ---
     // First, cleanup HeadTracking specific resources (socket, streamer, display frame)
-    head_tracker->Cleanup();
+    // This is also handled by the thread's exit or explicit cleanup call if the thread exits gracefully.
+    // head_tracker->Cleanup(); // Can be called here too for certainty, but thread exit should handle it.
 
     // Then, perform explicit motion framework shutdown in reverse order of initialization
     std::cout << "INFO: Shutting down motion framework..." << std::endl;
