@@ -454,13 +454,13 @@ int run_main_loop(int client_sock, mjpg_streamer* streamer, minIni* ini)
             {
                 // Continue tracking based on the last known position or stop active tracking
                 Head::GetInstance()->MoveTracking(); // Original BallTracker behavior (might hold last pos)
-                // Head::GetInstance()->MoveTracking(Point2D(0.0, 0.0)); // Alternative: stop active tracking and center head slowly
                 NoTargetCount++; // Increment counter
             }
             else
             {
                 // No target for too long, initiate scan or return to initial position
-                Head::GetInstance()->InitTracking(); // Return to initial tracking position/scan
+                // Head::GetInstance()->InitTracking(); // Return to initial tracking position/scan
+                Head::GetInstance()->MoveTracking(Point2D(0.0, 0.0)); // Alternative: stop active tracking and center head slowl
                 // NoTargetCount remains at or above NoTargetMaxCount
             }
         }
