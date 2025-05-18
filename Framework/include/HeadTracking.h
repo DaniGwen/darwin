@@ -35,7 +35,7 @@ struct ParsedDetection
 };
 
 // Define socket path (should match the Python script)
-const char *SOCKET_PATH = "/tmp/darwin_detector.sock";
+extern const char *SOCKET_PATH;
 
 // U2D_DEV_NAME is now handled in main where CM730 is initialized.
 // const char *U2D_DEV_NAME = "/dev/ttyUSB0"; // Moved to main

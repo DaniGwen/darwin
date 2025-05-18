@@ -7,6 +7,7 @@
  * Refactored into HeadTracking singleton class.
  * Added automatic startup of the Python detector script.
  * Motion Framework initialization moved to main.
+ * Fixed multiple definition error for SOCKET_PATH.
  */
 
 #include <stdio.h>
@@ -17,12 +18,8 @@
 #include <cstdlib> // Required for system()
 
 #include "minIni.h"       // For INI file loading
-#include "HeadTracking.h" // Include the new HeadTracking class header
+#include "HeadTracking.h" // Include the new HeadTracking class header (declares SOCKET_PATH)
 #include "LinuxDARwIn.h" // Include for Motion Framework components
-
-// --- Socket Configuration ---
-// Define the path for the Unix Domain Socket
-// const char *SOCKET_PATH = "/tmp/darwin_detector.sock"; // Defined in HeadTracking.h
 
 // --- Python Script Configuration ---
 // IMPORTANT: Set the correct path to your Python detector script

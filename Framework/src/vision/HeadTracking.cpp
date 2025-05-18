@@ -6,6 +6,7 @@
  * Description: Implementation of the HeadTracking singleton class.
  *                     Assumes Motion Framework (CM730, MotionManager, Head) is initialized externally.
  *                     Added explicit includes for stringstream fix.
+ *                     Defined SOCKET_PATH here.
  */
 
 #include "HeadTracking.h"
@@ -15,6 +16,10 @@
 #include <cmath>    // For std::abs
 #include <cstring> // For memcpy
 #include <cstdio>   // For printf (used in DrawBoundingBox)
+
+
+// Define socket path here (only once)
+const char *SOCKET_PATH = "/tmp/darwin_detector.sock";
 
 
 // Static member initialization (singleton instance)
