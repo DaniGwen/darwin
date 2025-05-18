@@ -14,7 +14,7 @@
 #include "mjpg_streamer.h"
 #include "jpeg_utils.h"
 
-#define WWW_FOLDER          "www"
+#define WWW_FOLDER          "./www/"
 
 globals mjpg_streamer::global;
 
