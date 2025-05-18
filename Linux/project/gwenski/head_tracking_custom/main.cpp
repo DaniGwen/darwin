@@ -297,16 +297,10 @@ int run_main_loop(int client_sock, mjpg_streamer* streamer, minIni* ini)
         // Error message already printed in main, just return false
         return false;
     }
-    // std::cout << "INFO: Attempting to initialize motion framework in loop..." << std::endl; // Too noisy
 
-    // These objects might persist across loop iterations if they are singletons
-    // or managed by the framework. Re-initializing them directly like this
-    // might be problematic depending on the framework's design.
-    // This approach is for debugging torque loss by repeatedly trying to enable motors.
-    LinuxCM730 linux_cm730(U2D_DEV_NAME); // Re-create CM730 interface
+    LinuxCM730 linux_cm730(U2D_DEV_NAME);
     CM730 cm730(&linux_cm730);
 
-    // Re-initialize MotionManager and add modules
     if (MotionManager::GetInstance()->Initialize(&cm730) == false)
     {
         // std::cerr << "WARNING: Failed to re-initialize Motion Manager in loop." << std::endl; // Too noisy
@@ -315,8 +309,8 @@ int run_main_loop(int client_sock, mjpg_streamer* streamer, minIni* ini)
 
     MotionManager::GetInstance()->LoadINISettings(ini); // Reload settings (might be needed)
     MotionManager::GetInstance()->AddModule((MotionModule *)Head::GetInstance()); // Re-add Head module
-    // The MotionTimer is likely a singleton and shouldn't be re-created/started repeatedly.
-    // Assuming it persists from the initial setup in main.
+    LinuxMotionTimer *motion_timer = new LinuxMotionTimer(MotionManager::GetInstance());
+        motion_timer->Start();
 
     MotionStatus::m_CurrentJoints.SetEnableBodyWithoutHead(false);
     MotionManager::GetInstance()->SetEnable(true); // Re-enable the motion manager
