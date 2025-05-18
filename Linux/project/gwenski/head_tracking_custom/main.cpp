@@ -330,8 +330,8 @@ int run_main_loop(int client_sock, mjpg_streamer* streamer, minIni* ini)
     // --- Set P-Gains for Head Tracking ---
     // These values control how strongly the motor reacts to the error signal.
     // Tune these alongside the error scaling factors below for best results.
-    Head::GetInstance()->m_Joint.SetPGain(JointData::ID_HEAD_PAN, 5); // Set P-gain for pan
-    Head::GetInstance()->m_Joint.SetPGain(JointData::ID_HEAD_TILT, 5); // Set P-gain for tilt
+    Head::GetInstance()->m_Joint.SetPGain(JointData::ID_HEAD_PAN, 13); // Set P-gain for pan
+    Head::GetInstance()->m_Joint.SetPGain(JointData::ID_HEAD_TILT, 13); // Set P-gain for tilt
     // You might need to increase these values (e.g., to 12, 16, or higher)
     // if the head isn't moving quickly enough. Be cautious of oscillation.
 
