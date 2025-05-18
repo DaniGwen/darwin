@@ -198,48 +198,6 @@ bool initialize_camera(minIni* ini)
     return true;
 }
 
-// Initializes the Motion Framework (including CM730, MotionManager, Head)
-// Note: This function is now called within the main loop.
-// Returns true on success, false on failure
-bool initialize_motion_framework(minIni* ini)
-{
-    if (!ini) {
-        // Error message already printed in main, just return false
-        return false;
-    }
-    // std::cout << "INFO: Attempting to initialize motion framework in loop..." << std::endl; // Too noisy
-
-    // These objects might persist across loop iterations if they are singletons
-    // or managed by the framework. Re-initializing them directly like this
-    // might be problematic depending on the framework's design.
-    // This approach is for debugging torque loss by repeatedly trying to enable motors.
-    LinuxCM730 linux_cm730(U2D_DEV_NAME); // Re-create CM730 interface
-    CM730 cm730(&linux_cm730);
-
-    // Re-initialize MotionManager and add modules
-    if (MotionManager::GetInstance()->Initialize(&cm730) == false)
-    {
-        // std::cerr << "WARNING: Failed to re-initialize Motion Manager in loop." << std::endl; // Too noisy
-        return false;
-    }
-
-    MotionManager::GetInstance()->LoadINISettings(ini); // Reload settings (might be needed)
-    MotionManager::GetInstance()->AddModule((MotionModule *)Head::GetInstance()); // Re-add Head module
-    // The MotionTimer is likely a singleton and shouldn't be re-created/started repeatedly.
-    // Assuming it persists from the initial setup in main.
-
-    MotionStatus::m_CurrentJoints.SetEnableBodyWithoutHead(false);
-    MotionManager::GetInstance()->SetEnable(true); // Re-enable the motion manager
-
-    // Explicitly enable head joints and set gains
-    Head::GetInstance()->m_Joint.SetEnableHeadOnly(true, true); // Enable torque for head pan and tilt
-    Head::GetInstance()->m_Joint.SetPGain(JointData::ID_HEAD_PAN, 8); // Set P-gain for pan
-    Head::GetInstance()->m_Joint.SetPGain(JointData::ID_HEAD_TILT, 8); // Set P-gain for tilt
-
-    return true;
-}
-
-
 // Initializes the MJPG Streamer
 // Returns streamer pointer on success, nullptr on failure
 mjpg_streamer* initialize_streamer()
@@ -335,7 +293,38 @@ std::vector<ParsedDetection> receive_detection_results(int client_sock)
 // Returns 0 on successful exit, -1 on error
 int run_main_loop(int client_sock, mjpg_streamer* streamer, minIni* ini)
 {
-    initialize_motion_framework(ini);
+    if (!ini) {
+        // Error message already printed in main, just return false
+        return false;
+    }
+    // std::cout << "INFO: Attempting to initialize motion framework in loop..." << std::endl; // Too noisy
+
+    // These objects might persist across loop iterations if they are singletons
+    // or managed by the framework. Re-initializing them directly like this
+    // might be problematic depending on the framework's design.
+    // This approach is for debugging torque loss by repeatedly trying to enable motors.
+    LinuxCM730 linux_cm730(U2D_DEV_NAME); // Re-create CM730 interface
+    CM730 cm730(&linux_cm730);
+
+    // Re-initialize MotionManager and add modules
+    if (MotionManager::GetInstance()->Initialize(&cm730) == false)
+    {
+        // std::cerr << "WARNING: Failed to re-initialize Motion Manager in loop." << std::endl; // Too noisy
+        return false;
+    }
+
+    MotionManager::GetInstance()->LoadINISettings(ini); // Reload settings (might be needed)
+    MotionManager::GetInstance()->AddModule((MotionModule *)Head::GetInstance()); // Re-add Head module
+    // The MotionTimer is likely a singleton and shouldn't be re-created/started repeatedly.
+    // Assuming it persists from the initial setup in main.
+
+    MotionStatus::m_CurrentJoints.SetEnableBodyWithoutHead(false);
+    MotionManager::GetInstance()->SetEnable(true); // Re-enable the motion manager
+
+    // Explicitly enable head joints and set gains
+    Head::GetInstance()->m_Joint.SetEnableHeadOnly(true, true); // Enable torque for head pan and tilt
+    Head::GetInstance()->m_Joint.SetPGain(JointData::ID_HEAD_PAN, 8); // Set P-gain for pan
+    Head::GetInstance()->m_Joint.SetPGain(JointData::ID_HEAD_TILT, 8); // Set P-gain for tilt
 
     // Image buffer for the output frame with detections drawn on it
     Image *rgb_display_frame = new Image(Camera::WIDTH, Camera::HEIGHT, Image::RGB_PIXEL_SIZE);
