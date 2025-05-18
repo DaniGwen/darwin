@@ -4,9 +4,10 @@
  * Created on: May 17, 2025
  * Author: Your Name
  * Description: Implementation of the HeadTracking singleton class.
- *                     Assumes Motion Framework (CM730, MotionManager, Head) is initialized externally.
+ *                     Receives initialized Motion Framework (MotionManager, Head) pointers.
  *                     Added explicit includes for stringstream fix.
  *                     Defined SOCKET_PATH here.
+ *                     Added detailed logging to Run() loop.
  */
 
 #include "HeadTracking.h"
@@ -34,8 +35,8 @@ HeadTracking::HeadTracking()
       : client_socket_(-1),
          streamer_(nullptr),
          ini_settings_(nullptr),
-         motion_manager_(nullptr), // Will be obtained via GetInstance() in Initialize
-         head_module_(nullptr),      // Will be obtained via GetInstance() in Initialize
+         motion_manager_(nullptr), // Will be passed in Initialize
+         head_module_(nullptr),      // Will be passed in Initialize
          rgb_display_frame_(nullptr),
          no_target_count_(0),
          pan_error_scale_(0.5), // Default values (can be overridden by INI)
@@ -53,12 +54,21 @@ HeadTracking::~HeadTracking()
 {
       Cleanup();
       // Note: ini_settings_ is owned by main and should not be deleted here.
-      // Motion framework singletons are not owned here.
+      // Motion framework singletons (motion_manager_, head_module_) are not owned here.
 }
 
-bool HeadTracking::Initialize(minIni* ini)
+bool HeadTracking::Initialize(minIni* ini, Robot::MotionManager* motion_manager, Robot::Head* head_module)
 {
       ini_settings_ = ini; // Store pointer to INI settings
+      motion_manager_ = motion_manager; // Store passed pointer
+      head_module_ = head_module;         // Store passed pointer
+
+      // Basic check if passed pointers are valid
+      if (!motion_manager_ || !head_module_) {
+            std::cerr << "ERROR: HeadTracking initialization failed: Invalid MotionManager or Head pointer passed." << std::endl;
+            // No cleanup needed for motion singletons as they are not owned.
+            return false;
+      }
 
       // --- Initialize Components ---
 
@@ -83,12 +93,37 @@ bool HeadTracking::Initialize(minIni* ini)
             return false;
       }
 
-      // 4. Configure Motion Framework (assumed already initialized externally)
-      if (!ConfigureMotionFramework()) {
-            std::cerr << "ERROR: HeadTracking initialization failed: Motion framework configuration failed." << std::endl;
-            Cleanup(); // Clean up already initialized resources
-            return false;
-      }
+      // 4. Configure Motion Framework singletons using the passed pointers
+      std::cout << "INFO: Configuring motion framework singletons using passed pointers..." << std::endl;
+
+      // Load settings specific to MotionManager/Head from INI (if needed, or done in main)
+      // If settings are loaded in main, this step might be redundant.
+      // motion_manager_->LoadINISettings(ini_settings_); // Optional: if not done in main
+      // head_module_->LoadINISettings(ini_settings_);    // Optional: if not done in main
+
+      // Check if the module is already added before adding
+      // This prevents issues if Initialize is called multiple times
+      // and AddModule doesn't handle duplicate additions gracefully.
+      // A simple check might involve iterating through existing modules if the API allows,
+      // or relying on the framework's AddModule behavior.
+      // For now, we'll assume AddModule is safe to call even if the module exists,
+      // or that Initialize is only called once with valid pointers.
+      motion_manager_->AddModule((MotionModule *)head_module_);
+
+
+      // Assuming MotionManager::SetEnable and Head::SetEnableHeadOnly
+      // are safe to call repeatedly or the first call handles setup.
+      MotionStatus::m_CurrentJoints.SetEnableBodyWithoutHead(false);
+      motion_manager_->SetEnable(true);
+
+      // Explicitly enable head joints and set initial gains
+      head_module_->m_Joint.SetEnableHeadOnly(true, true);
+      // Initial P-gains (can be overridden by INI in Initialize)
+      head_module_->m_Joint.SetPGain(JointData::ID_HEAD_PAN, 8);
+      head_module_->m_Joint.SetPGain(JointData::ID_HEAD_TILT, 8);
+
+      std::cout << "INFO: Motion framework singletons configured." << std::endl;
+
 
       // 5. Create display frame buffer
       rgb_display_frame_ = new Image(Camera::WIDTH, Camera::HEIGHT, Image::RGB_PIXEL_SIZE);
@@ -125,38 +160,77 @@ void HeadTracking::Run()
       while (1)
       {
             // --- Capture Frame ---
+            std::cout << "DEBUG: Capturing frame..." << std::endl;
             LinuxCamera::GetInstance()->CaptureFrame();
             Image *current_cam_rgb_frame = LinuxCamera::GetInstance()->fbuffer->m_RGBFrame;
+            std::cout << "DEBUG: Frame captured." << std::endl;
 
             if (!current_cam_rgb_frame || !current_cam_rgb_frame->m_ImageData)
             {
+                  std::cerr << "WARNING: Failed to capture valid frame. Waiting..." << std::endl;
                   usleep(10000); // Wait if frame not ready
                   continue;
             }
 
             // --- Send Frame Data to Python Script ---
+            std::cout << "DEBUG: Sending frame data..." << std::endl;
             if (!SendFrameData(current_cam_rgb_frame))
             {
                   // SendFrameData prints error message on failure
+                  std::cerr << "ERROR: Failed to send frame data. Exiting loop." << std::endl;
                   break; // Exit loop on send error (likely connection closed)
             }
+            std::cout << "DEBUG: Frame data sent." << std::endl;
 
             // --- Receive and Parse Detection Results ---
+            std::cout << "DEBUG: Receiving detection results..." << std::endl;
             std::vector<ParsedDetection> detections = ReceiveDetectionResults();
+            std::cout << "DEBUG: Detection results received." << std::endl;
 
             // Check if ReceiveDetectionResults indicated a connection error by returning empty
             // If it returned empty due to a connection error, the next SendFrameData
             // will likely fail, leading to a break.
+            if (detections.empty() && client_socket_ < 0) {
+                  std::cerr << "ERROR: Socket error during detection results reception. Exiting loop." << std::endl;
+                  break;
+            }
+
 
             // Copy original camera frame to the display frame for drawing
-            memcpy(rgb_display_frame_->m_ImageData, current_cam_rgb_frame->m_ImageData,
-                       current_cam_rgb_frame->m_NumberOfPixels * current_cam_rgb_frame->m_PixelSize);
+            std::cout << "DEBUG: Copying frame for drawing..." << std::endl;
+            if (rgb_display_frame_ && current_cam_rgb_frame && rgb_display_frame_->m_ImageData && current_cam_rgb_frame->m_ImageData) {
+                  memcpy(rgb_display_frame_->m_ImageData, current_cam_rgb_frame->m_ImageData,
+                             current_cam_rgb_frame->m_NumberOfPixels * current_cam_rgb_frame->m_PixelSize);
+                  std::cout << "DEBUG: Frame copied." << std::endl;
+            } else {
+                  std::cerr << "WARNING: Cannot copy frame for drawing due to invalid pointers." << std::endl;
+            }
+
+
+            // --- Draw Detections ---
+            std::cout << "DEBUG: Drawing detections..." << std::endl;
+            for (const auto &det : detections)
+            {
+                  DrawBoundingBox(rgb_display_frame_, det); // Draw on the *original resolution* display frame
+            }
+            std::cout << "DEBUG: Detections drawn." << std::endl;
+
 
             // --- Update Head Tracking based on Detections ---
+            std::cout << "DEBUG: Updating head tracking..." << std::endl;
             UpdateHeadTracking(detections);
+            std::cout << "DEBUG: Head tracking updated." << std::endl;
+
 
             // --- Stream Image ---
-            streamer_->send_image(rgb_display_frame_);
+            std::cout << "DEBUG: Streaming image..." << std::endl;
+            if (streamer_ && rgb_display_frame_) {
+                  streamer_->send_image(rgb_display_frame_);
+                  std::cout << "DEBUG: Image streamed." << std::endl;
+            } else {
+                  std::cerr << "WARNING: Cannot stream image due to invalid streamer or frame pointer." << std::endl;
+            }
+
 
             // usleep(10000); // Optional delay
       }
@@ -186,8 +260,7 @@ void HeadTracking::Cleanup()
       }
 
       // Motion framework singletons (motion_manager_, head_module_) are not owned here.
-      // linux_cm730_ and cm730_ were not created here in this version.
-      // ini_settings_ is owned by main.
+      // They were passed in Initialize and are managed externally.
 
       std::cout << "INFO: HeadTracking cleanup complete." << std::endl;
 }
@@ -263,51 +336,6 @@ bool HeadTracking::InitializeCamera()
       }
 }
 
-bool HeadTracking::ConfigureMotionFramework()
-{
-      std::cout << "INFO: Configuring motion framework singletons..." << std::endl;
-
-      // Get singleton instances (assumed to be initialized externally)
-      motion_manager_ = MotionManager::GetInstance();
-      head_module_ = Head::GetInstance();
-
-      // Basic check if singletons were initialized
-      if (!motion_manager_ || !head_module_) {
-            std::cerr << "ERROR: MotionManager or Head singletons not initialized externally!" << std::endl;
-            return false;
-      }
-
-      // Load settings specific to MotionManager/Head from INI (if needed, or done in main)
-      // If settings are loaded in main, this step might be redundant.
-      // motion_manager_->LoadINISettings(ini_settings_); // Optional: if not done in main
-      // head_module_->LoadINISettings(ini_settings_);    // Optional: if not done in main
-
-      // Check if the module is already added before adding
-      // This prevents issues if ConfigureMotionFramework is called multiple times
-      // and AddModule doesn't handle duplicate additions gracefully.
-      // A simple check might involve iterating through existing modules if the API allows,
-      // or relying on the framework's AddModule behavior.
-      // For now, we'll assume AddModule is safe to call even if the module exists,
-      // or that ConfigureMotionFramework is only called once after main initializes.
-      motion_manager_->AddModule((MotionModule *)head_module_);
-
-
-      // Assuming MotionManager::SetEnable and Head::SetEnableHeadOnly
-      // are safe to call repeatedly or the first call handles setup.
-      MotionStatus::m_CurrentJoints.SetEnableBodyWithoutHead(false);
-      motion_manager_->SetEnable(true);
-
-      // Explicitly enable head joints and set initial gains
-      head_module_->m_Joint.SetEnableHeadOnly(true, true);
-      // Initial P-gains (can be overridden by INI in Initialize)
-      head_module_->m_Joint.SetPGain(JointData::ID_HEAD_PAN, 8);
-      head_module_->m_Joint.SetPGain(JointData::ID_HEAD_TILT, 8);
-
-      std::cout << "INFO: Motion framework singletons configured." << std::endl;
-      return true;
-}
-
-
 bool HeadTracking::InitializeStreamer()
 {
       std::cout << "INFO: Initializing MJPG streamer..." << std::endl;
@@ -323,6 +351,7 @@ bool HeadTracking::InitializeStreamer()
 bool HeadTracking::SendFrameData(Image* frame)
 {
       if (!frame || !frame->m_ImageData || client_socket_ < 0) {
+            std::cerr << "ERROR: SendFrameData called with invalid parameters or socket not connected." << std::endl;
             return false;
       }
 
@@ -352,27 +381,35 @@ std::vector<ParsedDetection> HeadTracking::ReceiveDetectionResults()
       std::string detection_output;
       uint32_t result_size = 0;
 
+      if (client_socket_ < 0) {
+            std::cerr << "ERROR: ReceiveDetectionResults called with socket not connected." << std::endl;
+            return {};
+      }
+
       // Receive the size of the detection string
       std::string size_data = ReceiveExact(client_socket_, sizeof(result_size));
       if (size_data.empty()) {
-            std::cerr << "ERROR: Failed to receive result size or connection closed." << std::endl;
+            // ReceiveExact already printed error/connection closed message
             return {}; // Return empty vector on error or closed connection
       }
       memcpy(&result_size, size_data.data(), sizeof(result_size));
 
+      // std::cout << "DEBUG: Received result size: " << result_size << std::endl; // Debug received size
 
       // Receive the actual detection string
       if (result_size > 0) {
             detection_output = ReceiveExact(client_socket_, result_size);
             if (detection_output.empty()) {
-                  std::cerr << "ERROR: Failed to receive detection data or connection closed." << std::endl;
+                  // ReceiveExact already printed error/connection closed message
                   return {}; // Return empty vector on error
             }
       } else {
             // Received size 0, means no detections or empty string sent
+            // std::cout << "DEBUG: Received empty detection results string." << std::endl; // Debug empty results
             return {};
       }
 
+      // std::cout << "DEBUG: Received detection output: '" << detection_output << "'" << std::endl; // Debug received string
 
       // Parse and return detections
       return ParseDetectionOutput(detection_output);
@@ -381,6 +418,8 @@ std::vector<ParsedDetection> HeadTracking::ReceiveDetectionResults()
 std::vector<ParsedDetection> HeadTracking::ParseDetectionOutput(const std::string &output)
 {
       std::vector<ParsedDetection> detections;
+      if (output.empty()) return detections; // Return empty if input is empty
+
       std::stringstream ss(output);
       std::string line;
 
@@ -395,6 +434,8 @@ std::vector<ParsedDetection> HeadTracking::ParseDetectionOutput(const std::strin
             {
                   det.label = label_str;
                   detections.push_back(det);
+            } else {
+                  std::cerr << "WARNING: Failed to parse detection line: '" << line << "'" << std::endl;
             }
       }
       return detections;
@@ -403,10 +444,14 @@ std::vector<ParsedDetection> HeadTracking::ParseDetectionOutput(const std::strin
 
 void HeadTracking::DrawBoundingBox(Image *image, const ParsedDetection &detection)
 {
-      if (!image || !image->m_ImageData) return;
+      if (!image || !image->m_ImageData) {
+            std::cerr << "WARNING: DrawBoundingBox called with invalid image pointer." << std::endl;
+            return;
+      }
 
       int img_width = image->m_Width;
       int img_height = image->m_Height;
+      int pixel_size = image->m_PixelSize; // Use pixel size from the Image object
 
       // Bounding box coordinates are normalized [0.0, 1.0]
       int xmin = static_cast<int>(detection.xmin * img_width);
@@ -426,21 +471,21 @@ void HeadTracking::DrawBoundingBox(Image *image, const ParsedDetection &detectio
       // Draw lines (simplified)
       for (int x = xmin; x <= xmax; ++x) {
             if (ymin >= 0 && ymin < img_height) {
-                  unsigned char *p = &image->m_ImageData[(ymin * img_width + x) * image->m_PixelSize];
+                  unsigned char *p = &image->m_ImageData[(ymin * img_width + x) * pixel_size];
                   p[0] = r; p[1] = g; p[2] = b;
             }
             if (ymax >= 0 && ymax < img_height) {
-                  unsigned char *p = &image->m_ImageData[(ymax * img_width + x) * image->m_PixelSize];
+                  unsigned char *p = &image->m_ImageData[(ymax * img_width + x) * pixel_size];
                   p[0] = r; p[1] = g; p[2] = b;
             }
       }
       for (int y = ymin; y <= ymax; ++y) {
             if (xmin >= 0 && xmin < img_width) {
-                  unsigned char *p = &image->m_ImageData[(y * img_width + xmin) * image->m_PixelSize];
+                  unsigned char *p = &image->m_ImageData[(y * img_width + xmin) * pixel_size];
                   p[0] = r; p[1] = g; p[2] = b;
             }
             if (xmax >= 0 && xmax < img_width) {
-                  unsigned char *p = &image->m_ImageData[(y * img_width + xmax) * image->m_PixelSize];
+                  unsigned char *p = &image->m_ImageData[(y * img_width + xmax) * pixel_size];
                   p[0] = r; p[1] = g; p[2] = b;
             }
       }
@@ -511,7 +556,11 @@ void HeadTracking::UpdateHeadTracking(const std::vector<ParsedDetection>& detect
             }
 
             // Pass angular error to MoveTracking
-            head_module_->MoveTracking(P_err); // Actively track the person
+            if (head_module_) {
+                  head_module_->MoveTracking(P_err); // Actively track the person
+            } else {
+                  std::cerr << "ERROR: Head module not initialized in UpdateHeadTracking." << std::endl;
+            }
       }
       else // No person found in the current frame
       {
@@ -519,13 +568,21 @@ void HeadTracking::UpdateHeadTracking(const std::vector<ParsedDetection>& detect
             {
                   // Continue tracking based on the last known position or stop active tracking
                   // head_module_->MoveTracking(); // Original BallTracker behavior (might hold last pos)
-                  head_module_->MoveTracking(Point2D(0.0, 0.0)); // Alternative: stop active tracking and center head slowly
+                  if (head_module_) {
+                        head_module_->MoveTracking(Point2D(0.0, 0.0)); // Alternative: stop active tracking and center head slowly
+                  } else {
+                        std::cerr << "ERROR: Head module not initialized for centering in UpdateHeadTracking." << std::endl;
+                  }
                   no_target_count_++; // Increment counter
             }
             else
             {
                   // No target for too long, return to initial position
-                  head_module_->MoveToHome(); // Alternative: stop active tracking and center head slowl
+                  if (head_module_) {
+                        head_module_->MoveToHome(); // Alternative: stop active tracking and center head slowl
+                  } else {
+                        std::cerr << "ERROR: Head module not initialized for MoveToHome in UpdateHeadTracking." << std::endl;
+                  }
                   // no_target_count_ remains at or above NO_TARGET_MAX_COUNT
             }
       }

@@ -5,14 +5,14 @@
  * Author: Your Name
  * Description: Singleton class to manage head tracking, socket communication
  *                     with a detector script, and MJPG streaming for a DARwIn-OP robot.
- *                     Assumes Motion Framework (CM730, MotionManager, Head) is initialized externally.
+ *                     Receives initialized Motion Framework (MotionManager, Head) pointers.
  */
 
 #ifndef HEADTRACKING_H_
 #define HEADTRACKING_H_
 
-#include <string>
-#include <vector>
+#include <string>    // For std::string
+#include <vector>    // For std::vector
 #include <memory>    // For std::unique_ptr
 #include <iostream> // For std::cerr, std::cout
 
@@ -34,11 +34,10 @@ struct ParsedDetection
       float xmin, ymin, xmax, ymax; // Normalized coordinates [0.0, 1.0]
 };
 
-// Define socket path (should match the Python script)
+// Declare socket path using extern - the definition is in HeadTracking.cpp
 extern const char *SOCKET_PATH;
 
-// U2D_DEV_NAME is now handled in main where CM730 is initialized.
-// const char *U2D_DEV_NAME = "/dev/ttyUSB0"; // Moved to main
+// U2D_DEV_NAME is handled in main where CM730 is initialized.
 
 class HeadTracking
 {
@@ -47,10 +46,10 @@ public:
       static HeadTracking* GetInstance();
 
       // Initialization method
-      // Requires the minIni instance for loading settings.
-      // Assumes MotionManager and Head singletons have already been initialized.
+      // Requires the minIni instance for loading settings and
+      // initialized MotionManager and Head singleton pointers.
       // Returns true on success, false on failure.
-      bool Initialize(minIni* ini);
+      bool Initialize(minIni* ini, Robot::MotionManager* motion_manager, Robot::Head* head_module);
 
       // Main tracking loop
       // This function will run the main processing loop (capture, send, receive, track).
@@ -76,9 +75,9 @@ private:
       mjpg_streamer* streamer_;    // Pointer to the MJPG streamer instance
       minIni* ini_settings_;       // Pointer to loaded INI settings (owned by main)
 
-      // Pointers to DARwIn-OP framework singletons (accessed, not owned or initialized here)
-      MotionManager* motion_manager_;
-      Head* head_module_;
+      // Pointers to DARwIn-OP framework singletons (passed in Initialize, not owned)
+      Robot::MotionManager* motion_manager_;
+      Robot::Head* head_module_;
       // LinuxMotionTimer is assumed to be managed by MotionManager or main.
 
       // Image buffer for the output frame with detections drawn on it
@@ -105,11 +104,6 @@ private:
       // Returns true on success, false on failure
       bool InitializeCamera();
 
-      // Configures the Motion Framework singletons (assumed already initialized)
-      // Sets initial gains and enables head joints.
-      // Returns true on success, false on failure.
-      bool ConfigureMotionFramework();
-
       // Initializes the MJPG Streamer
       // Returns true on success, false on failure
       bool InitializeStreamer();
@@ -130,6 +124,7 @@ private:
       void DrawBoundingBox(Image *image, const ParsedDetection &detection);
 
       // Handles head tracking logic based on detection results
+      // Uses the motion_manager_ and head_module_ member pointers.
       void UpdateHeadTracking(const std::vector<ParsedDetection>& detections);
 
       // Helper to receive exact number of bytes from socket
