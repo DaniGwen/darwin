@@ -65,6 +65,14 @@ int main(void)
     // Give the Python script a moment to start and create the socket
     usleep(1000000); // 1 second delay (adjust if needed)
 
+      if (*ini) {
+        LinuxCamera::GetInstance()->Initialize(0); // Initialize with device index 0
+        LinuxCamera::GetInstance()->LoadINISettings(*ini);
+        std::cout << "INFO: Camera initialized and settings loaded." << std::endl;
+    } else {
+        std::cerr << "ERROR: INI settings not available for camera initialization." << std::endl;
+        return;
+    }
 
     // --- Initialize Motion Framework Components (in main) ---
     // These are instantiated and initialized here before HeadTracking uses them.

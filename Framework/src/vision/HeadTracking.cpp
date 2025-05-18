@@ -152,15 +152,6 @@ void HeadTracking::Run()
     std::cout << "INFO: Starting HeadTracking main loop..." << std::endl;
 
       std::cout << "INFO: Initializing camera..." << std::endl;
-    // Assuming LinuxCamera is a singleton
-    if (ini_settings_) {
-        LinuxCamera::GetInstance()->Initialize(0); // Initialize with device index 0
-        LinuxCamera::GetInstance()->LoadINISettings(ini_settings_);
-        std::cout << "INFO: Camera initialized and settings loaded." << std::endl;
-    } else {
-        std::cerr << "ERROR: INI settings not available for camera initialization." << std::endl;
-        return;
-    }
 
     // Add a small delay before the first frame capture
     usleep(500000); // 0.5 second delay
@@ -168,7 +159,6 @@ void HeadTracking::Run()
     while (1)
     {
         // --- Capture Frame ---
-        std::cout << "DEBUG: About to call CaptureFrame()..." << std::endl; // Added log
         LinuxCamera::GetInstance()->CaptureFrame();
         std::cout << "DEBUG: CaptureFrame() returned." << std::endl; // Added log
 
