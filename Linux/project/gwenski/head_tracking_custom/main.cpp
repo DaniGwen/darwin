@@ -512,7 +512,14 @@ int main(void)
         return -1;
     }
 
-    // --- Auto-start the Python detector script ---
+    // --- Initialize Socket Server ---
+    int client_sock = initialize_socket_server();
+    if (client_sock < 0) {
+        delete ini; // Clean up ini
+        return -1;
+    }
+
+     // --- Auto-start the Python detector script ---
     std::string command = "python3 ";
     command += PYTHON_SCRIPT_PATH;
     std::cout << "INFO: Starting Python detector script: " << command << std::endl;
@@ -524,14 +531,6 @@ int main(void)
     }
     // Give the Python script a moment to start and create the socket
     usleep(1000000); // 1 second delay (adjust if needed)
-
-
-    // --- Initialize Socket Server ---
-    int client_sock = initialize_socket_server();
-    if (client_sock < 0) {
-        delete ini; // Clean up ini
-        return -1;
-    }
 
     // --- Initialize Camera ---
     if (!initialize_camera(ini)) {
