@@ -5,12 +5,17 @@
  * Author: Your Name
  * Description: Implementation of the HeadTracking singleton class.
  *                     Assumes Motion Framework (CM730, MotionManager, Head) is initialized externally.
+ *                     Added explicit includes for stringstream fix.
  */
 
 #include "HeadTracking.h"
+#include <string>    // Explicitly include string
+#include <vector>    // Explicitly include vector
+#include <sstream>   // Include sstream where stringstream is used
 #include <cmath>    // For std::abs
 #include <cstring> // For memcpy
 #include <cstdio>   // For printf (used in DrawBoundingBox)
+
 
 // Static member initialization (singleton instance)
 HeadTracking* HeadTracking::GetInstance()
@@ -272,7 +277,15 @@ bool HeadTracking::ConfigureMotionFramework()
       // motion_manager_->LoadINISettings(ini_settings_); // Optional: if not done in main
       // head_module_->LoadINISettings(ini_settings_);    // Optional: if not done in main
 
+      // Check if the module is already added before adding
+      // This prevents issues if ConfigureMotionFramework is called multiple times
+      // and AddModule doesn't handle duplicate additions gracefully.
+      // A simple check might involve iterating through existing modules if the API allows,
+      // or relying on the framework's AddModule behavior.
+      // For now, we'll assume AddModule is safe to call even if the module exists,
+      // or that ConfigureMotionFramework is only called once after main initializes.
       motion_manager_->AddModule((MotionModule *)head_module_);
+
 
       // Assuming MotionManager::SetEnable and Head::SetEnableHeadOnly
       // are safe to call repeatedly or the first call handles setup.
