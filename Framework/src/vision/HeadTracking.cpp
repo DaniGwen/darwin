@@ -15,11 +15,11 @@
 #include <string>   // Explicitly include string
 #include <vector>   // Explicitly include vector
 #include <sstream>  // Include sstream where stringstream is used
-#include <cmath>   // For std::abs
-#include <cstring> // For memcpy
-#include <cstdio>  // For printf (used in DrawBoundingBox)
+#include <cmath>    // For std::abs
+#include <cstring>  // For memcpy
+#include <cstdio>   // For printf (used in DrawBoundingBox)
 #include <unistd.h> // For usleep
-#include <cstdlib> // For system()
+#include <cstdlib>  // For system()
 
 // Define socket path here (only once)
 const char *SOCKET_PATH = "/tmp/darwin_detector.sock";
@@ -31,9 +31,8 @@ const char *PYTHON_SCRIPT_PATH = "/home/darwin/darwin/aiy-maker-kit/examples/cus
 // Color configuration path
 const char *COLOR_CONFIG_PATH = "./color_config.ini";
 
-
 // Static member initialization (singleton instance)
-HeadTracking* HeadTracking::GetInstance()
+HeadTracking *HeadTracking::GetInstance()
 {
     static HeadTracking instance; // Guaranteed to be created once upon first call
     return &instance;
@@ -70,15 +69,16 @@ HeadTracking::~HeadTracking()
     Cleanup();
 }
 
-bool HeadTracking::Initialize(minIni* ini, Robot::MotionManager* motion_manager, Robot::Head* head_module,CM730* cm730)
+bool HeadTracking::Initialize(minIni *ini, Robot::MotionManager *motion_manager, Robot::Head *head_module, CM730 *cm730)
 {
-    ini_settings_ = ini; // Store pointer to INI settings
+    ini_settings_ = ini;              // Store pointer to INI settings
     motion_manager_ = motion_manager; // Store passed pointer
-    head_module_ = head_module;      // Store passed pointer
-    cm730_ = cm730;                 // Store passed pointer
+    head_module_ = head_module;       // Store passed pointer
+    cm730_ = cm730;                   // Store passed pointer
 
     // Basic check if passed pointers are valid
-    if (!motion_manager_ || !head_module_ || !cm730_) {
+    if (!motion_manager_ || !head_module_ || !cm730_)
+    {
         std::cerr << "ERROR: HeadTracking initialization failed: Invalid MotionManager or Head pointer passed." << std::endl;
         // No cleanup needed for motion singletons as they are not owned.
         return false;
@@ -94,23 +94,25 @@ bool HeadTracking::Initialize(minIni* ini, Robot::MotionManager* motion_manager,
     std::cout << "INFO: Starting Python detector script: " << command << std::endl;
     int system_return = system(command.c_str());
 
-    if (system_return != 0) {
+    if (system_return != 0)
+    {
         std::cerr << "WARNING: Failed to start Python script using system(). Make sure the path is correct and python3 is in PATH." << std::endl;
         // Note: system() return value can vary; 0 usually means success, but check man page for specifics.
     }
     // Give the Python script a moment to start and create the socket
     usleep(1000000); // 1 second delay (adjust if needed)
 
-
     // 1. Initialize Socket Server and wait for Python connection
     client_socket_ = InitializeSocketServer();
-    if (client_socket_ < 0) {
+    if (client_socket_ < 0)
+    {
         std::cerr << "ERROR: HeadTracking initialization failed: Socket server setup failed." << std::endl;
         return false;
     }
 
     // 3. Initialize MJPG Streamer
-    if (!InitializeStreamer()) {
+    if (!InitializeStreamer())
+    {
         std::cerr << "ERROR: HeadTracking initialization failed: Streamer setup failed." << std::endl;
         Cleanup(); // Clean up already initialized resources
         return false;
@@ -138,17 +140,18 @@ bool HeadTracking::Initialize(minIni* ini, Robot::MotionManager* motion_manager,
 
     std::cout << "INFO: Motion framework singletons configured." << std::endl;
 
-
     // 5. Create display frame buffer
     rgb_display_frame_ = new Image(Camera::WIDTH, Camera::HEIGHT, Image::RGB_PIXEL_SIZE);
-    if (!rgb_display_frame_) {
+    if (!rgb_display_frame_)
+    {
         std::cerr << "ERROR: HeadTracking initialization failed: Failed to create display frame buffer." << std::endl;
         Cleanup(); // Clean up already initialized resources
         return false;
     }
 
     // 6. Load tuning parameters from INI if available
-    if (ini_settings_) {
+    if (ini_settings_)
+    {
         pan_error_scale_ = ini_settings_->getd("HeadTracking", "PanErrorScale", pan_error_scale_);
         tilt_error_scale_ = ini_settings_->getd("HeadTracking", "TiltErrorScale", tilt_error_scale_);
         pan_deadband_deg_ = ini_settings_->getd("HeadTracking", "PanDeadbandDeg", pan_deadband_deg_);
@@ -163,7 +166,8 @@ bool HeadTracking::Initialize(minIni* ini, Robot::MotionManager* motion_manager,
 void HeadTracking::Run()
 {
     // Check if essential components are initialized before running
-    if (client_socket_ < 0 || !streamer_ || !motion_manager_ || !head_module_ || !rgb_display_frame_ || !ini_settings_) {
+    if (client_socket_ < 0 || !streamer_ || !motion_manager_ || !head_module_ || !rgb_display_frame_ || !ini_settings_)
+    {
         std::cerr << "ERROR: HeadTracking not fully initialized. Cannot run." << std::endl;
         return;
     }
@@ -185,7 +189,7 @@ void HeadTracking::Run()
         if (!current_cam_rgb_frame || !current_cam_rgb_frame->m_ImageData)
         {
             std::cerr << "WARNING: Failed to capture valid frame (null pointer or no image data). Waiting..." << std::endl; // More specific message
-            usleep(10000); // Wait if frame not ready
+            usleep(10000);                                                                                                  // Wait if frame not ready
             continue;
         }
 
@@ -207,22 +211,24 @@ void HeadTracking::Run()
         // Check if ReceiveDetectionResults indicated a connection error by returning empty
         // If it returned empty due to a connection error, the next SendFrameData
         // will likely fail, leading to a break.
-        if (detections.empty() && client_socket_ < 0) {
+        if (detections.empty() && client_socket_ < 0)
+        {
             std::cerr << "ERROR: Socket error during detection results reception. Exiting loop." << std::endl;
             break;
         }
 
-
         // Copy original camera frame to the display frame for drawing
         std::cout << "DEBUG: Copying frame for drawing..." << std::endl;
-        if (rgb_display_frame_ && current_cam_rgb_frame && rgb_display_frame_->m_ImageData && current_cam_rgb_frame->m_ImageData) {
+        if (rgb_display_frame_ && current_cam_rgb_frame && rgb_display_frame_->m_ImageData && current_cam_rgb_frame->m_ImageData)
+        {
             memcpy(rgb_display_frame_->m_ImageData, current_cam_rgb_frame->m_ImageData,
                    current_cam_rgb_frame->m_NumberOfPixels * current_cam_rgb_frame->m_PixelSize);
             std::cout << "DEBUG: Frame copied." << std::endl;
-        } else {
+        }
+        else
+        {
             std::cerr << "WARNING: Cannot copy frame for drawing due to invalid pointers." << std::endl;
         }
-
 
         // --- Draw Detections ---
         std::cout << "DEBUG: Drawing detections..." << std::endl;
@@ -232,22 +238,22 @@ void HeadTracking::Run()
         }
         std::cout << "DEBUG: Detections drawn." << std::endl;
 
-
         // --- Update Head Tracking based on Detections ---
         std::cout << "DEBUG: Updating head tracking..." << std::endl;
         UpdateHeadTracking(detections);
         std::cout << "DEBUG: Head tracking updated." << std::endl;
 
-
         // --- Stream Image ---
         std::cout << "DEBUG: Streaming image..." << std::endl;
-        if (streamer_ && rgb_display_frame_) {
+        if (streamer_ && rgb_display_frame_)
+        {
             streamer_->send_image(rgb_display_frame_);
             std::cout << "DEBUG: Image streamed." << std::endl;
-        } else {
+        }
+        else
+        {
             std::cerr << "WARNING: Cannot stream image due to invalid streamer or frame pointer." << std::endl;
         }
-
 
         // usleep(10000); // Optional delay
     }
@@ -259,19 +265,22 @@ void HeadTracking::Cleanup()
 {
     std::cout << "INFO: Cleaning up HeadTracking resources..." << std::endl;
 
-    if (client_socket_ >= 0) {
+    if (client_socket_ >= 0)
+    {
         close(client_socket_); // Close the client connection socket
         client_socket_ = -1;
     }
     // The server socket was closed after accepting the connection in InitializeSocketServer.
     // The socket file is unlinked in main.cpp.
 
-    if (streamer_) {
+    if (streamer_)
+    {
         delete streamer_;
         streamer_ = nullptr;
     }
 
-    if (rgb_display_frame_) {
+    if (rgb_display_frame_)
+    {
         delete rgb_display_frame_;
         rgb_display_frame_ = nullptr;
     }
@@ -342,7 +351,8 @@ bool HeadTracking::InitializeStreamer()
 {
     std::cout << "INFO: Initializing MJPG streamer..." << std::endl;
     streamer_ = new mjpg_streamer(Camera::WIDTH, Camera::HEIGHT);
-    if (!streamer_) {
+    if (!streamer_)
+    {
         std::cerr << "ERROR: Failed to create MJPG streamer." << std::endl;
         return false;
     }
@@ -350,9 +360,10 @@ bool HeadTracking::InitializeStreamer()
     return true;
 }
 
-bool HeadTracking::SendFrameData(Image* frame)
+bool HeadTracking::SendFrameData(Image *frame)
 {
-    if (!frame || !frame->m_ImageData || client_socket_ < 0) {
+    if (!frame || !frame->m_ImageData || client_socket_ < 0)
+    {
         std::cerr << "ERROR: SendFrameData called with invalid parameters or socket not connected." << std::endl;
         return false;
     }
@@ -383,14 +394,16 @@ std::vector<ParsedDetection> HeadTracking::ReceiveDetectionResults()
     std::string detection_output;
     uint32_t result_size = 0;
 
-    if (client_socket_ < 0) {
+    if (client_socket_ < 0)
+    {
         std::cerr << "ERROR: ReceiveDetectionResults called with socket not connected." << std::endl;
         return {};
     }
 
     // Receive the size of the detection string
     std::string size_data = ReceiveExact(client_socket_, sizeof(result_size));
-    if (size_data.empty()) {
+    if (size_data.empty())
+    {
         // ReceiveExact already printed error/connection closed message
         return {}; // Return empty vector on error or closed connection
     }
@@ -399,13 +412,17 @@ std::vector<ParsedDetection> HeadTracking::ReceiveDetectionResults()
     // std::cout << "DEBUG: Received result size: " << result_size << std::endl; // Debug received size
 
     // Receive the actual detection string
-    if (result_size > 0) {
+    if (result_size > 0)
+    {
         detection_output = ReceiveExact(client_socket_, result_size);
-        if (detection_output.empty()) {
+        if (detection_output.empty())
+        {
             // ReceiveExact already printed error/connection closed message
             return {}; // Return empty vector on error
         }
-    } else {
+    }
+    else
+    {
         // Received size 0, means no detections or empty string sent
         // std::cout << "DEBUG: Received empty detection results string." << std::endl; // Debug empty results
         return {};
@@ -420,7 +437,8 @@ std::vector<ParsedDetection> HeadTracking::ReceiveDetectionResults()
 std::vector<ParsedDetection> HeadTracking::ParseDetectionOutput(const std::string &output)
 {
     std::vector<ParsedDetection> detections;
-    if (output.empty()) return detections; // Return empty if input is empty
+    if (output.empty())
+        return detections; // Return empty if input is empty
 
     std::stringstream ss(output);
     std::string line;
@@ -436,7 +454,9 @@ std::vector<ParsedDetection> HeadTracking::ParseDetectionOutput(const std::strin
         {
             det.label = label_str;
             detections.push_back(det);
-        } else {
+        }
+        else
+        {
             std::cerr << "WARNING: Failed to parse detection line: '" << line << "'" << std::endl;
         }
     }
@@ -445,7 +465,8 @@ std::vector<ParsedDetection> HeadTracking::ParseDetectionOutput(const std::strin
 
 void HeadTracking::DrawBoundingBox(Image *image, const ParsedDetection &detection)
 {
-    if (!image || !image->m_ImageData) {
+    if (!image || !image->m_ImageData)
+    {
         std::cerr << "WARNING: DrawBoundingBox called with invalid image pointer." << std::endl;
         return;
     }
@@ -470,24 +491,38 @@ void HeadTracking::DrawBoundingBox(Image *image, const ParsedDetection &detectio
     unsigned char r = 255, g = 0, b = 0;
 
     // Draw lines (simplified)
-    for (int x = xmin; x <= xmax; ++x) {
-        if (ymin >= 0 && ymin < img_height) {
+    for (int x = xmin; x <= xmax; ++x)
+    {
+        if (ymin >= 0 && ymin < img_height)
+        {
             unsigned char *p = &image->m_ImageData[(ymin * img_width + x) * pixel_size];
-            p[0] = r; p[1] = g; p[2] = b;
+            p[0] = r;
+            p[1] = g;
+            p[2] = b;
         }
-        if (ymax >= 0 && ymax < img_height) {
+        if (ymax >= 0 && ymax < img_height)
+        {
             unsigned char *p = &image->m_ImageData[(ymax * img_width + x) * pixel_size];
-            p[0] = r; p[1] = g; p[2] = b;
+            p[0] = r;
+            p[1] = g;
+            p[2] = b;
         }
     }
-    for (int y = ymin; y <= ymax; ++y) {
-        if (xmin >= 0 && xmin < img_width) {
+    for (int y = ymin; y <= ymax; ++y)
+    {
+        if (xmin >= 0 && xmin < img_width)
+        {
             unsigned char *p = &image->m_ImageData[(y * img_width + xmin) * pixel_size];
-            p[0] = r; p[1] = g; p[2] = b;
+            p[0] = r;
+            p[1] = g;
+            p[2] = b;
         }
-        if (xmax >= 0 && xmax < img_width) {
+        if (xmax >= 0 && xmax < img_width)
+        {
             unsigned char *p = &image->m_ImageData[(y * img_width + xmax) * pixel_size];
-            p[0] = r; p[1] = g; p[2] = b;
+            p[0] = r;
+            p[1] = g;
+            p[2] = b;
         }
     }
 
@@ -498,7 +533,7 @@ void HeadTracking::DrawBoundingBox(Image *image, const ParsedDetection &detectio
     // Drawing text label is more complex and omitted here.
 }
 
-void HeadTracking::UpdateHeadTracking(const std::vector<ParsedDetection>& detections)
+void HeadTracking::UpdateHeadTracking(const std::vector<ParsedDetection> &detections)
 {
     bool person_found_in_frame = false;
     Point2D tracked_object_center_for_head;
@@ -509,7 +544,7 @@ void HeadTracking::UpdateHeadTracking(const std::vector<ParsedDetection>& detect
         // --- Check if the detected label is "person" ---
         if (det.label == "person") // Look for the label "person"
         {
-             cm730_->WriteByte(CM730::P_LED_EYE_H, 0x01 | 0x04 , NULL);
+            cm730_->WriteWord(CM730::P_LED_EYE_L, magenta_color_, NULL);
 
             // Calculate center of the bounding box in original image pixel coordinates
             tracked_object_center_for_head.X = (det.xmin + det.xmax) / 2.0 * Camera::WIDTH;
@@ -544,48 +579,63 @@ void HeadTracking::UpdateHeadTracking(const std::vector<ParsedDetection>& detect
 
         // --- Apply Deadband and Error Scaling for Centering ---
         // Apply deadband: only move if error is greater than the threshold
-        if (std::abs(P_err.X) < pan_deadband_deg_) {
+        if (std::abs(P_err.X) < pan_deadband_deg_)
+        {
             P_err.X = 0.0; // Set error to zero within the deadband
-        } else {
+        }
+        else
+        {
             // Apply additional scaling outside the deadband
             P_err.X *= pan_error_scale_;
         }
 
-        if (std::abs(P_err.Y) < tilt_deadband_deg_) {
+        if (std::abs(P_err.Y) < tilt_deadband_deg_)
+        {
             P_err.Y = 0.0; // Set error to zero within the deadband
-        } else {
+        }
+        else
+        {
             // Apply additional scaling outside the deadband
             P_err.Y *= tilt_error_scale_;
         }
 
         // Pass angular error to MoveTracking
-        if (head_module_) {
+        if (head_module_)
+        {
             head_module_->MoveTracking(P_err); // Actively track the person
-        } else {
+        }
+        else
+        {
             std::cerr << "ERROR: Head module not initialized in UpdateHeadTracking." << std::endl;
         }
     }
     else // No person found in the current frame
     {
-        if(no_target_count_ < NO_TARGET_MAX_COUNT)
+        if (no_target_count_ < NO_TARGET_MAX_COUNT)
         {
             // Continue tracking based on the last known position or stop active tracking
             // head_module_->MoveTracking(); // Original BallTracker behavior (might hold last pos)
-            if (head_module_) {
+            if (head_module_)
+            {
                 head_module_->MoveTracking(Point2D(0.0, 0.0)); // Alternative: stop active tracking and center head slowly
-            } else {
+            }
+            else
+            {
                 std::cerr << "ERROR: Head module not initialized for centering in UpdateHeadTracking." << std::endl;
             }
             no_target_count_++; // Increment counter
         }
         else
         {
-            cm730_->WriteByte(CM730::P_LED_EYE_H, 0x00 | 0x00 | 0x00 , NULL);
+            cm730_->WriteWord(CM730::P_LED_EYE_L, black_color_, NULL);
 
             // No target for too long, return to initial position
-            if (head_module_) {
+            if (head_module_)
+            {
                 head_module_->MoveToHome(); // Alternative: stop active tracking and center head slowl
-            } else {
+            }
+            else
+            {
                 std::cerr << "ERROR: Head module not initialized for MoveToHome in UpdateHeadTracking." << std::endl;
             }
             // no_target_count_ remains at or above NO_TARGET_MAX_COUNT
@@ -618,4 +668,3 @@ std::string HeadTracking::ReceiveExact(int sock_fd, size_t num_bytes)
     }
     return buffer;
 }
-
