@@ -116,7 +116,7 @@ int main(void)
     MotionManager::GetInstance()->SetEnable(true);
 
     // Explicitly enable head joints and set gains (can also be done in HeadTracking init)
-    head_module->m_Joint.SetEnableHeadOnly(true, false);
+    // head_module->m_Joint.SetEnableHeadOnly(true, false);
     head_module->m_Joint.SetPGain(JointData::ID_HEAD_PAN, 8);
     head_module->m_Joint.SetPGain(JointData::ID_HEAD_TILT, 8);
 
