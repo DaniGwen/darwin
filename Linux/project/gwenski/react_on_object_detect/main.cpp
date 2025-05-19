@@ -3,13 +3,6 @@
  *
  * Created on: 2025. 5. 19.
  * Author: gwenski
- * Modified for Edge TPU Object Detection via Unix Domain Socket
- * Refactored into HeadTracking singleton class.
- * Python script startup moved to HeadTracking::Initialize.
- * Motion Framework initialization and cleanup in main.
- * Fixed multiple definition error for SOCKET_PATH.
- * Passes initialized MotionManager and Head pointers to HeadTracking.
- * Head tracking logic now runs in a separate thread.
  */
 
 #include <stdio.h>
@@ -70,8 +63,6 @@ int main(void)
     }
 
     // --- Camera Initialization (kept in main) ---
-    // It's often good practice to initialize the camera early in main
-    // as it's a fundamental system resource.
     std::cout << "INFO: Initializing camera..." << std::endl;
     LinuxCamera::GetInstance()->Initialize(0); // Initialize with device index 0
     LinuxCamera::GetInstance()->LoadINISettings(ini);
@@ -79,7 +70,6 @@ int main(void)
 
 
     // --- Initialize Motion Framework Components (in main) ---
-    // These are instantiated and initialized here before HeadTracking uses them.
     LinuxCM730 linux_cm730(U2D_DEV_NAME);
     CM730 cm730(&linux_cm730);
 
@@ -105,7 +95,6 @@ int main(void)
     HeadTracking *head_tracker = HeadTracking::GetInstance();
 
     // Pass the INI settings and the initialized motion framework singletons to HeadTracking
-    // The Python script startup is now handled inside head_tracker->Initialize()
     if (!head_tracker->Initialize(ini, motion_manager, head_module, &cm730))
     {
         std::cerr << "ERROR: HeadTracking initialization failed. Exiting." << std::endl;

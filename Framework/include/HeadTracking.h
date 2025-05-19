@@ -57,6 +57,9 @@ public:
       // Cleanup method
       void Cleanup();
 
+      // Getter for the current detected label
+      std::string GetDetectedLabel();
+
       // Destructor (private to enforce singleton)
       ~HeadTracking();
 
@@ -72,6 +75,7 @@ private:
       int client_socket_;       // File descriptor for the client socket connection
       mjpg_streamer *streamer_; // Pointer to the MJPG streamer instance
       minIni *ini_settings_;    // Pointer to loaded INI settings (owned by main)
+      current_detected_label_;  // Current detected label (for tracking state)
 
       // Pointers to DARwIn-OP framework singletons (passed in Initialize, not owned)
       Robot::MotionManager *motion_manager_;
@@ -92,10 +96,6 @@ private:
       double tilt_deadband_deg_;
 
       // Eye color values for LED panel
-      int magenta_color_;
-      int cyan_color_;
-      int white_color_;
-      int yellow_color_;
       int black_color_;
 
       // --- Private Helper Methods ---
