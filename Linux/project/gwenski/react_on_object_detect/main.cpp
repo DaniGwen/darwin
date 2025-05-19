@@ -217,8 +217,8 @@ int main(void)
             else if (detected_object_label == "none" && current_action_label != "standby")
             {
                 // If no specific object is detected and we are not already in standby, go to standby
-                std::cout << "INFO: No target detected. Returning to standby action (Page " << ACTION_PAGE_STANDBY << ")..." << std::endl;
-                action_module->Start(ACTION_PAGE_STANDBY);
+                std::cout << "INFO: No target detected. Returning to standby action (Page " << ACTION_PAGE_STAND << ")..." << std::endl;
+                action_module->Start(ACTION_PAGE_STAND);
                 current_action_label = "standby";
             }
             // If the detected label is the same as the current action label,
