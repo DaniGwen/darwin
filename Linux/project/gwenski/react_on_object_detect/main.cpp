@@ -93,9 +93,8 @@ int main(void)
     // Get MotionManager, Head, and Action singletons
     Robot::MotionManager *motion_manager = Robot::MotionManager::GetInstance();
     Robot::Head *head_module = Robot::Head::GetInstance();
-    Robot::Action *action_module = Robot::Action::GetInstance(); // Get Action singleton
 
-    action_module->LoadFile(MOTION_FILE_PATH); // Load motion file for Action module
+    Robot::Action::GetInstance()->LoadFile(MOTION_FILE_PATH); // Load motion file for Action module
 
     // Initialize MotionManager
     if (motion_manager->Initialize(&cm730) == false)
@@ -110,7 +109,7 @@ int main(void)
 
     // Add Head and Action modules to MotionManager
     motion_manager->AddModule((MotionModule *)head_module);
-    motion_manager->AddModule((MotionModule *)action_module); // Add Action module
+    motion_manager->AddModule((MotionModule *)Action::GetInstance());
 
     // Start the Motion Timer
     LinuxMotionTimer *motion_timer = new LinuxMotionTimer(motion_manager);
@@ -135,7 +134,7 @@ int main(void)
         motion_timer->Stop();
         motion_manager->SetEnable(false);
         motion_manager->RemoveModule((MotionModule *)head_module);
-        motion_manager->RemoveModule((MotionModule *)action_module); // Remove Action module
+        motion_manager->RemoveModule((MotionModule *)Action::GetInstance()); // Remove Action module
         delete ini;
         delete motion_timer;
         return -1;
@@ -154,7 +153,7 @@ int main(void)
         motion_timer->Stop();
         motion_manager->SetEnable(false);
         motion_manager->RemoveModule((MotionModule *)head_module);
-        motion_manager->RemoveModule((MotionModule *)action_module); // Remove Action module
+        motion_manager->RemoveModule((MotionModule *)Action::GetInstance()); // Remove Action module
         delete ini;
         delete motion_timer;
         return -1;
@@ -166,7 +165,7 @@ int main(void)
 
     // Play initial standby action
     std::cout << "INFO: Playing initial standby action (Page " << ACTION_PAGE_STAND << ")..." << std::endl;
-    action_module->Start(ACTION_PAGE_STAND);
+    Action::GetInstance()->Start(ACTION_PAGE_STAND);
     // Note: Action::Start is usually non-blocking. The MotionManager executes the steps.
 
     std::string current_action_label = "standby"; // Keep track of the action currently playing
@@ -177,7 +176,7 @@ int main(void)
         std::string detected_object_label = head_tracker->GetDetectedLabel();
 
         // Check if an action is currently running
-        bool is_action_playing = action_module->IsRunning();
+        bool is_action_playing = Action::GetInstance()->IsRunning();
 
         // --- Action Triggering Logic ---
         // Only start a new action if no action is currently playing
@@ -187,38 +186,38 @@ int main(void)
             if (detected_object_label == "person" && current_action_label != "person")
             {
                 std::cout << "INFO: Detected person. Playing action (Page " << ACTION_PAGE_WAVE << ")..." << std::endl;
-                action_module->Start(ACTION_PAGE_WAVE);
+                Action::GetInstance()->Start(ACTION_PAGE_WAVE);
                 current_action_label = "person";
             }
             else if (detected_object_label == "dog" && current_action_label != "dog")
             {
                 // std::cout << "INFO: Detected dog. Playing action (Page " << ACTION_PAGE_DOG << ")..." << std::endl;
-                // action_module->Start(ACTION_PAGE_DOG);
+                // Action::GetInstance()->Start(ACTION_PAGE_DOG);
                 // current_action_label = "dog";
             }
             else if (detected_object_label == "cat" && current_action_label != "cat")
             {
                 // std::cout << "INFO: Detected cat. Playing action (Page " << ACTION_PAGE_CAT << ")..." << std::endl;
-                // action_module->Start(ACTION_PAGE_CAT);
+                // Action::GetInstance()->Start(ACTION_PAGE_CAT);
                 // current_action_label = "cat";
             }
             else if (detected_object_label == "sports ball" && current_action_label != "sports ball")
             {
                 // std::cout << "INFO: Detected sports ball. Playing action (Page " << ACTION_PAGE_SPORTS_BALL << ")..." << std::endl;
-                // action_module->Start(ACTION_PAGE_SPORTS_BALL);
+                // Action::GetInstance()->Start(ACTION_PAGE_SPORTS_BALL);
                 // current_action_label = "sports ball";
             }
             else if (detected_object_label == "bottle" && current_action_label != "bottle")
             {
-                std::cout << "INFO: Detected bottle. Playing action (Page " << ACTION_PAGE_BOTTLE << ")..." << std::endl;
-                action_module->Start(ACTION_PAGE_BOTTLE);
-                current_action_label = "bottle";
+                // std::cout << "INFO: Detected bottle. Playing action (Page " << ACTION_PAGE_BOTTLE << ")..." << std::endl;
+                // Action::GetInstance()->Start(ACTION_PAGE_BOTTLE);
+                // current_action_label = "bottle";
             }
             else if (detected_object_label == "none" && current_action_label != "standby")
             {
                 // If no specific object is detected and we are not already in standby, go to standby
                 std::cout << "INFO: No target detected. Returning to standby action (Page " << ACTION_PAGE_STAND << ")..." << std::endl;
-                action_module->Start(ACTION_PAGE_STAND);
+                Action::GetInstance()->Start(ACTION_PAGE_STAND);
                 current_action_label = "standby";
             }
             // If the detected label is the same as the current action label,
@@ -252,7 +251,7 @@ int main(void)
     motion_manager->SetEnable(false);
     // Disable motion
     motion_manager->RemoveModule((MotionModule *)head_module);   // Remove Head module
-    motion_manager->RemoveModule((MotionModule *)action_module); // Remove Action module
+    motion_manager->RemoveModule((MotionModule *)Action::GetInstance()); // Remove Action module
 
     // Finally, cleanup other dynamically allocated objects
     delete ini;

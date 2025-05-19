@@ -553,8 +553,7 @@ void HeadTracking::UpdateHeadTracking(const std::vector<ParsedDetection> &detect
     // Find the first "person" detection (or the largest/closest if needed)
     for (const auto &det : detections)
     {
-        // --- Check if the detected label is "person" ---
-        if (det.label == "person") // Look for the label "person"
+        if (det.label == "person")
         {
             // Eye color - magenta
            if (cm730_) {
@@ -571,8 +570,6 @@ void HeadTracking::UpdateHeadTracking(const std::vector<ParsedDetection> &detect
             // For better tracking, you might want to track the largest or closest person.
             break; // Stop searching after finding the first person
         }
-        // add checks for other labels here to prioritize different objects
-        // else if (det.label == "dog") { ... }
     }
 
     // --- Update the shared detected label ---
