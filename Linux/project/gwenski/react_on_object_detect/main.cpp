@@ -94,7 +94,7 @@ int main(void)
     Robot::MotionManager *motion_manager = Robot::MotionManager::GetInstance();
     Robot::Head *head_module = Robot::Head::GetInstance();
 
-    Robot::Action::GetInstance()->LoadFile(MOTION_FILE_PATH); // Load motion file for Action module
+    Action::GetInstance()->LoadFile(MOTION_FILE_PATH); // Load motion file for Action module
 
     // Initialize MotionManager
     if (motion_manager->Initialize(&cm730) == false)
@@ -106,10 +106,7 @@ int main(void)
 
     // Load MotionManager settings from INI
     motion_manager->LoadINISettings(ini);
-
-    // Add Head and Action modules to MotionManager
-    motion_manager->AddModule((MotionModule *)head_module);
-    motion_manager->AddModule((MotionModule *)Action::GetInstance());
+    motion_manager->AddModule((MotionModule*)Action::GetInstance());
 
     // Start the Motion Timer
     LinuxMotionTimer *motion_timer = new LinuxMotionTimer(motion_manager);
