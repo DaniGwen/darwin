@@ -53,7 +53,6 @@ void *HeadTrackingThread(void *arg)
     HeadTracking *head_tracker = static_cast<HeadTracking *>(arg);
 
     if (head_tracker)
-
     {
         // Run the main tracking loop in this thread
         head_tracker->Run();
@@ -76,7 +75,6 @@ int main(void)
     // Load INI settings
     minIni *ini = new minIni(INI_FILE_PATH);
     if (!ini)
-
     {
         std::cerr << "ERROR: Failed to load INI file." << std::endl;
         return -1;
@@ -101,7 +99,6 @@ int main(void)
 
     // Initialize MotionManager
     if (motion_manager->Initialize(&cm730) == false)
-
     {
         std::cerr << "ERROR: Failed to initialize Motion Manager in main!" << std::endl;
         delete ini;
@@ -132,7 +129,6 @@ int main(void)
 
     // Pass the INI settings and the initialized motion framework singletons to HeadTracking
     if (!head_tracker->Initialize(ini, motion_manager, head_module, &cm730))
-
     {
         std::cerr << "ERROR: HeadTracking initialization failed. Exiting." << std::endl;
         // Perform motion framework cleanup before exiting
@@ -151,7 +147,6 @@ int main(void)
     int thread_create_status = pthread_create(&tracking_thread, NULL, HeadTrackingThread, head_tracker);
 
     if (thread_create_status != 0)
-
     {
         std::cerr << "ERROR: Failed to create HeadTracking thread: " << strerror(thread_create_status) << std::endl;
         // Cleanup initialized resources before exiting
@@ -170,14 +165,13 @@ int main(void)
     std::cout << "INFO: Main thread running, checking for detected objects to trigger actions. Press Ctrl+C to exit." << std::endl;
 
     // Play initial standby action
-    std::cout << "INFO: Playing initial standby action (Page " << ACTION_PAGE_STANDBY << ")..." << std::endl;
+    std::cout << "INFO: Playing initial standby action (Page " << ACTION_PAGE_STAND << ")..." << std::endl;
     action_module->Start(ACTION_PAGE_STAND);
     // Note: Action::Start is usually non-blocking. The MotionManager executes the steps.
 
     std::string current_action_label = "standby"; // Keep track of the action currently playing
 
     while (1)
-
     {
         // Get the latest detected label from the HeadTracking thread
         std::string detected_object_label = head_tracker->GetDetectedLabel();
