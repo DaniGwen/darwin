@@ -4,11 +4,14 @@
  * Created on: May 17, 2025
  * Author: Your Name
  * Description: Implementation of the HeadTracking singleton class.
- *              Receives initialized Motion Framework (MotionManager, Head) pointers.
+ *              Receives initialized Motion Framework (MotionManager, Head, CM730) pointers.
  *              Added explicit includes for stringstream fix.
  *              Defined SOCKET_PATH here.
  *              Added detailed logging to Run() loop, including pre-capture log and initial delay.
  *              Added Python script startup to Initialize().
+ *              Added CM730 pointer and LED color control logic.
+ *              Added debug logging for LED commands and a basic LED test.
+ *              Added member variable and getter to expose the detected label.
  */
 
 #include "HeadTracking.h"
@@ -20,6 +23,7 @@
 #include <cstdio>   // For printf (used in DrawBoundingBox)
 #include <unistd.h> // For usleep
 #include <cstdlib>  // For system()
+#include <mutex>    // For std::mutex (optional, but good practice for shared data)
 
 // Define socket path here (only once)
 const char *SOCKET_PATH = "/tmp/darwin_detector.sock";
@@ -27,9 +31,6 @@ const char *SOCKET_PATH = "/tmp/darwin_detector.sock";
 // --- Python Script Configuration ---
 // IMPORTANT: Set the correct path to your Python detector script
 const char *PYTHON_SCRIPT_PATH = "/home/darwin/darwin/aiy-maker-kit/examples/custom_detect_objects.py";
-
-// Color configuration path
-const char *COLOR_CONFIG_PATH = "./color_config.ini";
 
 // Static member initialization (singleton instance)
 HeadTracking *HeadTracking::GetInstance()
@@ -52,11 +53,8 @@ HeadTracking::HeadTracking()
       tilt_error_scale_(0.5),
       pan_deadband_deg_(1.0),
       tilt_deadband_deg_(1.0),
-      magenta_color_(5),
-      cyan_color_(6),
-      white_color_(7),
-      yellow_color_(3),
-      black_color_(0)
+      black_color_(0),
+      current_detected_label_("none") // Initialize detected label
 {
     // Constructor is intentionally minimal.
     // Initialization that might fail or requires external resources
@@ -67,6 +65,8 @@ HeadTracking::HeadTracking()
 HeadTracking::~HeadTracking()
 {
     Cleanup();
+    // Note: ini_settings_ is owned by main and should not be deleted here.
+    // Motion framework components (motion_manager_, head_module_, cm730_) are not owned here.
 }
 
 bool HeadTracking::Initialize(minIni *ini, Robot::MotionManager *motion_manager, Robot::Head *head_module, CM730 *cm730)
@@ -79,12 +79,13 @@ bool HeadTracking::Initialize(minIni *ini, Robot::MotionManager *motion_manager,
     // Basic check if passed pointers are valid
     if (!motion_manager_ || !head_module_ || !cm730_)
     {
-        std::cerr << "ERROR: HeadTracking initialization failed: Invalid MotionManager or Head pointer passed." << std::endl;
-        // No cleanup needed for motion singletons as they are not owned.
+        std::cerr << "ERROR: HeadTracking initialization failed: Invalid MotionManager, Head, or CM730 pointer passed." << std::endl;
+        // No cleanup needed for motion components as they are not owned.
         return false;
     }
 
     // --- Initialize Components ---
+
     // 0. Auto-start the Python detector script (moved from main)
     // Construct the command to execute the Python script
     std::string command = "python3 ";
@@ -109,6 +110,14 @@ bool HeadTracking::Initialize(minIni *ini, Robot::MotionManager *motion_manager,
         std::cerr << "ERROR: HeadTracking initialization failed: Socket server setup failed." << std::endl;
         return false;
     }
+
+    // 2. Initialize Camera
+    // Note: Camera initialization is now done in main.cpp before calling HeadTracking::Initialize
+    // if (!InitializeCamera()) {
+    //     std::cerr << "ERROR: HeadTracking initialization failed: Camera setup failed." << std::endl;
+    //     Cleanup(); // Clean up already initialized resources
+    //     return false;
+    // }
 
     // 3. Initialize MJPG Streamer
     if (!InitializeStreamer())
@@ -181,32 +190,32 @@ void HeadTracking::Run()
     {
         // --- Capture Frame ---
         LinuxCamera::GetInstance()->CaptureFrame();
-        std::cout << "DEBUG: CaptureFrame() returned." << std::endl; // Added log
+        // std::cout << "DEBUG: CaptureFrame() returned." << std::endl; // Added log - can be noisy
 
         Image *current_cam_rgb_frame = LinuxCamera::GetInstance()->fbuffer->m_RGBFrame;
-        std::cout << "DEBUG: Frame captured." << std::endl;
+        // std::cout << "DEBUG: Frame captured." << std::endl; // Added log - can be noisy
 
         if (!current_cam_rgb_frame || !current_cam_rgb_frame->m_ImageData)
         {
             std::cerr << "WARNING: Failed to capture valid frame (null pointer or no image data). Waiting..." << std::endl; // More specific message
-            usleep(10000);                                                                                                  // Wait if frame not ready
+            usleep(10000); // Wait if frame not ready
             continue;
         }
 
         // --- Send Frame Data to Python Script ---
-        std::cout << "DEBUG: Sending frame data..." << std::endl;
+        // std::cout << "DEBUG: Sending frame data..." << std::endl; // Can be noisy
         if (!SendFrameData(current_cam_rgb_frame))
         {
             // SendFrameData prints error message on failure
             std::cerr << "ERROR: Failed to send frame data. Exiting loop." << std::endl;
             break; // Exit loop on send error (likely connection closed)
         }
-        std::cout << "DEBUG: Frame data sent." << std::endl;
+        // std::cout << "DEBUG: Frame data sent." << std::endl; // Can be noisy
 
         // --- Receive and Parse Detection Results ---
-        std::cout << "DEBUG: Receiving detection results..." << std::endl;
+        // std::cout << "DEBUG: Receiving detection results..." << std::endl; // Can be noisy
         std::vector<ParsedDetection> detections = ReceiveDetectionResults();
-        std::cout << "DEBUG: Detection results received." << std::endl;
+        // std::cout << "DEBUG: Detection results received." << std::endl; // Can be noisy
 
         // Check if ReceiveDetectionResults indicated a connection error by returning empty
         // If it returned empty due to a connection error, the next SendFrameData
@@ -218,12 +227,12 @@ void HeadTracking::Run()
         }
 
         // Copy original camera frame to the display frame for drawing
-        std::cout << "DEBUG: Copying frame for drawing..." << std::endl;
+        // std::cout << "DEBUG: Copying frame for drawing..." << std::endl; // Can be noisy
         if (rgb_display_frame_ && current_cam_rgb_frame && rgb_display_frame_->m_ImageData && current_cam_rgb_frame->m_ImageData)
         {
             memcpy(rgb_display_frame_->m_ImageData, current_cam_rgb_frame->m_ImageData,
                    current_cam_rgb_frame->m_NumberOfPixels * current_cam_rgb_frame->m_PixelSize);
-            std::cout << "DEBUG: Frame copied." << std::endl;
+            // std::cout << "DEBUG: Frame copied." << std::endl; // Can be noisy
         }
         else
         {
@@ -231,24 +240,24 @@ void HeadTracking::Run()
         }
 
         // --- Draw Detections ---
-        std::cout << "DEBUG: Drawing detections..." << std::endl;
+        // std::cout << "DEBUG: Drawing detections..." << std::endl; // Can be noisy
         for (const auto &det : detections)
         {
             DrawBoundingBox(rgb_display_frame_, det); // Draw on the *original resolution* display frame
         }
-        std::cout << "DEBUG: Detections drawn." << std::endl;
+        // std::cout << "DEBUG: Detections drawn." << std::endl; // Can be noisy
 
         // --- Update Head Tracking based on Detections ---
-        std::cout << "DEBUG: Updating head tracking..." << std::endl;
+        // std::cout << "DEBUG: Updating head tracking..." << std::endl; // Can be noisy
         UpdateHeadTracking(detections);
-        std::cout << "DEBUG: Head tracking updated." << std::endl;
+        // std::cout << "DEBUG: Head tracking updated." << std::endl; // Can be noisy
 
         // --- Stream Image ---
-        std::cout << "DEBUG: Streaming image..." << std::endl;
+        // std::cout << "DEBUG: Streaming image..." << std::endl; // Can be noisy
         if (streamer_ && rgb_display_frame_)
         {
             streamer_->send_image(rgb_display_frame_);
-            std::cout << "DEBUG: Image streamed." << std::endl;
+            // std::cout << "DEBUG: Image streamed." << std::endl; // Can be noisy
         }
         else
         {
@@ -285,7 +294,7 @@ void HeadTracking::Cleanup()
         rgb_display_frame_ = nullptr;
     }
 
-    // Motion framework singletons (motion_manager_, head_module_) are not owned here.
+    // Motion framework components (motion_manager_, head_module_, cm730_) are not owned here.
     // They were passed in Initialize and are managed externally.
 
     std::cout << "INFO: HeadTracking cleanup complete." << std::endl;
@@ -364,7 +373,7 @@ bool HeadTracking::SendFrameData(Image *frame)
 {
     if (!frame || !frame->m_ImageData || client_socket_ < 0)
     {
-        std::cerr << "ERROR: SendFrameData called with invalid parameters or socket not connected." << std::endl;
+        // std::cerr << "ERROR: SendFrameData called with invalid parameters or socket not connected." << std::endl; // Can be noisy
         return false;
     }
 
@@ -405,6 +414,7 @@ std::vector<ParsedDetection> HeadTracking::ReceiveDetectionResults()
     if (size_data.empty())
     {
         // ReceiveExact already printed error/connection closed message
+        client_socket_ = -1; // Mark socket as invalid
         return {}; // Return empty vector on error or closed connection
     }
     memcpy(&result_size, size_data.data(), sizeof(result_size));
@@ -418,6 +428,7 @@ std::vector<ParsedDetection> HeadTracking::ReceiveDetectionResults()
         if (detection_output.empty())
         {
             // ReceiveExact already printed error/connection closed message
+            client_socket_ = -1; // Mark socket as invalid
             return {}; // Return empty vector on error
         }
     }
@@ -537,6 +548,7 @@ void HeadTracking::UpdateHeadTracking(const std::vector<ParsedDetection> &detect
 {
     bool person_found_in_frame = false;
     Point2D tracked_object_center_for_head;
+    std::string primary_detected_label = "none"; // Default to none
 
     // Find the first "person" detection (or the largest/closest if needed)
     for (const auto &det : detections)
@@ -545,17 +557,32 @@ void HeadTracking::UpdateHeadTracking(const std::vector<ParsedDetection> &detect
         if (det.label == "person") // Look for the label "person"
         {
             // Eye color - magenta
-           cm730_->WriteWord(CM730::ID_CM, CM730::P_LED_EYE_L, cm730_->MakeColor(255, 0, 255), 0);
+           if (cm730_) {
+                // Using MakeColor for the eye LEDs which expect 15-bit color
+                cm730_->WriteWord(CM730::ID_CM, CM730::P_LED_EYE_L, cm730_->MakeColor(255, 0, 255), 0); // Magenta
+           }
 
             // Calculate center of the bounding box in original image pixel coordinates
             tracked_object_center_for_head.X = (det.xmin + det.xmax) / 2.0 * Camera::WIDTH;
             tracked_object_center_for_head.Y = (det.ymin + det.ymax) / 2.0 * Camera::HEIGHT;
             person_found_in_frame = true; // A person was found in this frame
+            primary_detected_label = det.label; // Store the label of the tracked object
             // For simplicity, track the first person found.
             // For better tracking, you might want to track the largest or closest person.
             break; // Stop searching after finding the first person
         }
+        // add checks for other labels here to prioritize different objects
+        // else if (det.label == "dog") { ... }
     }
+
+    // --- Update the shared detected label ---
+    // Using a mutex is good practice for shared data, but for a single string
+    // being written by one thread and read by another, it might be optional
+    // depending on how critical it is to always get the absolute latest value
+    // without any potential tearing (though string assignment is usually atomic).
+    // std::lock_guard<std::mutex> lock(label_mutex_); // If using a mutex
+    current_detected_label_ = primary_detected_label;
+
 
     // --- Head Tracking State Management ---
     if (person_found_in_frame)
@@ -628,7 +655,10 @@ void HeadTracking::UpdateHeadTracking(const std::vector<ParsedDetection> &detect
         }
         else
         {
-            cm730_->WriteWord(CM730::P_LED_EYE_L, black_color_, NULL);
+            if (cm730_) {
+                // Using WriteWord for the eye LEDs which expect 15-bit color value
+                cm730_->WriteWord(CM730::ID_CM, CM730::P_LED_EYE_L, black_color_, NULL); // Black
+            }
 
             // No target for too long, return to initial position
             if (head_module_)
@@ -668,4 +698,12 @@ std::string HeadTracking::ReceiveExact(int sock_fd, size_t num_bytes)
         total_received += bytes_read;
     }
     return buffer;
+}
+
+// Public getter for the detected label
+std::string HeadTracking::GetDetectedLabel()
+{
+    // If using a mutex, lock here before accessing current_detected_label_
+    // std::lock_guard<std::mutex> lock(label_mutex_);
+    return current_detected_label_;
 }
