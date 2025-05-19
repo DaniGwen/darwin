@@ -2,7 +2,7 @@
  * HeadTracking.h
  *
  * Created on: May 17, 2025
- * Author: Your Name
+ * Author: gwenski
  * Description: Singleton class to manage head tracking, socket communication
  *                     with a detector script, and MJPG streaming for a DARwIn-OP robot.
  *                     Receives initialized Motion Framework (MotionManager, Head) pointers.
@@ -72,10 +72,10 @@ private:
       HeadTracking &operator=(const HeadTracking &) = delete;
 
       // --- Member Variables ---
-      int client_socket_;       // File descriptor for the client socket connection
-      mjpg_streamer *streamer_; // Pointer to the MJPG streamer instance
-      minIni *ini_settings_;    // Pointer to loaded INI settings (owned by main)
-      current_detected_label_;  // Current detected label (for tracking state)
+      int client_socket_;                  // File descriptor for the client socket connection
+      mjpg_streamer *streamer_;            // Pointer to the MJPG streamer instance
+      minIni *ini_settings_;               // Pointer to loaded INI settings (owned by main)
+      std::string current_detected_label_; // Current detected label (for tracking state)
 
       // Pointers to DARwIn-OP framework singletons (passed in Initialize, not owned)
       Robot::MotionManager *motion_manager_;
