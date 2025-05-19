@@ -107,6 +107,7 @@ int main(void)
     // Load MotionManager settings from INI
     motion_manager->LoadINISettings(ini);
     motion_manager->AddModule((MotionModule*)Action::GetInstance());
+    motion_manager->AddModule((MotionModule*)head_module);
 
     // Start the Motion Timer
     LinuxMotionTimer *motion_timer = new LinuxMotionTimer(motion_manager);
@@ -116,7 +117,7 @@ int main(void)
     MotionManager::GetInstance()->SetEnable(true);
 
     // Explicitly enable head joints and set gains (can also be done in HeadTracking init)
-    // head_module->m_Joint.SetEnableHeadOnly(true, false);
+    head_module->m_Joint.SetEnableHeadOnly(true, true);
     head_module->m_Joint.SetPGain(JointData::ID_HEAD_PAN, 8);
     head_module->m_Joint.SetPGain(JointData::ID_HEAD_TILT, 8);
 
@@ -163,6 +164,9 @@ int main(void)
     // Play initial standby action
     std::cout << "INFO: Playing initial standby action (Page " << ACTION_PAGE_STAND << ")..." << std::endl;
     Action::GetInstance()->Start(ACTION_PAGE_STAND);
+    while (Action::GetInstance()->IsRunning())
+        usleep(8 * 1000);
+
     // Note: Action::Start is usually non-blocking. The MotionManager executes the steps.
 
     std::string current_action_label = "standby"; // Keep track of the action currently playing
