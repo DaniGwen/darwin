@@ -3,6 +3,9 @@
  *
  * Created on: 2025. 5. 19.
  * Author: gwenski
+ * Description: Main program for head tracking with object detection,
+ *              triggering robot actions based on detected object labels.
+ *              Runs HeadTracking in a separate thread.
  */
 
 #include <stdio.h>
@@ -10,18 +13,31 @@
 #include <string.h>
 #include <libgen.h>
 #include <iostream>
-#include <cstdlib>  // Required for system()
+#include <cstdlib>   // Required for system()
 #include <pthread.h> // Required for threading
+#include <string>    // Required for std::string
+#include <chrono>    // Required for timing (optional, for loop delay)
+#include <thread>    // Required for std::this_thread::sleep_for (optional)
 
 #include "minIni.h"       // For INI file loading
-#include "HeadTracking.h" // Include the new HeadTracking class header (declares SOCKET_PATH)
-#include "LinuxDARwIn.h"  // Include for Motion Framework components
+#include "HeadTracking.h" // Include the HeadTracking class header
+#include "LinuxDARwIn.h"  // Include for Motion Framework components (MotionManager, Head, Action)
 
-// --- Python Script Configuration ---
-// PYTHON_SCRIPT_PATH is now defined in HeadTracking.cpp
-
+// --- Configuration ---
 #define INI_FILE_PATH "config.ini"
 #define U2D_DEV_NAME "/dev/ttyUSB0" // Verify this path is correct!
+#define MOTION_FILE_PATH "../../../../Data/motion_4096.bin"
+
+// Define action page numbers for different detected objects
+#define ACTION_PAGE_WAVE 7
+#define ACTION_PAGE_DOG 11
+#define ACTION_PAGE_CAT 12
+#define ACTION_PAGE_SPORTS_BALL 13
+#define ACTION_PAGE_BOTTLE 14
+#define ACTION_PAGE_STAND 1
+
+// --- Global Flags/Variables (Consider using a shared state class if more complex) ---
+// bool g_is_action_playing = false; // Flag to indicate if an action is currently playing
 
 void change_current_dir()
 {
@@ -31,22 +47,25 @@ void change_current_dir()
 }
 
 // Thread entry point function for HeadTracking
-void* HeadTrackingThread(void* arg)
+void *HeadTrackingThread(void *arg)
 {
     // Cast the argument back to a HeadTracking pointer
-    HeadTracking* head_tracker = static_cast<HeadTracking*>(arg);
+    HeadTracking *head_tracker = static_cast<HeadTracking *>(arg);
 
-    if (head_tracker) {
+    if (head_tracker)
+
+    {
         // Run the main tracking loop in this thread
         head_tracker->Run();
-    } else {
+    }
+    else
+    {
         std::cerr << "ERROR: HeadTrackingThread received a null pointer." << std::endl;
     }
 
     // Threads should return NULL or a specific value upon completion
     return NULL;
 }
-
 
 int main(void)
 {
@@ -57,6 +76,7 @@ int main(void)
     // Load INI settings
     minIni *ini = new minIni(INI_FILE_PATH);
     if (!ini)
+
     {
         std::cerr << "ERROR: Failed to load INI file." << std::endl;
         return -1;
@@ -68,16 +88,20 @@ int main(void)
     LinuxCamera::GetInstance()->LoadINISettings(ini);
     std::cout << "INFO: Camera initialized and settings loaded." << std::endl;
 
-
     // --- Initialize Motion Framework Components (in main) ---
     LinuxCM730 linux_cm730(U2D_DEV_NAME);
     CM730 cm730(&linux_cm730);
 
-    // Get MotionManager singleton and initialize it with the CM730 instance
+    // Get MotionManager, Head, and Action singletons
     Robot::MotionManager *motion_manager = Robot::MotionManager::GetInstance();
-    Robot::Head *head_module = Robot::Head::GetInstance(); // Get Head singleton now as well
+    Robot::Head *head_module = Robot::Head::GetInstance();
+    Robot::Action *action_module = Robot::Action::GetInstance(); // Get Action singleton
 
+    action_module->LoadFile(MOTION_FILE_PATH); // Load motion file for Action module
+
+    // Initialize MotionManager
     if (motion_manager->Initialize(&cm730) == false)
+
     {
         std::cerr << "ERROR: Failed to initialize Motion Manager in main!" << std::endl;
         delete ini;
@@ -87,73 +111,158 @@ int main(void)
     // Load MotionManager settings from INI
     motion_manager->LoadINISettings(ini);
 
-    // Start the Motion Timer (often needed for MotionManager to function)
+    // Add Head and Action modules to MotionManager
+    motion_manager->AddModule((MotionModule *)head_module);
+    motion_manager->AddModule((MotionModule *)action_module); // Add Action module
+
+    // Start the Motion Timer
     LinuxMotionTimer *motion_timer = new LinuxMotionTimer(motion_manager);
     motion_timer->Start();
+
+    // Enable MotionManager
+    MotionManager::GetInstance()->SetEnable(true);
+
+    // Explicitly enable head joints and set gains (can also be done in HeadTracking init)
+    head_module->m_Joint.SetEnableHeadOnly(true, true);
+    head_module->m_Joint.SetPGain(JointData::ID_HEAD_PAN, 8);
+    head_module->m_Joint.SetPGain(JointData::ID_HEAD_TILT, 8);
 
     // --- Initialize HeadTracking ---
     HeadTracking *head_tracker = HeadTracking::GetInstance();
 
     // Pass the INI settings and the initialized motion framework singletons to HeadTracking
     if (!head_tracker->Initialize(ini, motion_manager, head_module, &cm730))
+
     {
         std::cerr << "ERROR: HeadTracking initialization failed. Exiting." << std::endl;
         // Perform motion framework cleanup before exiting
         motion_timer->Stop();
         motion_manager->SetEnable(false);
         motion_manager->RemoveModule((MotionModule *)head_module);
+        motion_manager->RemoveModule((MotionModule *)action_module); // Remove Action module
         delete ini;
         delete motion_timer;
         return -1;
     }
-    
+
     // --- Create and Start HeadTracking Thread ---
     pthread_t tracking_thread;
     std::cout << "INFO: Creating HeadTracking thread..." << std::endl;
     int thread_create_status = pthread_create(&tracking_thread, NULL, HeadTrackingThread, head_tracker);
 
-    if (thread_create_status != 0) {
+    if (thread_create_status != 0)
+
+    {
         std::cerr << "ERROR: Failed to create HeadTracking thread: " << strerror(thread_create_status) << std::endl;
         // Cleanup initialized resources before exiting
-        head_tracker->Cleanup(); // Cleanup HeadTracking resources
+        head_tracker->Cleanup(); // Cleanup HeadTracking resources (socket, streamer, frame)
         motion_timer->Stop();
         motion_manager->SetEnable(false);
         motion_manager->RemoveModule((MotionModule *)head_module);
+        motion_manager->RemoveModule((MotionModule *)action_module); // Remove Action module
         delete ini;
         delete motion_timer;
         return -1;
     }
     std::cout << "INFO: HeadTracking thread created successfully." << std::endl;
 
+    // --- Main Loop (for checking labels and triggering actions) ---
+    std::cout << "INFO: Main thread running, checking for detected objects to trigger actions. Press Ctrl+C to exit." << std::endl;
 
-    // --- Main Loop (for other tasks) ---
-    // The main thread can now perform other tasks here.
-    // For demonstration, we'll just keep the main thread alive.
-    std::cout << "INFO: Main thread running, HeadTracking in separate thread. Press Ctrl+C to exit." << std::endl;
+    // Play initial standby action
+    std::cout << "INFO: Playing initial standby action (Page " << ACTION_PAGE_STANDBY << ")..." << std::endl;
+    action_module->Start(ACTION_PAGE_STAND);
+    // Note: Action::Start is usually non-blocking. The MotionManager executes the steps.
 
-    // Wait for the tracking thread to finish (e.g., on socket error)
-    // In a real robot application, main might have its own loop
-    // managing other modules or waiting for a shutdown signal.
-    pthread_join(tracking_thread, NULL);
+    std::string current_action_label = "standby"; // Keep track of the action currently playing
 
-    std::cout << "INFO: HeadTracking thread finished. Proceeding with main cleanup." << std::endl;
+    while (1)
+
+    {
+        // Get the latest detected label from the HeadTracking thread
+        std::string detected_object_label = head_tracker->GetDetectedLabel();
+
+        // Check if an action is currently running
+        bool is_action_playing = action_module->IsRunning();
+
+        // --- Action Triggering Logic ---
+        // Only start a new action if no action is currently playing
+        if (!is_action_playing)
+        {
+            // Use if-else if to check the detected label
+            if (detected_object_label == "person" && current_action_label != "person")
+            {
+                std::cout << "INFO: Detected person. Playing action (Page " << ACTION_PAGE_WAVE << ")..." << std::endl;
+                action_module->Start(ACTION_PAGE_WAVE);
+                current_action_label = "person";
+            }
+            else if (detected_object_label == "dog" && current_action_label != "dog")
+            {
+                // std::cout << "INFO: Detected dog. Playing action (Page " << ACTION_PAGE_DOG << ")..." << std::endl;
+                // action_module->Start(ACTION_PAGE_DOG);
+                // current_action_label = "dog";
+            }
+            else if (detected_object_label == "cat" && current_action_label != "cat")
+            {
+                // std::cout << "INFO: Detected cat. Playing action (Page " << ACTION_PAGE_CAT << ")..." << std::endl;
+                // action_module->Start(ACTION_PAGE_CAT);
+                // current_action_label = "cat";
+            }
+            else if (detected_object_label == "sports ball" && current_action_label != "sports ball")
+            {
+                // std::cout << "INFO: Detected sports ball. Playing action (Page " << ACTION_PAGE_SPORTS_BALL << ")..." << std::endl;
+                // action_module->Start(ACTION_PAGE_SPORTS_BALL);
+                // current_action_label = "sports ball";
+            }
+            else if (detected_object_label == "bottle" && current_action_label != "bottle")
+            {
+                std::cout << "INFO: Detected bottle. Playing action (Page " << ACTION_PAGE_BOTTLE << ")..." << std::endl;
+                action_module->Start(ACTION_PAGE_BOTTLE);
+                current_action_label = "bottle";
+            }
+            else if (detected_object_label == "none" && current_action_label != "standby")
+            {
+                // If no specific object is detected and we are not already in standby, go to standby
+                std::cout << "INFO: No target detected. Returning to standby action (Page " << ACTION_PAGE_STANDBY << ")..." << std::endl;
+                action_module->Start(ACTION_PAGE_STANDBY);
+                current_action_label = "standby";
+            }
+            // If the detected label is the same as the current action label,
+            // we don't need to start the action again.
+        }
+        else
+        {
+            // An action is currently playing.
+            // We could add logic here to potentially interrupt an action
+            // if a higher priority object is detected, but for now we wait
+            // for the current action to finish before starting a new one.
+        }
+
+        // Small delay in the main loop to avoid consuming too much CPU
+        // Adjust this based on how frequently you need to check the label.
+        std::this_thread::sleep_for(std::chrono::milliseconds(100)); // Check every 100ms
+
+        // You might add a mechanism to break this loop (e.g., a signal handler for Ctrl+C)
+    }
 
     // --- Cleanup Resources ---
-    // First, cleanup HeadTracking specific resources (socket, streamer, display frame)
-    // This is also handled by the thread's exit or explicit cleanup call if the thread exits gracefully.
-    // head_tracker->Cleanup(); // Can be called here too for certainty, but thread exit should handle it.
+    // The HeadTracking thread will exit its Run() loop if the socket connection breaks.
+    // We should wait for it to finish before cleaning up shared resources.
+    std::cout << "INFO: Main loop terminated. Waiting for HeadTracking thread to join..." << std::endl;
+    pthread_join(tracking_thread, NULL);
+    std::cout << "INFO: HeadTracking thread joined." << std::endl;
 
-    // Then, perform explicit motion framework shutdown in reverse order of initialization
+    // Perform explicit motion framework shutdown in reverse order of initialization
     std::cout << "INFO: Shutting down motion framework..." << std::endl;
     motion_timer->Stop();
-    motion_manager->SetEnable(false);                          // Disable motion
-    motion_manager->RemoveModule((MotionModule *)head_module); // Remove Head module
-
-    // LinuxCM730 and CM730 are stack allocated and will be cleaned up when main exits.
-    // Their destructors should handle closing the serial port.
+    motion_manager->SetEnable(false);
+    // Disable motion
+    motion_manager->RemoveModule((MotionModule *)head_module);   // Remove Head module
+    motion_manager->RemoveModule((MotionModule *)action_module); // Remove Action module
 
     // Finally, cleanup other dynamically allocated objects
-    delete ini;          // Clean up ini
+    delete ini;
+    // Clean up ini
     delete motion_timer; // Clean up timer
 
     std::cout << "INFO: Main program exiting." << std::endl;
