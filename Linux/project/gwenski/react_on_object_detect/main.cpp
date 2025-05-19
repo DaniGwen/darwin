@@ -106,8 +106,8 @@ int main(void)
 
     // Load MotionManager settings from INI
     motion_manager->LoadINISettings(ini);
-    motion_manager->AddModule((MotionModule*)Action::GetInstance());
-    motion_manager->AddModule((MotionModule*)head_module);
+    motion_manager->AddModule((MotionModule *)Action::GetInstance());
+    motion_manager->AddModule((MotionModule *)head_module);
 
     // Start the Motion Timer
     LinuxMotionTimer *motion_timer = new LinuxMotionTimer(motion_manager);
@@ -188,6 +188,8 @@ int main(void)
             {
                 std::cout << "INFO: Detected person. Playing action (Page " << ACTION_PAGE_WAVE << ")..." << std::endl;
                 Action::GetInstance()->Start(ACTION_PAGE_WAVE);
+                while (Action::GetInstance()->IsRunning())
+                    usleep(8 * 1000);
                 current_action_label = "person";
             }
             else if (detected_object_label == "dog" && current_action_label != "dog")
@@ -219,6 +221,8 @@ int main(void)
                 // If no specific object is detected and we are not already in standby, go to standby
                 std::cout << "INFO: No target detected. Returning to standby action (Page " << ACTION_PAGE_STAND << ")..." << std::endl;
                 Action::GetInstance()->Start(ACTION_PAGE_STAND);
+                while (Action::GetInstance()->IsRunning())
+                    usleep(8 * 1000);
                 current_action_label = "standby";
             }
             // If the detected label is the same as the current action label,
@@ -251,7 +255,7 @@ int main(void)
     motion_timer->Stop();
     motion_manager->SetEnable(false);
     // Disable motion
-    motion_manager->RemoveModule((MotionModule *)head_module);   // Remove Head module
+    motion_manager->RemoveModule((MotionModule *)head_module);           // Remove Head module
     motion_manager->RemoveModule((MotionModule *)Action::GetInstance()); // Remove Action module
 
     // Finally, cleanup other dynamically allocated objects
