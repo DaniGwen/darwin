@@ -116,21 +116,6 @@ bool HeadTracking::Initialize(minIni *ini, CM730 *cm730)
         return false;
     }
 
-    // 4. Configure Motion Framework singletons using the passed pointers
-    std::cout << "INFO: Configuring motion framework singletons using passed pointers..." << std::endl;
-
-    Head::GetInstance()->LoadINISettings(ini_settings_);
-
-    // Explicitly enable head joints and set initial gains
-    Head::GetInstance()->m_Joint.SetEnableHeadOnly(true, true);
-
-    // Initial P-gains (can be overridden by INI in Initialize)
-    Head::GetInstance()->m_Joint.SetPGain(JointData::ID_HEAD_PAN, 8);
-    Head::GetInstance()->m_Joint.SetPGain(JointData::ID_HEAD_TILT, 8);
-
-
-    std::cout << "INFO: Motion framework singletons configured." << std::endl;
-
     // 5. Create display frame buffer
     rgb_display_frame_ = new Image(Camera::WIDTH, Camera::HEIGHT, Image::RGB_PIXEL_SIZE);
     if (!rgb_display_frame_)
