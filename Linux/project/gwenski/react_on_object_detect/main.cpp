@@ -95,12 +95,12 @@ int main(void)
     {
         std::cerr << "ERROR: HeadTracking initialization failed. Exiting." << std::endl;
         // Perform motion framework cleanup before exiting
-        motion_timer->Stop();
+        // motion_timer->Stop();
         MotionManager::GetInstance()->SetEnable(false);
         MotionManager::GetInstance()->RemoveModule((MotionModule *)Head::GetInstance());
         MotionManager::GetInstance()->RemoveModule((MotionModule *)Action::GetInstance()); // Remove Action module
         delete ini;
-        delete motion_timer;
+        // delete motion_timer;
         return -1;
     }
 
