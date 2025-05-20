@@ -97,23 +97,22 @@ int main(void)
     Robot::Head *head_module = Robot::Head::GetInstance();
 
     // Initialize MotionManager
-    if (motion_manager->Initialize(&cm730) == false)
+    if (MotionManager::GetInstance()->Initialize(&cm730) == false)
     {
         std::cerr << "ERROR: Failed to initialize Motion Manager in main!" << std::endl;
         delete ini;
         return -1;
     }
 
-    // --- Initialize HeadTracking ---
-    HeadTracking *head_tracker = HeadTracking::GetInstance();
-
     // Load MotionManager settings from INI
-    motion_manager->LoadINISettings(ini);
-    motion_manager->AddModule((MotionModule *)Action::GetInstance());
-    motion_manager->SetEnable(true); // Enable MotionManager
+    MotionManager::GetInstance()->LoadINISettings(ini);
+    MotionManager::GetInstance()->AddModule((MotionModule *)Action::GetInstance());
+       // --- Initialize HeadTracking ---
+    HeadTracking *head_tracker = HeadTracking::GetInstance(); // Head module is added in motion manager
+    MotionManager::GetInstance()->SetEnable(true); // Enable MotionManager
 
     // Start the Motion Timer
-    LinuxMotionTimer *motion_timer = new LinuxMotionTimer(motion_manager);
+    LinuxMotionTimer *motion_timer = new LinuxMotionTimer(MotionManager::GetInstance());
     motion_timer->Start();
 
     // Pass the INI settings and the initialized motion framework singletons to HeadTracking
