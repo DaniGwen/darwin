@@ -29,12 +29,12 @@
 #define MOTION_FILE_PATH "../../../../Data/motion_4096.bin"
 
 // Define action page numbers for different detected objects
-#define ACTION_PAGE_WAVE "wave"
+#define ACTION_PAGE_WAVE 7
 #define ACTION_PAGE_DOG 11
 #define ACTION_PAGE_CAT 12
 #define ACTION_PAGE_SPORTS_BALL 13
 #define ACTION_PAGE_BOTTLE 14
-#define ACTION_PAGE_STAND "stand"
+#define ACTION_PAGE_STAND 1
 
 // --- Global Flags/Variables (Consider using a shared state class if more complex) ---
 // bool g_is_action_playing = false; // Flag to indicate if an action is currently playing
