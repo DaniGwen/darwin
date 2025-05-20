@@ -88,26 +88,13 @@ int main(void)
         return -1;
     }
 
-     // --- Initialize HeadTracking ---
-    HeadTracking *head_tracker = HeadTracking::GetInstance(); // Head module is added in motion manager
-
-     if (!head_tracker->Initialize(ini, &cm730))
-    {
-        std::cerr << "ERROR: HeadTracking initialization failed. Exiting." << std::endl;
-        // Perform motion framework cleanup before exiting
-        // motion_timer->Stop();
-        MotionManager::GetInstance()->SetEnable(false);
-        MotionManager::GetInstance()->RemoveModule((MotionModule *)Head::GetInstance());
-        MotionManager::GetInstance()->RemoveModule((MotionModule *)Action::GetInstance()); // Remove Action module
-        delete ini;
-        // delete motion_timer;
-        return -1;
-    }
+    // --- Initialize HeadTracking ---
+    HeadTracking *head_tracker = HeadTracking::GetInstance();
 
     Head::GetInstance()->LoadINISettings(ini);
     Head::GetInstance()->m_Joint.SetPGain(JointData::ID_HEAD_PAN, 8);
     Head::GetInstance()->m_Joint.SetPGain(JointData::ID_HEAD_TILT, 8);
-    Head::GetInstance()->m_Joint.SetEnableHeadOnly(true, true);
+    // Head::GetInstance()->m_Joint.SetEnableHeadOnly(true, true);
 
     // Load MotionManager settings from INI
     MotionManager::GetInstance()->LoadINISettings(ini);
@@ -124,6 +111,19 @@ int main(void)
     Action::GetInstance()->Start(ACTION_PAGE_STAND);
     while (Action::GetInstance()->IsRunning())
         usleep(8 * 1000);
+
+    if (!head_tracker->Initialize(ini, &cm730))
+    {
+        std::cerr << "ERROR: HeadTracking initialization failed. Exiting." << std::endl;
+        // Perform motion framework cleanup before exiting
+        motion_timer->Stop();
+        MotionManager::GetInstance()->SetEnable(false);
+        MotionManager::GetInstance()->RemoveModule((MotionModule *)Head::GetInstance());
+        MotionManager::GetInstance()->RemoveModule((MotionModule *)Action::GetInstance()); // Remove Action module
+        delete ini;
+        delete motion_timer;
+        return -1;
+    }
 
     // --- Create and Start HeadTracking Thread ---
     pthread_t tracking_thread;
