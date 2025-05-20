@@ -5,9 +5,8 @@
 #include "LinuxDARwIn.h"
 #include "cmd_process.h"
 
-
-#define PROGRAM_VERSION		"v1.00"
-#define MAXNUM_INPUTCHAR	(128)
+#define PROGRAM_VERSION "v1.00"
+#define MAXNUM_INPUTCHAR (128)
 
 using namespace Robot;
 
@@ -24,7 +23,7 @@ void sighandler(int sig)
 int main()
 {
 	signal(SIGABRT, &sighandler);
-    signal(SIGTERM, &sighandler);
+	signal(SIGTERM, &sighandler);
 	signal(SIGQUIT, &sighandler);
 	signal(SIGINT, &sighandler);
 
@@ -34,74 +33,85 @@ int main()
 	char cmd[80];
 	char param[20][30];
 	int num_param;
-	int iparam[20];	
+	int iparam[20];
 
-	printf( "\n[Dynamixel Monitor for DARwIn %s]\n", PROGRAM_VERSION);
+	printf("\n[Dynamixel Monitor for DARwIn %s]\n", PROGRAM_VERSION);
 
-	if(cm730.Connect() == true)
+	if (cm730.Connect() == true)
 	{
 		Scan(&cm730);
 
-		while(1)
+		while (1)
 		{
 			Prompt(gID);
 			fgets(input, sizeof(input), stdin);
-			fflush(stdin);
+			fflush(stdin); // This is still undefined behavior, but less critical with the following fix
+
+			// FIX: Remove trailing newline character if present
 			input_len = strlen(input);
-			if(input_len == 0)
-				continue;
-
-			token = strtok( input, " " );
-			if(token == 0)
-				continue;
-
-			strcpy( cmd, token );
-			token = strtok( 0, " " );
-			num_param = 0;
-			while(token != 0)
+			if (input_len > 0 && input[input_len - 1] == '\n')
 			{
-				strcpy( param[num_param++], token );
-				token = strtok( 0, " " );
+				input[input_len - 1] = '\0';
+				input_len--; // Adjust length after removing newline
 			}
 
-			if(strcmp(cmd, "exit") == 0)
-				break;
-			else if(strcmp(cmd, "scan") == 0)
-				Scan(&cm730);
-			else if(strcmp(cmd, "help") == 0)
-				Help();
-			else if(strcmp(cmd, "id") == 0)
+			if (input_len == 0) // After removing newline, check for empty string
+				continue;
+
+			token = strtok(input, " ");
+			if (token == 0)
+				continue;
+
+			strcpy(cmd, token);
+			// Add debug print here to verify the 'cmd' string after potential newline removal
+			// printf("Debug: Parsed command: '%s'\n", cmd); // Optional debug
+
+			token = strtok(0, " ");
+			num_param = 0;
+			while (token != 0)
 			{
-				if(num_param != 1)
+				strcpy(param[num_param++], token);
+				token = strtok(0, " ");
+			}
+
+			if (strcmp(cmd, "exit") == 0)
+				break;
+			else if (strcmp(cmd, "scan") == 0)
+				Scan(&cm730);
+			else if (strcmp(cmd, "help") == 0) // This should now work
+				Help();
+			else if (strcmp(cmd, "id") == 0)
+			{
+				if (num_param != 1)
 				{
 					printf(" Invalid parameter!\n");
 					continue;
 				}
-				
+
 				iparam[0] = atoi(param[0]);
-	            if(cm730.Ping(iparam[0], 0) == CM730::SUCCESS)
-	            {
-	                gID = iparam[0];
-	            }
-	            else
-	            {
-                    printf(" Invalid ID(%d)!\n", iparam[0]);
-                    continue;
-	            }
+				if (cm730.Ping(iparam[0], 0) == CM730::SUCCESS)
+				{
+					gID = iparam[0];
+				}
+				else
+				{
+					printf(" Invalid ID(%d)!\n", iparam[0]);
+					continue;
+				}
 			}
-			else if(strcmp(cmd, "on") == 0)
+			else if (strcmp(cmd, "on") == 0)
 			{
-				if(num_param == 0)
+				if (num_param == 0)
 				{
 					cm730.WriteByte(gID, MX28::P_TORQUE_ENABLE, 1, 0);
-					if(gID == CM730::ID_CM)
+					if (gID == CM730::ID_CM)
 						printf(" Dynamixel power on\n");
 				}
-				else if(num_param == 1)
+				else if (num_param == 1)
 				{
-					if(strcmp(param[0], "all") == 0)
+					if (strcmp(param[0], "all") == 0)
 					{
-						for(int i=JointData::ID_R_SHOULDER_PITCH; i<JointData::NUMBER_OF_JOINTS; i++)
+						for (int i = JointData::ID_R_SHOULDER_PITCH; i < JointData::NUMBER_OF_JOINTS; i++)
 							cm730.WriteByte(i, MX28::P_TORQUE_ENABLE, 1, 0);
 					}
 					else
@@ -116,19 +126,19 @@ int main()
 					continue;
 				}
 			}
-			else if(strcmp(cmd, "off") == 0)
+			else if (strcmp(cmd, "off") == 0)
 			{
-				if(num_param == 0)
+				if (num_param == 0)
 				{
 					cm730.WriteByte(gID, MX28::P_TORQUE_ENABLE, 0, 0);
-					if(gID == CM730::ID_CM)
+					if (gID == CM730::ID_CM)
 						printf(" Dynamixel power off\n");
 				}
-				else if(num_param == 1)
+				else if (num_param == 1)
 				{
-					if(strcmp(param[0], "all") == 0)
+					if (strcmp(param[0], "all") == 0)
 					{
-						for(int i=JointData::ID_R_SHOULDER_PITCH; i<JointData::NUMBER_OF_JOINTS; i++)
+						for (int i = JointData::ID_R_SHOULDER_PITCH; i < JointData::NUMBER_OF_JOINTS; i++)
 							cm730.WriteByte(i, MX28::P_TORQUE_ENABLE, 0, 0);
 					}
 					else
@@ -143,40 +153,40 @@ int main()
 					continue;
 				}
 			}
-			else if(strcmp(cmd, "d") == 0)
+			else if (strcmp(cmd, "d") == 0) // This should now work
 				Dump(&cm730, gID);
-			else if(strcmp(cmd, "reset") == 0)
+			else if (strcmp(cmd, "reset") == 0)
 			{
-			    int firm_ver = 0;
-			    if(cm730.ReadByte(JointData::ID_HEAD_PAN, MX28::P_VERSION, &firm_ver, 0)  != CM730::SUCCESS)
-			    {
-			        fprintf(stderr, "Can't read firmware version from Dynamixel ID %d!! \n\n", JointData::ID_HEAD_PAN);
-			        exit(0);
-			    }
+				int firm_ver = 0;
+				if (cm730.ReadByte(JointData::ID_HEAD_PAN, MX28::P_VERSION, &firm_ver, 0) != CM730::SUCCESS)
+				{
+					fprintf(stderr, "Can't read firmware version from Dynamixel ID %d!! \n\n", JointData::ID_HEAD_PAN);
+					exit(0);
+				}
 
 #ifdef MX28_1024
-			    if(27 <= firm_ver)
-			    {
-			        fprintf(stderr, "\n MX-28's firmware is not support 1024 resolution!! \n");
-			        fprintf(stderr, " Remove '#define MX28_1024' from 'MX28.h' file and rebuild.\n\n");
-			        continue;
-			    }
+				if (27 <= firm_ver)
+				{
+					fprintf(stderr, "\n MX-28's firmware is not support 1024 resolution!! \n");
+					fprintf(stderr, " Remove '#define MX28_1024' from 'MX28.h' file and rebuild.\n\n");
+					continue;
+				}
 #else
-			    if(0 < firm_ver && firm_ver < 27)
-			    {
-			        fprintf(stderr, "\n MX-28's firmware is not support 4096 resolution!! \n");
-			        fprintf(stderr, " Upgrade MX-28's firmware to version 27(0x1B) or higher.\n\n");
-			        continue;
-			    }
+				if (0 < firm_ver && firm_ver < 27)
+				{
+					fprintf(stderr, "\n MX-28's firmware is not support 4096 resolution!! \n");
+					fprintf(stderr, " Upgrade MX-28's firmware to version 27(0x1B) or higher.\n\n");
+					continue;
+				}
 #endif
 
-				if(num_param == 0)
+				if (num_param == 0)
 					Reset(&cm730, gID);
-				else if(num_param == 1)
+				else if (num_param == 1)
 				{
-					if(strcmp(param[0], "all") == 0)
+					if (strcmp(param[0], "all") == 0)
 					{
-						for(int i=JointData::ID_R_SHOULDER_PITCH; i<JointData::NUMBER_OF_JOINTS; i++)
+						for (int i = JointData::ID_R_SHOULDER_PITCH; i < JointData::NUMBER_OF_JOINTS; i++)
 							Reset(&cm730, i);
 
 						Reset(&cm730, CM730::ID_CM);
@@ -193,9 +203,9 @@ int main()
 					continue;
 				}
 			}
-			else if(strcmp(cmd, "wr") == 0)
+			else if (strcmp(cmd, "wr") == 0)
 			{
-				if(num_param == 2)
+				if (num_param == 2)
 					Write(&cm730, gID, atoi(param[0]), atoi(param[1]));
 				else
 				{
