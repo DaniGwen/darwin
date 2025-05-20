@@ -29,12 +29,12 @@
 #define MOTION_FILE_PATH "../../../../Data/motion_4096.bin"
 
 // Define action page numbers for different detected objects
-#define ACTION_PAGE_WAVE 7
+#define ACTION_PAGE_WAVE "wave"
 #define ACTION_PAGE_DOG 11
 #define ACTION_PAGE_CAT 12
 #define ACTION_PAGE_SPORTS_BALL 13
 #define ACTION_PAGE_BOTTLE 14
-#define ACTION_PAGE_STAND 1
+#define ACTION_PAGE_STAND "stand"
 
 // --- Global Flags/Variables (Consider using a shared state class if more complex) ---
 // bool g_is_action_playing = false; // Flag to indicate if an action is currently playing
@@ -104,7 +104,7 @@ int main(void)
         return -1;
     }
 
-      // --- Initialize HeadTracking ---
+    // --- Initialize HeadTracking ---
     HeadTracking *head_tracker = HeadTracking::GetInstance();
 
     // Load MotionManager settings from INI
@@ -116,11 +116,11 @@ int main(void)
     LinuxMotionTimer *motion_timer = new LinuxMotionTimer(motion_manager);
     motion_timer->Start();
 
-        // Play initial standby action
+    // Play initial standby action
     std::cout << "INFO: Playing initial standby action (Page " << ACTION_PAGE_STAND << ")..." << std::endl;
-    Action::GetInstance()->Start("stand");
-    while (Action::GetInstance()->IsRunning())
-        usleep(8 * 1000);
+    Action::GetInstance()->Start(ACTION_PAGE_STAND);
+        while (Action::GetInstance()->IsRunning())
+            usleep(8 * 1000);
 
     // Pass the INI settings and the initialized motion framework singletons to HeadTracking
     if (!head_tracker->Initialize(ini, motion_manager, head_module, &cm730))
