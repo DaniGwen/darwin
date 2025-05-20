@@ -88,7 +88,7 @@ int main(void)
         return -1;
     }
 
-    Head::GetInstance()->LoadINISettings(ini_settings_);
+    Head::GetInstance()->LoadINISettings(ini);
     Head::GetInstance()->m_Joint.SetEnableHeadOnly(true, true);
     // Initial P-gains (can be overridden by INI in Initialize)
     Head::GetInstance()->m_Joint.SetPGain(JointData::ID_HEAD_PAN, 8);
