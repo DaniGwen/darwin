@@ -118,7 +118,7 @@ int main(void)
 
         // Play initial standby action
     std::cout << "INFO: Playing initial standby action (Page " << ACTION_PAGE_STAND << ")..." << std::endl;
-    Action::GetInstance()->Start(1);
+    Action::GetInstance()->Start("stand");
     while (Action::GetInstance()->IsRunning())
         usleep(8 * 1000);
 
