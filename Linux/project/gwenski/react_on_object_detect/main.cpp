@@ -103,13 +103,14 @@ int main(void)
     // Load MotionManager settings from INI
     MotionManager::GetInstance()->LoadINISettings(ini);
     MotionManager::GetInstance()->AddModule((MotionModule *)Action::GetInstance());
-       // --- Initialize HeadTracking ---
-    HeadTracking *head_tracker = HeadTracking::GetInstance(); // Head module is added in motion manager
     MotionManager::GetInstance()->SetEnable(true); // Enable MotionManager
 
     // Start the Motion Timer
     LinuxMotionTimer *motion_timer = new LinuxMotionTimer(MotionManager::GetInstance());
     motion_timer->Start();
+
+    // --- Initialize HeadTracking ---
+    HeadTracking *head_tracker = HeadTracking::GetInstance(); // Head module is added in motion manager
 
     // Pass the INI settings and the initialized motion framework singletons to HeadTracking
     if (!head_tracker->Initialize(ini, &cm730))
@@ -228,7 +229,7 @@ int main(void)
     motion_timer->Stop();
     MotionManager::GetInstance()->SetEnable(false);
     // Disable motion
-    MotionManager::GetInstance()->RemoveModule((MotionModule *)Head::GetInstance());           // Remove Head module
+    MotionManager::GetInstance()->RemoveModule((MotionModule *)Head::GetInstance());   // Remove Head module
     MotionManager::GetInstance()->RemoveModule((MotionModule *)Action::GetInstance()); // Remove Action module
 
     // Finally, cleanup other dynamically allocated objects
