@@ -24,7 +24,7 @@
 #include "LinuxDARwIn.h"  // Include for Motion Framework components (MotionManager, Head, Action)
 
 // --- Configuration ---
-#define INI_FILE_PATH  "../../../../Data/config.ini"
+#define INI_FILE_PATH "../../../../Data/config.ini"
 #define U2D_DEV_NAME "/dev/ttyUSB0" // Verify this path is correct!
 #define MOTION_FILE_PATH "../../../../Data/motion_4096.bin"
 
@@ -116,12 +116,6 @@ int main(void)
     LinuxMotionTimer *motion_timer = new LinuxMotionTimer(motion_manager);
     motion_timer->Start();
 
-    // Play initial standby action
-    std::cout << "INFO: Playing initial standby action (Page " << ACTION_PAGE_STAND << ")..." << std::endl;
-    Action::GetInstance()->Start(ACTION_PAGE_STAND);
-        while (Action::GetInstance()->IsRunning())
-            usleep(8 * 1000);
-
     // Pass the INI settings and the initialized motion framework singletons to HeadTracking
     if (!head_tracker->Initialize(ini, motion_manager, head_module, &cm730))
     {
@@ -155,6 +149,12 @@ int main(void)
         return -1;
     }
     std::cout << "INFO: HeadTracking thread created successfully." << std::endl;
+
+    // Play initial standby action
+    std::cout << "INFO: Playing initial standby action (Page " << ACTION_PAGE_STAND << ")..." << std::endl;
+    Action::GetInstance()->Start(ACTION_PAGE_STAND);
+    while (Action::GetInstance()->IsRunning())
+        usleep(8 * 1000);
 
     // --- Main Loop (for checking labels and triggering actions) ---
     std::cout << "INFO: Main thread running, checking for detected objects to trigger actions. Press Ctrl+C to exit." << std::endl;
