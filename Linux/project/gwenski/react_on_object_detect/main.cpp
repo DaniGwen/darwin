@@ -96,7 +96,7 @@ int main(void)
     Head::GetInstance()->m_Joint.SetPGain(JointData::ID_HEAD_PAN, 8);
     Head::GetInstance()->m_Joint.SetPGain(JointData::ID_HEAD_TILT, 8);
     Head::GetInstance()->m_Joint.SetEnableHeadOnly(true, true);
-    Head::GetInstance()->InitTracking();
+    Head::GetInstance()->Process();
    
 
     // Load MotionManager settings from INI
