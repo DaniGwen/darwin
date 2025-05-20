@@ -24,7 +24,7 @@
 #include "LinuxDARwIn.h"  // Include for Motion Framework components (MotionManager, Head, Action)
 
 // --- Configuration ---
-#define INI_FILE_PATH "config.ini"
+#define INI_FILE_PATH  "../../../../Data/config.ini"
 #define U2D_DEV_NAME "/dev/ttyUSB0" // Verify this path is correct!
 #define MOTION_FILE_PATH "../../../../Data/motion_4096.bin"
 
