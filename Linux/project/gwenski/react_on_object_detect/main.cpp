@@ -94,11 +94,11 @@ int main(void)
     Head::GetInstance()->LoadINISettings(ini);
     Head::GetInstance()->m_Joint.SetPGain(JointData::ID_HEAD_PAN, 8);
     Head::GetInstance()->m_Joint.SetPGain(JointData::ID_HEAD_TILT, 8);
-    // Head::GetInstance()->m_Joint.SetEnableHeadOnly(true, true);
+    Head::GetInstance()->m_Joint.SetEnableHeadOnly(true, true);
+    Head::GetInstance()->InitTracking();
 
     // Load MotionManager settings from INI
     MotionManager::GetInstance()->LoadINISettings(ini);
-    MotionManager::GetInstance()->AddModule((MotionModule *)Head::GetInstance());
     MotionManager::GetInstance()->AddModule((MotionModule *)Action::GetInstance());
 
     LinuxMotionTimer *motion_timer = new LinuxMotionTimer(MotionManager::GetInstance());
