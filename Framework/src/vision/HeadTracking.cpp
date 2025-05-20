@@ -70,8 +70,8 @@ HeadTracking::~HeadTracking()
 
 bool HeadTracking::Initialize(minIni *ini, CM730 *cm730)
 {
-    ini_settings_ = ini; // Store pointer to INI settings
-    cm730_ = cm730;      // Store passed pointer
+    ini_settings_ = ini;
+    cm730_ = cm730;   
 
     // Basic check if passed pointers are valid
     if (!cm730_)
@@ -98,7 +98,7 @@ bool HeadTracking::Initialize(minIni *ini, CM730 *cm730)
         // Note: system() return value can vary; 0 usually means success, but check man page for specifics.
     }
     // Give the Python script a moment to start and create the socket
-    usleep(1000000); // 1 second delay (adjust if needed)
+    usleep(2000000); // 2 second delay (adjust if needed)
 
     // 1. Initialize Socket Server and wait for Python connection
     client_socket_ = InitializeSocketServer();
@@ -107,15 +107,7 @@ bool HeadTracking::Initialize(minIni *ini, CM730 *cm730)
         std::cerr << "ERROR: HeadTracking initialization failed: Socket server setup failed." << std::endl;
         return false;
     }
-
-    // 2. Initialize Camera
-    // Note: Camera initialization is now done in main.cpp before calling HeadTracking::Initialize
-    // if (!InitializeCamera()) {
-    //     std::cerr << "ERROR: HeadTracking initialization failed: Camera setup failed." << std::endl;
-    //     Cleanup(); // Clean up already initialized resources
-    //     return false;
-    // }
-
+    
     // 3. Initialize MJPG Streamer
     if (!InitializeStreamer())
     {
@@ -130,14 +122,14 @@ bool HeadTracking::Initialize(minIni *ini, CM730 *cm730)
     Head::GetInstance()->LoadINISettings(ini_settings_);
 
     // Explicitly enable head joints and set initial gains
-    Head::GetInstance()->m_Joint.SetEnableHeadOnly(true, true);
+    Head::GetInstance()->m_Joint.SetEnableHeadOnly(true, false);
 
     // Initial P-gains (can be overridden by INI in Initialize)
     Head::GetInstance()->m_Joint.SetPGain(JointData::ID_HEAD_PAN, 8);
     Head::GetInstance()->m_Joint.SetPGain(JointData::ID_HEAD_TILT, 8);
 
     MotionManager::GetInstance()->AddModule((MotionModule *)Head::GetInstance());
-    MotionManager::GetInstance()->SetEnable(true);
+    // MotionManager::GetInstance()->SetEnable(true);
 
     std::cout << "INFO: Motion framework singletons configured." << std::endl;
 
