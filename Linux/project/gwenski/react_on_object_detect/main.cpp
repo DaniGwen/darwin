@@ -88,31 +88,10 @@ int main(void)
         return -1;
     }
 
-    Head::GetInstance()->LoadINISettings(ini);
-    Head::GetInstance()->m_Joint.SetPGain(JointData::ID_HEAD_PAN, 8);
-    Head::GetInstance()->m_Joint.SetPGain(JointData::ID_HEAD_TILT, 8);
-    Head::GetInstance()->m_Joint.SetEnableHeadOnly(true, true);
-
-    // Load MotionManager settings from INI
-    MotionManager::GetInstance()->LoadINISettings(ini);
-   // MotionManager::GetInstance()->AddModule((MotionModule *)Head::GetInstance());
-    MotionManager::GetInstance()->AddModule((MotionModule *)Action::GetInstance());
-
-    LinuxMotionTimer *motion_timer = new LinuxMotionTimer(MotionManager::GetInstance());
-    motion_timer->Start();
-
-    MotionManager::GetInstance()->SetEnable(true); // Enable MotionManager
-
-    // --- Initialize HeadTracking ---
+     // --- Initialize HeadTracking ---
     HeadTracking *head_tracker = HeadTracking::GetInstance(); // Head module is added in motion manager
 
-    // Play initial standby action
-    std::cout << "INFO: Playing initial standby action (Page " << ACTION_PAGE_STAND << ")..." << std::endl;
-    Action::GetInstance()->Start(ACTION_PAGE_STAND);
-    while (Action::GetInstance()->IsRunning())
-        usleep(8 * 1000);
-
-    if (!head_tracker->Initialize(ini, &cm730))
+     if (!head_tracker->Initialize(ini, &cm730))
     {
         std::cerr << "ERROR: HeadTracking initialization failed. Exiting." << std::endl;
         // Perform motion framework cleanup before exiting
@@ -124,6 +103,27 @@ int main(void)
         delete motion_timer;
         return -1;
     }
+
+    Head::GetInstance()->LoadINISettings(ini);
+    Head::GetInstance()->m_Joint.SetPGain(JointData::ID_HEAD_PAN, 8);
+    Head::GetInstance()->m_Joint.SetPGain(JointData::ID_HEAD_TILT, 8);
+    Head::GetInstance()->m_Joint.SetEnableHeadOnly(true, true);
+
+    // Load MotionManager settings from INI
+    MotionManager::GetInstance()->LoadINISettings(ini);
+    MotionManager::GetInstance()->AddModule((MotionModule *)Head::GetInstance());
+    MotionManager::GetInstance()->AddModule((MotionModule *)Action::GetInstance());
+
+    LinuxMotionTimer *motion_timer = new LinuxMotionTimer(MotionManager::GetInstance());
+    motion_timer->Start();
+
+    MotionManager::GetInstance()->SetEnable(true); // Enable MotionManager
+
+    // Play initial standby action
+    std::cout << "INFO: Playing initial standby action (Page " << ACTION_PAGE_STAND << ")..." << std::endl;
+    Action::GetInstance()->Start(ACTION_PAGE_STAND);
+    while (Action::GetInstance()->IsRunning())
+        usleep(8 * 1000);
 
     // --- Create and Start HeadTracking Thread ---
     pthread_t tracking_thread;
