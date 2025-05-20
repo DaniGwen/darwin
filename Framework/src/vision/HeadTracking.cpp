@@ -45,8 +45,6 @@ HeadTracking::HeadTracking()
     : client_socket_(-1),
       streamer_(nullptr),
       ini_settings_(nullptr),
-      motion_manager_(nullptr),
-      head_module_(nullptr),
       cm730_(nullptr),
       rgb_display_frame_(nullptr),
       no_target_count_(0),
@@ -68,18 +66,15 @@ HeadTracking::~HeadTracking()
 {
     Cleanup();
     // Note: ini_settings_ is owned by main and should not be deleted here.
-    // Motion framework components (motion_manager_, head_module_, cm730_) are not owned here.
 }
 
-bool HeadTracking::Initialize(minIni *ini, Robot::MotionManager *motion_manager, Robot::Head *head_module, CM730 *cm730)
+bool HeadTracking::Initialize(minIni *ini, CM730 *cm730)
 {
-    ini_settings_ = ini;              // Store pointer to INI settings
-    motion_manager_ = motion_manager; // Store passed pointer
-    head_module_ = head_module;       // Store passed pointer
-    cm730_ = cm730;                   // Store passed pointer
+    ini_settings_ = ini; // Store pointer to INI settings
+    cm730_ = cm730;      // Store passed pointer
 
     // Basic check if passed pointers are valid
-    if (!motion_manager_ || !head_module_ || !cm730_)
+    if (!cm730_)
     {
         std::cerr << "ERROR: HeadTracking initialization failed: Invalid MotionManager, Head, or CM730 pointer passed." << std::endl;
         // No cleanup needed for motion components as they are not owned.
@@ -132,18 +127,17 @@ bool HeadTracking::Initialize(minIni *ini, Robot::MotionManager *motion_manager,
     // 4. Configure Motion Framework singletons using the passed pointers
     std::cout << "INFO: Configuring motion framework singletons using passed pointers..." << std::endl;
 
-    head_module_->LoadINISettings(ini_settings_); // Optional: if not done in main
+    Head::GetInstance()->LoadINISettings(ini_settings_);
 
     // Explicitly enable head joints and set initial gains
-    head_module_->m_Joint.SetEnableHeadOnly(true, true);
+    Head::GetInstance()->m_Joint.SetEnableHeadOnly(true, true);
 
     // Initial P-gains (can be overridden by INI in Initialize)
-    head_module_->m_Joint.SetPGain(JointData::ID_HEAD_PAN, 8);
-    head_module_->m_Joint.SetPGain(JointData::ID_HEAD_TILT, 8);
+    Head::GetInstance()->m_Joint.SetPGain(JointData::ID_HEAD_PAN, 8);
+    Head::GetInstance()->m_Joint.SetPGain(JointData::ID_HEAD_TILT, 8);
 
-
-    motion_manager_->AddModule((MotionModule *)head_module_);
-    motion_manager_->SetEnable(true);
+    MotionManager::GetInstance()->AddModule((MotionModule *)Head::GetInstance());
+    MotionManager::GetInstance()->SetEnable(true);
 
     std::cout << "INFO: Motion framework singletons configured." << std::endl;
 
@@ -173,7 +167,7 @@ bool HeadTracking::Initialize(minIni *ini, Robot::MotionManager *motion_manager,
 void HeadTracking::Run()
 {
     // Check if essential components are initialized before running
-    if (client_socket_ < 0 || !streamer_ || !motion_manager_ || !head_module_ || !rgb_display_frame_ || !ini_settings_)
+    if (client_socket_ < 0 || !streamer_ || !rgb_display_frame_ || !ini_settings_)
     {
         std::cerr << "ERROR: HeadTracking not fully initialized. Cannot run." << std::endl;
         return;
@@ -291,9 +285,6 @@ void HeadTracking::Cleanup()
         delete rgb_display_frame_;
         rgb_display_frame_ = nullptr;
     }
-
-    // Motion framework components (motion_manager_, head_module_, cm730_) are not owned here.
-    // They were passed in Initialize and are managed externally.
 
     std::cout << "INFO: HeadTracking cleanup complete." << std::endl;
 }
@@ -624,14 +615,7 @@ void HeadTracking::UpdateHeadTracking(const std::vector<ParsedDetection> &detect
         }
 
         // Pass angular error to MoveTracking
-        if (head_module_)
-        {
-            head_module_->MoveTracking(P_err); // Actively track the person
-        }
-        else
-        {
-            std::cerr << "ERROR: Head module not initialized in UpdateHeadTracking." << std::endl;
-        }
+        Head::GetInstance()->MoveTracking(P_err); // Actively track the person
     }
     else // No person found in the current frame
     {
@@ -639,14 +623,9 @@ void HeadTracking::UpdateHeadTracking(const std::vector<ParsedDetection> &detect
         {
             // Continue tracking based on the last known position or stop active tracking
             // head_module_->MoveTracking(); // Original BallTracker behavior (might hold last pos)
-            if (head_module_)
-            {
-                head_module_->MoveTracking(Point2D(0.0, 0.0)); // Alternative: stop active tracking and center head slowly
-            }
-            else
-            {
-                std::cerr << "ERROR: Head module not initialized for centering in UpdateHeadTracking." << std::endl;
-            }
+
+            Head::GetInstance()->MoveTracking(Point2D(0.0, 0.0)); // Alternative: stop active tracking and center head slowly
+
             no_target_count_++; // Increment counter
         }
         else
@@ -658,14 +637,8 @@ void HeadTracking::UpdateHeadTracking(const std::vector<ParsedDetection> &detect
             }
 
             // No target for too long, return to initial position
-            if (head_module_)
-            {
-                head_module_->MoveToHome(); // Alternative: stop active tracking and center head slowl
-            }
-            else
-            {
-                std::cerr << "ERROR: Head module not initialized for MoveToHome in UpdateHeadTracking." << std::endl;
-            }
+            Head::GetInstance()->MoveToHome(); // Alternative: stop active tracking and center head slowl
+
             // no_target_count_ remains at or above NO_TARGET_MAX_COUNT
         }
     }

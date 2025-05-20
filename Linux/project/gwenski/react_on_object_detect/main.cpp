@@ -92,10 +92,6 @@ int main(void)
     LinuxCM730 linux_cm730(U2D_DEV_NAME);
     CM730 cm730(&linux_cm730);
 
-    // Get MotionManager, Head, and Action singletons
-    Robot::MotionManager *motion_manager = Robot::MotionManager::GetInstance();
-    Robot::Head *head_module = Robot::Head::GetInstance();
-
     // Initialize MotionManager
     if (MotionManager::GetInstance()->Initialize(&cm730) == false)
     {
@@ -116,14 +112,14 @@ int main(void)
     motion_timer->Start();
 
     // Pass the INI settings and the initialized motion framework singletons to HeadTracking
-    if (!head_tracker->Initialize(ini, motion_manager, head_module, &cm730))
+    if (!head_tracker->Initialize(ini, &cm730))
     {
         std::cerr << "ERROR: HeadTracking initialization failed. Exiting." << std::endl;
         // Perform motion framework cleanup before exiting
         motion_timer->Stop();
-        motion_manager->SetEnable(false);
-        motion_manager->RemoveModule((MotionModule *)head_module);
-        motion_manager->RemoveModule((MotionModule *)Action::GetInstance()); // Remove Action module
+        MotionManager::GetInstance()->SetEnable(false);
+        MotionManager::GetInstance()->RemoveModule((MotionModule *)Head::GetInstance());
+        MotionManager::GetInstance()->RemoveModule((MotionModule *)Action::GetInstance()); // Remove Action module
         delete ini;
         delete motion_timer;
         return -1;
@@ -140,9 +136,9 @@ int main(void)
         // Cleanup initialized resources before exiting
         head_tracker->Cleanup(); // Cleanup HeadTracking resources (socket, streamer, frame)
         motion_timer->Stop();
-        motion_manager->SetEnable(false);
-        motion_manager->RemoveModule((MotionModule *)head_module);
-        motion_manager->RemoveModule((MotionModule *)Action::GetInstance()); // Remove Action module
+        MotionManager::GetInstance()->SetEnable(false);
+        MotionManager::GetInstance()->RemoveModule((MotionModule *)Head::GetInstance());
+        MotionManager::GetInstance()->RemoveModule((MotionModule *)Action::GetInstance()); // Remove Action module
         delete ini;
         delete motion_timer;
         return -1;
@@ -230,10 +226,10 @@ int main(void)
     // Perform explicit motion framework shutdown in reverse order of initialization
     std::cout << "INFO: Shutting down motion framework..." << std::endl;
     motion_timer->Stop();
-    motion_manager->SetEnable(false);
+    MotionManager::GetInstance()->SetEnable(false);
     // Disable motion
-    motion_manager->RemoveModule((MotionModule *)head_module);           // Remove Head module
-    motion_manager->RemoveModule((MotionModule *)Action::GetInstance()); // Remove Action module
+    MotionManager::GetInstance()->RemoveModule((MotionModule *)Head::GetInstance());           // Remove Head module
+    MotionManager::GetInstance()->RemoveModule((MotionModule *)Action::GetInstance()); // Remove Action module
 
     // Finally, cleanup other dynamically allocated objects
     delete ini;

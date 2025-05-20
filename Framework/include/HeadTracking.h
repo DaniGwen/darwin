@@ -48,7 +48,7 @@ public:
       // Requires the minIni instance for loading settings and
       // initialized MotionManager and Head singleton pointers.
       // Returns true on success, false on failure.
-      bool Initialize(minIni *ini, Robot::MotionManager *motion_manager, Robot::Head *head_module, CM730 *cm730);
+      bool Initialize(minIni *ini, CM730 *cm730);
 
       // Main tracking loop
       // This function will run the main processing loop (capture, send, receive, track).
@@ -79,9 +79,6 @@ private:
       std::string current_detected_label_;           // Current detected label (for tracking state)
       Robot::Point2D current_tracked_object_center_; // Center of the tracked object in pixel coordinates
 
-      // Pointers to DARwIn-OP framework singletons (passed in Initialize, not owned)
-      Robot::MotionManager *motion_manager_;
-      Robot::Head *head_module_;
       Robot::CM730 *cm730_;
 
       // Image buffer for the output frame with detections drawn on it
