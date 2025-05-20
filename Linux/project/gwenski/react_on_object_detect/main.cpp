@@ -68,7 +68,6 @@ int main(void)
         return -1;
     }
 
-    Action::GetInstance()->Initialize();
     Action::GetInstance()->LoadFile(MOTION_FILE_PATH); // Load motion file for Action module
 
     // --- Camera Initialization (kept in main) ---
@@ -96,7 +95,7 @@ int main(void)
 
     // Load MotionManager settings from INI
     MotionManager::GetInstance()->LoadINISettings(ini);
-    MotionManager::GetInstance()->AddModule((MotionModule *)Head::GetInstance());
+   // MotionManager::GetInstance()->AddModule((MotionModule *)Head::GetInstance());
     MotionManager::GetInstance()->AddModule((MotionModule *)Action::GetInstance());
 
     LinuxMotionTimer *motion_timer = new LinuxMotionTimer(MotionManager::GetInstance());
