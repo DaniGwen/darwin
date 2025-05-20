@@ -25,6 +25,7 @@
 #include "mjpg_streamer.h"
 #include "LinuxDARwIn.h" // Assuming this provides basic robot control structures (MotionManager, Head, Point2D, JointData)
 #include "minIni.h"      // For INI file loading
+#include <Point.h>
 
 // Structure to hold parsed detection data received from Python
 struct ParsedDetection
@@ -57,8 +58,8 @@ public:
       // Cleanup method
       void Cleanup();
 
-      // Getter for the current detected label
       std::string GetDetectedLabel();
+      Point2D GetTrackedObjectCenter();
 
       // Destructor (private to enforce singleton)
       ~HeadTracking();
@@ -72,10 +73,11 @@ private:
       HeadTracking &operator=(const HeadTracking &) = delete;
 
       // --- Member Variables ---
-      int client_socket_;                  // File descriptor for the client socket connection
-      mjpg_streamer *streamer_;            // Pointer to the MJPG streamer instance
-      minIni *ini_settings_;               // Pointer to loaded INI settings (owned by main)
-      std::string current_detected_label_; // Current detected label (for tracking state)
+      int client_socket_;                            // File descriptor for the client socket connection
+      mjpg_streamer *streamer_;                      // Pointer to the MJPG streamer instance
+      minIni *ini_settings_;                         // Pointer to loaded INI settings (owned by main)
+      std::string current_detected_label_;           // Current detected label (for tracking state)
+      Robot::Point2D current_tracked_object_center_; // Center of the tracked object in pixel coordinates
 
       // Pointers to DARwIn-OP framework singletons (passed in Initialize, not owned)
       Robot::MotionManager *motion_manager_;
