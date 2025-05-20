@@ -17,3 +17,4 @@
 .vs/darwin/v17/Browse.VC.db
 .vs/ProjectSettings.json
 .vs/slnx.sqlite
+*.bin
