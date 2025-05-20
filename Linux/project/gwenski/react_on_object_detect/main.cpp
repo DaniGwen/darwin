@@ -98,9 +98,9 @@ int main(void)
 
     // Head::GetInstance()->LoadINISettings(ini);
     Head::GetInstance()->m_Joint.SetEnableHeadOnly(true, true);
-    // Initial P-gains (can be overridden by INI in Initialize)
-    // Head::GetInstance()->m_Joint.SetPGain(JointData::ID_HEAD_PAN, 8);
-    // Head::GetInstance()->m_Joint.SetPGain(JointData::ID_HEAD_TILT, 8);
+    Initial P-gains (can be overridden by INI in Initialize)
+    Head::GetInstance()->m_Joint.SetPGain(JointData::ID_HEAD_PAN, 8);
+    Head::GetInstance()->m_Joint.SetPGain(JointData::ID_HEAD_TILT, 8);
 
     MotionManager::GetInstance()->SetEnable(true); // Enable MotionManager
 
