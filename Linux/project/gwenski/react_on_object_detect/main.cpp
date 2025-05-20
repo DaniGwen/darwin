@@ -116,6 +116,12 @@ int main(void)
     LinuxMotionTimer *motion_timer = new LinuxMotionTimer(motion_manager);
     motion_timer->Start();
 
+        // Play initial standby action
+    std::cout << "INFO: Playing initial standby action (Page " << ACTION_PAGE_STAND << ")..." << std::endl;
+    Action::GetInstance()->Start(1);
+    while (Action::GetInstance()->IsRunning())
+        usleep(8 * 1000);
+
     // Pass the INI settings and the initialized motion framework singletons to HeadTracking
     if (!head_tracker->Initialize(ini, motion_manager, head_module, &cm730))
     {
@@ -152,14 +158,6 @@ int main(void)
 
     // --- Main Loop (for checking labels and triggering actions) ---
     std::cout << "INFO: Main thread running, checking for detected objects to trigger actions. Press Ctrl+C to exit." << std::endl;
-
-    // Play initial standby action
-    std::cout << "INFO: Playing initial standby action (Page " << ACTION_PAGE_STAND << ")..." << std::endl;
-    Action::GetInstance()->Start(ACTION_PAGE_STAND);
-    while (Action::GetInstance()->IsRunning())
-        usleep(8 * 2000);
-
-    // Note: Action::Start is usually non-blocking. The MotionManager executes the steps.
 
     std::string current_action_label = "standby"; // Keep track of the action currently playing
 
