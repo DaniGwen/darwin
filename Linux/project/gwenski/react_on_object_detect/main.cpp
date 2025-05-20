@@ -166,65 +166,53 @@ int main(void)
         // Get the latest detected label from the HeadTracking thread
         std::string detected_object_label = head_tracker->GetDetectedLabel();
 
-        // Check if an action is currently running
-        bool is_action_playing = Action::GetInstance()->IsRunning();
-
         // --- Action Triggering Logic ---
         // Only start a new action if no action is currently playing
-        if (!is_action_playing)
+
+        // Use if-else if to check the detected label
+        if (detected_object_label == "person" && current_action_label != "person")
         {
-            // Use if-else if to check the detected label
-            if (detected_object_label == "person" && current_action_label != "person")
-            {
-                std::cout << "INFO: Detected person. Playing action (Page " << ACTION_PAGE_WAVE << ")..." << std::endl;
-                Action::GetInstance()->Start(ACTION_PAGE_WAVE);
-                while (Action::GetInstance()->IsRunning())
-                    usleep(8 * 1000);
-                current_action_label = "person";
-            }
-            else if (detected_object_label == "dog" && current_action_label != "dog")
-            {
-                // std::cout << "INFO: Detected dog. Playing action (Page " << ACTION_PAGE_DOG << ")..." << std::endl;
-                // Action::GetInstance()->Start(ACTION_PAGE_DOG);
-                // current_action_label = "dog";
-            }
-            else if (detected_object_label == "cat" && current_action_label != "cat")
-            {
-                // std::cout << "INFO: Detected cat. Playing action (Page " << ACTION_PAGE_CAT << ")..." << std::endl;
-                // Action::GetInstance()->Start(ACTION_PAGE_CAT);
-                // current_action_label = "cat";
-            }
-            else if (detected_object_label == "sports ball" && current_action_label != "sports ball")
-            {
-                // std::cout << "INFO: Detected sports ball. Playing action (Page " << ACTION_PAGE_SPORTS_BALL << ")..." << std::endl;
-                // Action::GetInstance()->Start(ACTION_PAGE_SPORTS_BALL);
-                // current_action_label = "sports ball";
-            }
-            else if (detected_object_label == "bottle" && current_action_label != "bottle")
-            {
-                // std::cout << "INFO: Detected bottle. Playing action (Page " << ACTION_PAGE_BOTTLE << ")..." << std::endl;
-                // Action::GetInstance()->Start(ACTION_PAGE_BOTTLE);
-                // current_action_label = "bottle";
-            }
-            else if (detected_object_label == "none" && current_action_label != "standby")
-            {
-                // If no specific object is detected and we are not already in standby, go to standby
-                std::cout << "INFO: No target detected. Returning to standby action (Page " << ACTION_PAGE_STAND << ")..." << std::endl;
-                Action::GetInstance()->Start(ACTION_PAGE_STAND);
-                while (Action::GetInstance()->IsRunning())
-                    usleep(8 * 1000);
-                current_action_label = "standby";
-            }
-            // If the detected label is the same as the current action label,
-            // we don't need to start the action again.
+            std::cout << "INFO: Detected person. Playing action (Page " << ACTION_PAGE_WAVE << ")..." << std::endl;
+            Action::GetInstance()->Start(ACTION_PAGE_WAVE);
+            while (Action::GetInstance()->IsRunning())
+                usleep(8 * 1000);
+            current_action_label = "person";
         }
-        else
+        else if (detected_object_label == "dog" && current_action_label != "dog")
         {
-            // An action is currently playing.
-            // We could add logic here to potentially interrupt an action
-            // if a higher priority object is detected, but for now we wait
-            // for the current action to finish before starting a new one.
+            // std::cout << "INFO: Detected dog. Playing action (Page " << ACTION_PAGE_DOG << ")..." << std::endl;
+            // Action::GetInstance()->Start(ACTION_PAGE_DOG);
+            // current_action_label = "dog";
         }
+        else if (detected_object_label == "cat" && current_action_label != "cat")
+        {
+            // std::cout << "INFO: Detected cat. Playing action (Page " << ACTION_PAGE_CAT << ")..." << std::endl;
+            // Action::GetInstance()->Start(ACTION_PAGE_CAT);
+            // current_action_label = "cat";
+        }
+        else if (detected_object_label == "sports ball" && current_action_label != "sports ball")
+        {
+            // std::cout << "INFO: Detected sports ball. Playing action (Page " << ACTION_PAGE_SPORTS_BALL << ")..." << std::endl;
+            // Action::GetInstance()->Start(ACTION_PAGE_SPORTS_BALL);
+            // current_action_label = "sports ball";
+        }
+        else if (detected_object_label == "bottle" && current_action_label != "bottle")
+        {
+            // std::cout << "INFO: Detected bottle. Playing action (Page " << ACTION_PAGE_BOTTLE << ")..." << std::endl;
+            // Action::GetInstance()->Start(ACTION_PAGE_BOTTLE);
+            // current_action_label = "bottle";
+        }
+        else if (detected_object_label == "none" && current_action_label != "standby")
+        {
+            // If no specific object is detected and we are not already in standby, go to standby
+            std::cout << "INFO: No target detected. Returning to standby action (Page " << ACTION_PAGE_STAND << ")..." << std::endl;
+            Action::GetInstance()->Start(ACTION_PAGE_STAND);
+            while (Action::GetInstance()->IsRunning())
+                usleep(8 * 1000);
+            current_action_label = "standby";
+        }
+        // If the detected label is the same as the current action label,
+        // we don't need to start the action again.
 
         // Small delay in the main loop to avoid consuming too much CPU
         // Adjust this based on how frequently you need to check the label.
