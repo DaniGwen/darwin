@@ -136,15 +136,13 @@ bool HeadTracking::Initialize(minIni *ini, Robot::MotionManager *motion_manager,
 
     // Explicitly enable head joints and set initial gains
     head_module_->m_Joint.SetEnableHeadOnly(true, true);
-    
+
     // Initial P-gains (can be overridden by INI in Initialize)
     head_module_->m_Joint.SetPGain(JointData::ID_HEAD_PAN, 8);
     head_module_->m_Joint.SetPGain(JointData::ID_HEAD_TILT, 8);
 
-    // Check if the module is already added before adding
-    motion_manager_->AddModule((MotionModule *)head_module_);
 
-    // MotionStatus::m_CurrentJoints.SetEnableBodyWithoutHead(false);
+    motion_manager_->AddModule((MotionModule *)head_module_);
     motion_manager_->SetEnable(true);
 
     std::cout << "INFO: Motion framework singletons configured." << std::endl;

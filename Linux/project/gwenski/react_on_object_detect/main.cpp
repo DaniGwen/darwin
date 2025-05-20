@@ -104,19 +104,17 @@ int main(void)
         return -1;
     }
 
+      // --- Initialize HeadTracking ---
+    HeadTracking *head_tracker = HeadTracking::GetInstance();
+
     // Load MotionManager settings from INI
     motion_manager->LoadINISettings(ini);
     motion_manager->AddModule((MotionModule *)Action::GetInstance());
+    motion_manager->SetEnable(true); // Enable MotionManager
 
     // Start the Motion Timer
     LinuxMotionTimer *motion_timer = new LinuxMotionTimer(motion_manager);
     motion_timer->Start();
-
-    // Enable MotionManager
-    MotionManager::GetInstance()->SetEnable(true);
-
-    // --- Initialize HeadTracking ---
-    HeadTracking *head_tracker = HeadTracking::GetInstance();
 
     // Pass the INI settings and the initialized motion framework singletons to HeadTracking
     if (!head_tracker->Initialize(ini, motion_manager, head_module, &cm730))
@@ -159,7 +157,7 @@ int main(void)
     std::cout << "INFO: Playing initial standby action (Page " << ACTION_PAGE_STAND << ")..." << std::endl;
     Action::GetInstance()->Start(ACTION_PAGE_STAND);
     while (Action::GetInstance()->IsRunning())
-        usleep(8 * 1000);
+        usleep(8 * 2000);
 
     // Note: Action::Start is usually non-blocking. The MotionManager executes the steps.
 
