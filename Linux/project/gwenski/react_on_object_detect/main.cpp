@@ -91,7 +91,7 @@ int main(void)
     // Load MotionManager settings from INI
     MotionManager::GetInstance()->LoadINISettings(ini);
     MotionManager::GetInstance()->AddModule((MotionModule *)Action::GetInstance());
-    MotionManager::GetInstance()->AddModule((MotionModule *)Head::GetInstance());
+    // MotionManager::GetInstance()->AddModule((MotionModule *)Head::GetInstance());
 
     // Start the Motion Timer
     LinuxMotionTimer *motion_timer = new LinuxMotionTimer(MotionManager::GetInstance());
