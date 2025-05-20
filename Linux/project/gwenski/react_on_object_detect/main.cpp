@@ -100,7 +100,7 @@ int main(void)
 
      // --- Initialize HeadTracking ---
     HeadTracking *head_tracker = HeadTracking::GetInstance(); // Head module is added in motion manager
-    
+
     // Play initial standby action
     std::cout << "INFO: Playing initial standby action (Page " << ACTION_PAGE_STAND << ")..." << std::endl;
     Action::GetInstance()->Start(ACTION_PAGE_STAND);
@@ -157,10 +157,10 @@ int main(void)
         // Use if-else if to check the detected label
         if (detected_object_label == "person" && current_action_label != "person")
         {
-            std::cout << "INFO: Detected person. Playing action (Page " << ACTION_PAGE_WAVE << ")..." << std::endl;
-            Action::GetInstance()->Start(ACTION_PAGE_WAVE);
-            while (Action::GetInstance()->IsRunning())
-                usleep(8 * 1000);
+            // std::cout << "INFO: Detected person. Playing action (Page " << ACTION_PAGE_WAVE << ")..." << std::endl;
+            // Action::GetInstance()->Start(ACTION_PAGE_WAVE);
+            // while (Action::GetInstance()->IsRunning())
+            //     usleep(8 * 1000);
             current_action_label = "person";
         }
         else if (detected_object_label == "dog" && current_action_label != "dog")
@@ -190,10 +190,10 @@ int main(void)
         else if (detected_object_label == "none" && current_action_label != "standby")
         {
             // If no specific object is detected and we are not already in standby, go to standby
-            std::cout << "INFO: No target detected. Returning to standby action (Page " << ACTION_PAGE_STAND << ")..." << std::endl;
-            Action::GetInstance()->Start(ACTION_PAGE_STAND);
-            while (Action::GetInstance()->IsRunning())
-                usleep(8 * 1000);
+            // std::cout << "INFO: No target detected. Returning to standby action (Page " << ACTION_PAGE_STAND << ")..." << std::endl;
+            // Action::GetInstance()->Start(ACTION_PAGE_STAND);
+            // while (Action::GetInstance()->IsRunning())
+            //     usleep(8 * 1000);
             current_action_label = "standby";
         }
         // If the detected label is the same as the current action label,
