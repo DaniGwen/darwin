@@ -80,6 +80,8 @@ int main(void)
         return -1;
     }
 
+    Action::GetInstance()->LoadFile(MOTION_FILE_PATH); // Load motion file for Action module
+
     // --- Camera Initialization (kept in main) ---
     std::cout << "INFO: Initializing camera..." << std::endl;
     LinuxCamera::GetInstance()->Initialize(0); // Initialize with device index 0
@@ -94,8 +96,6 @@ int main(void)
     Robot::MotionManager *motion_manager = Robot::MotionManager::GetInstance();
     Robot::Head *head_module = Robot::Head::GetInstance();
 
-    Action::GetInstance()->LoadFile(MOTION_FILE_PATH); // Load motion file for Action module
-
     // Initialize MotionManager
     if (motion_manager->Initialize(&cm730) == false)
     {
@@ -107,7 +107,6 @@ int main(void)
     // Load MotionManager settings from INI
     motion_manager->LoadINISettings(ini);
     motion_manager->AddModule((MotionModule *)Action::GetInstance());
-    motion_manager->AddModule((MotionModule *)head_module);
 
     // Start the Motion Timer
     LinuxMotionTimer *motion_timer = new LinuxMotionTimer(motion_manager);
@@ -115,11 +114,6 @@ int main(void)
 
     // Enable MotionManager
     MotionManager::GetInstance()->SetEnable(true);
-
-    // Explicitly enable head joints and set gains (can also be done in HeadTracking init)
-    head_module->m_Joint.SetEnableHeadOnly(true, true);
-    head_module->m_Joint.SetPGain(JointData::ID_HEAD_PAN, 8);
-    head_module->m_Joint.SetPGain(JointData::ID_HEAD_TILT, 8);
 
     // --- Initialize HeadTracking ---
     HeadTracking *head_tracker = HeadTracking::GetInstance();
