@@ -91,6 +91,7 @@ int main(void)
     // Load MotionManager settings from INI
     MotionManager::GetInstance()->LoadINISettings(ini);
     MotionManager::GetInstance()->AddModule((MotionModule *)Action::GetInstance());
+    MotionManager::GetInstance()->AddModule((MotionModule *)Head::GetInstance());
 
     // Start the Motion Timer
     LinuxMotionTimer *motion_timer = new LinuxMotionTimer(MotionManager::GetInstance());
@@ -107,7 +108,7 @@ int main(void)
     while (Action::GetInstance()->IsRunning())
         usleep(8 * 1000);
 
-        
+
     if (!head_tracker->Initialize(ini, &cm730))
     {
         std::cerr << "ERROR: HeadTracking initialization failed. Exiting." << std::endl;
@@ -165,27 +166,27 @@ int main(void)
         }
         else if (detected_object_label == "dog" && current_action_label != "dog")
         {
-            // std::cout << "INFO: Detected dog. Playing action (Page " << ACTION_PAGE_DOG << ")..." << std::endl;
+             std::cout << "INFO: Detected dog. Playing action (Page " << ACTION_PAGE_DOG << ")..." << std::endl;
             // Action::GetInstance()->Start(ACTION_PAGE_DOG);
-            // current_action_label = "dog";
+             current_action_label = "dog";
         }
         else if (detected_object_label == "cat" && current_action_label != "cat")
         {
-            // std::cout << "INFO: Detected cat. Playing action (Page " << ACTION_PAGE_CAT << ")..." << std::endl;
+             std::cout << "INFO: Detected cat. Playing action (Page " << ACTION_PAGE_CAT << ")..." << std::endl;
             // Action::GetInstance()->Start(ACTION_PAGE_CAT);
-            // current_action_label = "cat";
+             current_action_label = "cat";
         }
         else if (detected_object_label == "sports ball" && current_action_label != "sports ball")
         {
-            // std::cout << "INFO: Detected sports ball. Playing action (Page " << ACTION_PAGE_SPORTS_BALL << ")..." << std::endl;
+             std::cout << "INFO: Detected sports ball. Playing action (Page " << ACTION_PAGE_SPORTS_BALL << ")..." << std::endl;
             // Action::GetInstance()->Start(ACTION_PAGE_SPORTS_BALL);
-            // current_action_label = "sports ball";
+             current_action_label = "sports ball";
         }
         else if (detected_object_label == "bottle" && current_action_label != "bottle")
         {
-            // std::cout << "INFO: Detected bottle. Playing action (Page " << ACTION_PAGE_BOTTLE << ")..." << std::endl;
+             std::cout << "INFO: Detected bottle. Playing action (Page " << ACTION_PAGE_BOTTLE << ")..." << std::endl;
             // Action::GetInstance()->Start(ACTION_PAGE_BOTTLE);
-            // current_action_label = "bottle";
+             current_action_label = "bottle";
         }
         else if (detected_object_label == "none" && current_action_label != "standby")
         {

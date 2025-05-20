@@ -128,8 +128,6 @@ bool HeadTracking::Initialize(minIni *ini, CM730 *cm730)
     Head::GetInstance()->m_Joint.SetPGain(JointData::ID_HEAD_PAN, 8);
     Head::GetInstance()->m_Joint.SetPGain(JointData::ID_HEAD_TILT, 8);
 
-    // MotionManager::GetInstance()->AddModule((MotionModule *)Head::GetInstance());
-    MotionManager::GetInstance()->SetEnable(true);
 
     std::cout << "INFO: Motion framework singletons configured." << std::endl;
 
