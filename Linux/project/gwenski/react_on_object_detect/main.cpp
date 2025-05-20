@@ -36,16 +36,6 @@
 #define ACTION_PAGE_BOTTLE 14
 #define ACTION_PAGE_STAND 1
 
-// --- Global Flags/Variables (Consider using a shared state class if more complex) ---
-// bool g_is_action_playing = false; // Flag to indicate if an action is currently playing
-
-void change_current_dir()
-{
-    char exepath[1024] = {0};
-    if (readlink("/proc/self/exe", exepath, sizeof(exepath)) != -1)
-        chdir(dirname(exepath));
-}
-
 // Thread entry point function for HeadTracking
 void *HeadTrackingThread(void *arg)
 {
@@ -69,8 +59,6 @@ void *HeadTrackingThread(void *arg)
 int main(void)
 {
     printf("\n===== Head tracking with Object Detection via Unix Domain Socket (Multithreaded) =====\n\n");
-
-    change_current_dir();
 
     // Load INI settings
     minIni *ini = new minIni(INI_FILE_PATH);
@@ -103,14 +91,21 @@ int main(void)
     // Load MotionManager settings from INI
     MotionManager::GetInstance()->LoadINISettings(ini);
     MotionManager::GetInstance()->AddModule((MotionModule *)Action::GetInstance());
-    MotionManager::GetInstance()->SetEnable(true); // Enable MotionManager
 
     // Start the Motion Timer
     LinuxMotionTimer *motion_timer = new LinuxMotionTimer(MotionManager::GetInstance());
     motion_timer->Start();
 
-    // --- Initialize HeadTracking ---
+    MotionManager::GetInstance()->SetEnable(true); // Enable MotionManager
+
+     // --- Initialize HeadTracking ---
     HeadTracking *head_tracker = HeadTracking::GetInstance(); // Head module is added in motion manager
+    
+    // Play initial standby action
+    std::cout << "INFO: Playing initial standby action (Page " << ACTION_PAGE_STAND << ")..." << std::endl;
+    Action::GetInstance()->Start(ACTION_PAGE_STAND);
+    while (Action::GetInstance()->IsRunning())
+        usleep(8 * 1000);
 
     // Pass the INI settings and the initialized motion framework singletons to HeadTracking
     if (!head_tracker->Initialize(ini, &cm730))
@@ -145,12 +140,6 @@ int main(void)
         return -1;
     }
     std::cout << "INFO: HeadTracking thread created successfully." << std::endl;
-
-    // Play initial standby action
-    std::cout << "INFO: Playing initial standby action (Page " << ACTION_PAGE_STAND << ")..." << std::endl;
-    Action::GetInstance()->Start(ACTION_PAGE_STAND);
-    while (Action::GetInstance()->IsRunning())
-        usleep(8 * 1000);
 
     // --- Main Loop (for checking labels and triggering actions) ---
     std::cout << "INFO: Main thread running, checking for detected objects to trigger actions. Press Ctrl+C to exit." << std::endl;
