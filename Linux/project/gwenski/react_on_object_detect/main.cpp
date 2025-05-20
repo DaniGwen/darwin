@@ -91,11 +91,13 @@ int main(void)
     // --- Initialize HeadTracking ---
     HeadTracking *head_tracker = HeadTracking::GetInstance();
 
+    Head::GetInstance()->Initialize();
     Head::GetInstance()->LoadINISettings(ini);
     Head::GetInstance()->m_Joint.SetPGain(JointData::ID_HEAD_PAN, 8);
     Head::GetInstance()->m_Joint.SetPGain(JointData::ID_HEAD_TILT, 8);
     Head::GetInstance()->m_Joint.SetEnableHeadOnly(true, true);
     Head::GetInstance()->InitTracking();
+   
 
     // Load MotionManager settings from INI
     MotionManager::GetInstance()->LoadINISettings(ini);
