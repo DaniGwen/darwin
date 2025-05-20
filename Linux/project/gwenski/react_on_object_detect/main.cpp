@@ -68,6 +68,7 @@ int main(void)
         return -1;
     }
 
+    Action::GetInstance()->Initialize();
     Action::GetInstance()->LoadFile(MOTION_FILE_PATH); // Load motion file for Action module
 
     // --- Camera Initialization (kept in main) ---
@@ -101,7 +102,6 @@ int main(void)
     LinuxMotionTimer *motion_timer = new LinuxMotionTimer(MotionManager::GetInstance());
     motion_timer->Start();
 
-
     MotionManager::GetInstance()->SetEnable(true); // Enable MotionManager
 
     // --- Initialize HeadTracking ---
@@ -109,7 +109,6 @@ int main(void)
 
     // Play initial standby action
     std::cout << "INFO: Playing initial standby action (Page " << ACTION_PAGE_STAND << ")..." << std::endl;
-    Action::GetInstance()->Load(ACTION_PAGE_STAND);
     Action::GetInstance()->Start(ACTION_PAGE_STAND);
     while (Action::GetInstance()->IsRunning())
         usleep(8 * 1000);
@@ -164,7 +163,6 @@ int main(void)
         if (detected_object_label == "person" && current_action_label != "person")
         {
             std::cout << "INFO: Detected person. Playing action (Page " << ACTION_PAGE_WAVE << ")..." << std::endl;
-            Action::GetInstance()->Load(ACTION_PAGE_WAVE);
             Action::GetInstance()->Start(ACTION_PAGE_WAVE);
             while (Action::GetInstance()->IsRunning())
                 usleep(8 * 1000);
@@ -198,7 +196,6 @@ int main(void)
         {
             // If no specific object is detected and we are not already in standby, go to standby
             std::cout << "INFO: No target detected. Returning to standby action (Page " << ACTION_PAGE_STAND << ")..." << std::endl;
-              Action::GetInstance()->Load(ACTION_PAGE_STAND);
             Action::GetInstance()->Start(ACTION_PAGE_STAND);
             while (Action::GetInstance()->IsRunning())
                 usleep(8 * 1000);
