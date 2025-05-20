@@ -88,20 +88,19 @@ int main(void)
         return -1;
     }
 
-    Head::GetInstance()->LoadINISettings(ini);
-    Head::GetInstance()->m_Joint.SetEnableHeadOnly(true, true);
-    // Initial P-gains (can be overridden by INI in Initialize)
-    Head::GetInstance()->m_Joint.SetPGain(JointData::ID_HEAD_PAN, 8);
-    Head::GetInstance()->m_Joint.SetPGain(JointData::ID_HEAD_TILT, 8);
-
     // Load MotionManager settings from INI
     MotionManager::GetInstance()->LoadINISettings(ini);
     MotionManager::GetInstance()->AddModule((MotionModule *)Action::GetInstance());
     MotionManager::GetInstance()->AddModule((MotionModule *)Head::GetInstance());
 
-    // Start the Motion Timer
     LinuxMotionTimer *motion_timer = new LinuxMotionTimer(MotionManager::GetInstance());
     motion_timer->Start();
+
+    Head::GetInstance()->LoadINISettings(ini);
+    Head::GetInstance()->m_Joint.SetEnableHeadOnly(true, true);
+    // Initial P-gains (can be overridden by INI in Initialize)
+    Head::GetInstance()->m_Joint.SetPGain(JointData::ID_HEAD_PAN, 8);
+    Head::GetInstance()->m_Joint.SetPGain(JointData::ID_HEAD_TILT, 8);
 
     MotionManager::GetInstance()->SetEnable(true); // Enable MotionManager
 
