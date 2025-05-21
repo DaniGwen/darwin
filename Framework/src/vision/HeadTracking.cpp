@@ -60,10 +60,10 @@ HeadTracking::HeadTracking()
       cm730_(nullptr),       // Initialize cm7730_
       rgb_display_frame_(nullptr),
       no_target_count_(0),
-      pan_error_scale_(0.5), // Default values (can be overridden by INI)
-      tilt_error_scale_(0.5),
-      pan_deadband_deg_(1.0),
-      tilt_deadband_deg_(1.0),
+      pan_error_scale_(2.0), // Default values (can be overridden by INI)
+      tilt_error_scale_(2.0),
+      pan_deadband_deg_(0.05),
+      tilt_deadband_deg_(0.05),
       black_color_(0),
       current_detected_label_("none"),         // Initialize detected label
       current_tracked_object_center_(0.0, 0.0), // Initialize tracked object center (X, Y)
