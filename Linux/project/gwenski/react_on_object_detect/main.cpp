@@ -13,7 +13,7 @@
 #include <unistd.h>
 #include <string.h>
 #include <libgen.h>
-#include <iostream>
+#include <iostream>  // For std::cout, std::cerr, std::endl
 #include <cstdlib>   // Required for system()
 #include <pthread.h> // Required for threading
 #include <string>    // Required for std::string
