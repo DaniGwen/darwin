@@ -29,6 +29,7 @@
 #include "minIni.h"        // For minIni class
 #include "Point.h"         // For Robot::Point2D
 #include "JointData.h"     // For JointData::ID_HEAD_PAN, ID_HEAD_TILT, MX28 constants
+#include "Kinematics.h"    // **ADDED: For Kinematics::EYE_TILT_OFFSET_ANGLE**
 
 // Forward declarations for Robot namespace classes if they are only used as pointers/references
 namespace Robot
@@ -67,6 +68,10 @@ public:
     // Explicitly declare the destructor
     ~HeadTracking();
 
+    // Public getters for detected label and tracked object center (needed by main.cpp)
+    std::string GetDetectedLabel();
+    Robot::Point2D GetTrackedObjectCenter();
+
 private:
     // Private constructor to enforce singleton pattern
     HeadTracking();
@@ -75,7 +80,7 @@ private:
     HeadTracking(const HeadTracking&) = delete;
     HeadTracking& operator=(const HeadTracking&) = delete;
 
-    // --- Member Variables ---
+    // --- Member Variables (Ordered to match constructor for -Wreorder warning) ---
     int client_socket_;         // File descriptor for the client socket connection
     mjpg_streamer* streamer_;   // Pointer to the MJPG streamer instance
     minIni* ini_settings_;      // Pointer to loaded INI settings (owned by main)
@@ -118,7 +123,7 @@ private:
     int black_color_; // For LED control
 
     // Frame counter for periodic motor status checks
-    int frame_counter_;
+    int frame_counter_; // **Moved to match initialization order**
 
     // Current detected label and tracked object center (for getters)
     std::string current_detected_label_;

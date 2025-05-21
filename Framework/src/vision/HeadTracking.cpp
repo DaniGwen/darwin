@@ -70,9 +70,9 @@ HeadTracking::HeadTracking()
       pan_deadband_deg_(0.05),
       tilt_deadband_deg_(0.05),
       black_color_(0),
+      frame_counter_(0), // **Reordered to match declaration in .h**
       current_detected_label_("none"),
-      current_tracked_object_center_(0.0, 0.0),
-      frame_counter_(0)
+      current_tracked_object_center_(0.0, 0.0)
 {
     // Constructor is intentionally minimal.
     // Initialization that might fail or requires external resources
@@ -136,8 +136,6 @@ bool HeadTracking::Initialize(minIni *ini, CM730 *cm730)
     // 4. Configure Head Motors directly via CM730
     std::cout << "INFO: Configuring Head motors directly via CM730..." << std::endl;
     // Explicitly enable head joints and set initial gains
-    // Note: JointData::SetEnableHeadOnly might not be available without JointData class instance.
-    // We will directly write to the torque enable register.
     cm730_->WriteByte(JointData::ID_HEAD_PAN, MX28::P_TORQUE_ENABLE, 1, 0); // Enable torque for Pan
     cm730_->WriteByte(JointData::ID_HEAD_TILT, MX28::P_TORQUE_ENABLE, 1, 0); // Enable torque for Tilt
     cm730_->WriteByte(JointData::ID_HEAD_PAN, MX28::P_P_GAIN, (int)m_Pan_p_gain, 0); // Set P-gain for pan
@@ -202,8 +200,9 @@ void HeadTracking::Run()
         // --- Send Frame Data to Python Script ---
         if (!SendFrameData(current_cam_rgb_frame))
         {
+            // SendFrameData prints error message
             std::cerr << "ERROR: Failed to send frame data. Exiting loop." << std::endl;
-            break;
+            break; // Exit loop on send error (likely connection closed)
         }
 
         // --- Receive and Parse Detection Results ---
@@ -519,7 +518,7 @@ void HeadTracking::DrawBoundingBox(Robot::Image *image, const ParsedDetection &d
            detection.label.c_str(), detection.score, xmin, ymin, xmax, ymax);
 }
 
-void HeadTracking::UpdateHeadTracking(const std::vector<ParsedDetection>& detections)
+void HeadTracking::UpdateHeadTracking(const std::vector<ParsedDetection> &detections)
 {
     bool person_found_in_frame = false;
     Robot::Point2D tracked_object_center_for_head;
@@ -627,11 +626,15 @@ std::string HeadTracking::ReceiveExact(int sock_fd, size_t num_bytes)
 
 std::string HeadTracking::GetDetectedLabel()
 {
+    // Use a mutex if current_detected_label_ is accessed by multiple threads (main and HeadTracking thread)
+    // std::lock_guard<std::mutex> lock(label_mutex_); // If you add a mutex
     return current_detected_label_;
 }
 
 Robot::Point2D HeadTracking::GetTrackedObjectCenter()
 {
+    // Use a mutex if current_tracked_object_center_ is accessed by multiple threads
+    // std::lock_guard<std::mutex> lock(center_mutex_); // If you add a mutex
     return current_tracked_object_center_;
 }
 
