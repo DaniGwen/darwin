@@ -69,6 +69,9 @@ private:
     HeadTracking &operator=(const HeadTracking &) = delete;
 
 public:
+    // Explicitly declare the destructor
+    ~HeadTracking();
+
     // Public method to get the singleton instance
     static HeadTracking *GetInstance();
 
