@@ -65,12 +65,12 @@ HeadTracking::HeadTracking()
       m_Pan_Home(0.0),
       m_Tilt_Home(0.0), // Will be set by Kinematics::EYE_TILT_OFFSET_ANGLE
       no_target_count_(0),
-      pan_error_scale_(1.0), // Default values (can be overridden by INI)
-      tilt_error_scale_(1.0),
-      pan_deadband_deg_(0.5),
-      tilt_deadband_deg_(0.5),
+      pan_error_scale_(1.0), // **CHANGED: Reduced default to 1.0**
+      tilt_error_scale_(1.0), // **CHANGED: Reduced default to 1.0**
+      pan_deadband_deg_(0.05),
+      tilt_deadband_deg_(0.05),
       black_color_(0),
-      frame_counter_(0), // **Reordered to match declaration in .h**
+      frame_counter_(0),
       current_detected_label_("none"),
       current_tracked_object_center_(0.0, 0.0)
 {
@@ -138,9 +138,9 @@ bool HeadTracking::Initialize(minIni *ini, CM730 *cm730)
     // Explicitly enable head joints and set initial gains
     cm730_->WriteByte(JointData::ID_HEAD_PAN, MX28::P_TORQUE_ENABLE, 1, 0); // Enable torque for Pan
     cm730_->WriteByte(JointData::ID_HEAD_TILT, MX28::P_TORQUE_ENABLE, 1, 0); // Enable torque for Tilt
-    cm730_->WriteByte(JointData::ID_HEAD_PAN, MX28::P_P_GAIN, (int)m_Pan_p_gain, 0); // Set P-gain for pan
-    cm730_->WriteByte(JointData::ID_HEAD_TILT, MX28::P_P_GAIN, (int)m_Tilt_p_gain, 0); // Set P-gain for tilt
-    // Also set D-gain if MX28 supports it directly
+    // Set P and D gains using values loaded from INI
+    cm730_->WriteByte(JointData::ID_HEAD_PAN, MX28::P_P_GAIN, (int)m_Pan_p_gain, 0);
+    cm730_->WriteByte(JointData::ID_HEAD_TILT, MX28::P_P_GAIN, (int)m_Tilt_p_gain, 0);
     cm730_->WriteByte(JointData::ID_HEAD_PAN, MX28::P_D_GAIN, (int)m_Pan_d_gain, 0);
     cm730_->WriteByte(JointData::ID_HEAD_TILT, MX28::P_D_GAIN, (int)m_Tilt_d_gain, 0);
 
@@ -626,15 +626,11 @@ std::string HeadTracking::ReceiveExact(int sock_fd, size_t num_bytes)
 
 std::string HeadTracking::GetDetectedLabel()
 {
-    // Use a mutex if current_detected_label_ is accessed by multiple threads (main and HeadTracking thread)
-    // std::lock_guard<std::mutex> lock(label_mutex_); // If you add a mutex
     return current_detected_label_;
 }
 
 Robot::Point2D HeadTracking::GetTrackedObjectCenter()
 {
-    // Use a mutex if current_tracked_object_center_ is accessed by multiple threads
-    // std::lock_guard<std::mutex> lock(center_mutex_); // If you add a mutex
     return current_tracked_object_center_;
 }
 
@@ -649,11 +645,11 @@ void HeadTracking::LoadHeadSettings(minIni* ini)
 
     m_LeftLimit = ini->getd("Head Pan/Tilt", "LeftLimit", m_LeftLimit);
     m_RightLimit = ini->getd("Head Pan/Tilt", "RightLimit", m_RightLimit);
-    m_TopLimit = ini->getd("Head Pan/Tilt", "TopLimit", Kinematics::EYE_TILT_OFFSET_ANGLE); // Use Kinematics constant
-    m_BottomLimit = ini->getd("Head Pan/Tilt", "BottomLimit", Kinematics::EYE_TILT_OFFSET_ANGLE - 65.0); // Use Kinematics constant
+    m_TopLimit = ini->getd("Head Pan/Tilt", "TopLimit", Kinematics::EYE_TILT_OFFSET_ANGLE);
+    m_BottomLimit = ini->getd("Head Pan/Tilt", "BottomLimit", Kinematics::EYE_TILT_OFFSET_ANGLE - 65.0);
 
-    m_Pan_Home = ini->getd("Head Pan/Tilt", "Pan_Home", 0.0); // Default to 0.0
-    m_Tilt_Home = ini->getd("Head Pan/Tilt", "Tilt_Home", Kinematics::EYE_TILT_OFFSET_ANGLE - 30.0); // Use Kinematics constant
+    m_Pan_Home = ini->getd("Head Pan/Tilt", "Pan_Home", 0.0);
+    m_Tilt_Home = ini->getd("Head Pan/Tilt", "Tilt_Home", Kinematics::EYE_TILT_OFFSET_ANGLE - 30.0);
 
     std::cout << "INFO: HeadTracking::LoadHeadSettings - Pan_P_GAIN: " << m_Pan_p_gain
               << ", Pan_D_GAIN: " << m_Pan_d_gain
@@ -712,7 +708,6 @@ void HeadTracking::InitTracking()
 
 void HeadTracking::UpdateHeadAngles(Robot::Point2D err)
 {
-    // This function combines the logic of Head::MoveTracking(Point2D err) and Head::MoveTracking()
     m_Pan_err_diff = err.X - m_Pan_err;
     m_Pan_err = err.X;
 
@@ -725,12 +720,10 @@ void HeadTracking::UpdateHeadAngles(Robot::Point2D err)
 
     double pOffset, dOffset;
 
-    // Pan PID calculation
     pOffset = m_Pan_err * m_Pan_p_gain;
     dOffset = m_Pan_err_diff * m_Pan_d_gain;
     m_PanAngle += (pOffset + dOffset);
 
-    // Tilt PID calculation
     pOffset = m_Tilt_err * m_Tilt_p_gain;
     dOffset = m_Tilt_err_diff * m_Tilt_d_gain;
     m_TiltAngle += (pOffset + dOffset);
@@ -742,26 +735,19 @@ void HeadTracking::UpdateHeadAngles(Robot::Point2D err)
               << ", Tilt dOffset: " << m_Tilt_err_diff * m_Tilt_d_gain
               << ", New TiltAngle (before limit): " << m_TiltAngle << std::endl;
 
-    CheckLimit(); // Apply limits after calculating new angles
+    CheckLimit();
 }
 
 void HeadTracking::ApplyHeadAngles()
 {
-    // Convert angle (degrees) to MX-28 position value (0-4095)
-    // Formula: position = (angle + 150) * 4095 / 300
-    // Pan: -150 to 150 degrees -> 0 to 4095
-    // Tilt: -150 to 150 degrees -> 0 to 4095 (though your limits are tighter)
     int pan_position = static_cast<int>((m_PanAngle + 150.0) * 4095.0 / 300.0);
     int tilt_position = static_cast<int>((m_TiltAngle + 150.0) * 4095.0 / 300.0);
 
-    // Ensure positions are within valid range
     pan_position = std::max(0, std::min(4095, pan_position));
     tilt_position = std::max(0, std::min(4095, tilt_position));
 
-    // Check if CM730 is available
     if (cm730_)
     {
-        // Check if head joints are enabled by reading their torque enable status
         int pan_torque_enable = 0;
         int tilt_torque_enable = 0;
         cm730_->ReadByte(JointData::ID_HEAD_PAN, MX28::P_TORQUE_ENABLE, &pan_torque_enable, 0);
@@ -769,7 +755,6 @@ void HeadTracking::ApplyHeadAngles()
 
         if (pan_torque_enable == 1 && tilt_torque_enable == 1)
         {
-            // Set target positions for the head motors
             cm730_->WriteWord(JointData::ID_HEAD_PAN, MX28::P_GOAL_POSITION_L, pan_position, 0);
             cm730_->WriteWord(JointData::ID_HEAD_TILT, MX28::P_GOAL_POSITION_L, tilt_position, 0);
 
