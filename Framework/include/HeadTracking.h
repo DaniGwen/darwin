@@ -1,25 +1,29 @@
 #ifndef HEADTRACKING_H_
 #define HEADTRACKING_H_
 
-#include <string>
-#include <vector>
+#include <string>   // For std::string
+#include <vector>   // For std::vector
 
-#include "Point.h" // Make sure Point2D is defined (usually in Robot::Point)
-#include "Head.h"  // Include Head.h as HeadTracking will now directly use Head
-#include "CM730.h" // Include CM730.h for CM730 class
+// Include necessary headers for types used in HeadTracking class members and methods
+#include "Point.h"        // For Robot::Point2D
+#include "Head.h"         // For Robot::Head and JointData (often pulled in by Head.h)
+#include "CM730.h"        // For CM730 class
+#include "Camera.h"       // For Camera::WIDTH, Camera::HEIGHT, and Robot::Image
+#include "mjpg_streamer.h" // For mjpg_streamer class
+#include "minIni.h"       // For minIni class
 
-// Forward declarations for Robot namespace classes if needed,
-// though including their headers is generally safer.
+// Forward declarations for Robot namespace classes if they are only used as pointers/references
+// and their full definition is not needed in the header.
+// However, in this case, we need full definitions for member variables and method parameters,
+// so including the respective headers is more robust.
 namespace Robot
 {
     class MotionManager; // Still forward declare if HeadTracking.h is included by files that use MotionManager
-    class Head;
-    class Point2D;
-    class Image; // Assuming Image class is in Robot namespace or globally accessible
+    // Robot::Head, Robot::Point2D, Robot::Image are now fully defined by includes above.
 }
 
 // Structure to hold parsed detection data received from Python
-// Moved here so it's accessible to HeadTracking.h and HeadTracking.cpp
+// This must be defined BEFORE the HeadTracking class if HeadTracking uses it.
 struct ParsedDetection
 {
     std::string label;
@@ -31,11 +35,11 @@ class HeadTracking
 {
 private:
     int client_socket_;
-    mjpg_streamer *streamer_;
+    mjpg_streamer *streamer_; // Full definition of mjpg_streamer is now available
     minIni *ini_settings_;
     Robot::Head *head_module_; // Pointer to the Head singleton
-    CM730 *cm730_;
-    Robot::Image *rgb_display_frame_; // Use Robot::Image if it's in that namespace
+    CM730 *cm730_;             // Full definition of CM730 is now available
+    Robot::Image *rgb_display_frame_; // Full definition of Robot::Image is now available
     int no_target_count_;
     double pan_error_scale_;
     double tilt_error_scale_;
@@ -45,16 +49,16 @@ private:
     std::string current_detected_label_;
     Robot::Point2D current_tracked_object_center_;
 
-    // Define NO_TARGET_MAX_COUNT here
+    // Define NO_TARGET_MAX_COUNT here, as it's a static const member
     static const int NO_TARGET_MAX_COUNT = 30; // Number of frames to wait before initiating scan
 
     // Private helper methods
     int InitializeSocketServer();
     bool InitializeStreamer();
-    bool SendFrameData(Robot::Image *frame); // Use Robot::Image
+    bool SendFrameData(Robot::Image *frame);
     std::vector<ParsedDetection> ReceiveDetectionResults();
     std::vector<ParsedDetection> ParseDetectionOutput(const std::string &output);
-    void DrawBoundingBox(Robot::Image *image, const ParsedDetection &detection); // Use Robot::Image
+    void DrawBoundingBox(Robot::Image *image, const ParsedDetection &detection);
     void UpdateHeadTracking(const std::vector<ParsedDetection> &detections);
     std::string ReceiveExact(int sock_fd, size_t num_bytes);
 

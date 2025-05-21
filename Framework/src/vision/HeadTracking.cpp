@@ -17,6 +17,7 @@
  */
 
 #include "HeadTracking.h" // Include the corrected header first
+#include <iostream> // Explicitly include iostream for std::cout, std::cerr, std::endl
 #include <string>   // Explicitly include string
 #include <vector>   // Explicitly include vector
 #include <sstream>  // Include sstream where stringstream is used
@@ -27,11 +28,13 @@
 #include <cstdlib>  // For system()
 #include <mutex>    // For std::mutex (optional, but good practice for shared data)
 
-// Headers for Unix Domain Sockets (these are usually included in LinuxDARwIn.h or similar,
-// but explicitly including them here ensures they are available for socket functions)
+// Headers for Unix Domain Sockets
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <errno.h> // For errno and strerror
+
+// Include LinuxCamera if it's not pulled in by Camera.h or LinuxDARwIn.h
+#include "LinuxCamera.h" // Needed for LinuxCamera::GetInstance()
 
 // Define socket path here (only once)
 const char *SOCKET_PATH = "/tmp/darwin_detector.sock";
@@ -53,7 +56,7 @@ HeadTracking::HeadTracking()
       streamer_(nullptr),
       ini_settings_(nullptr),
       head_module_(nullptr), // Initialize head_module_
-      cm730_(nullptr),
+      cm730_(nullptr),       // Initialize cm7730_
       rgb_display_frame_(nullptr),
       no_target_count_(0),
       pan_error_scale_(0.5), // Default values (can be overridden by INI)
