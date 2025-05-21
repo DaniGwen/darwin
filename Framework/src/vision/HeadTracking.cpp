@@ -71,8 +71,10 @@ HeadTracking::~HeadTracking()
 bool HeadTracking::Initialize(minIni *ini, CM730 *cm730)
 {
     ini_settings_ = ini;
-    cm730_ = cm730;   
+    cm730_ = cm730;
 
+    MotionManager::GetInstance()->AddModule((MotionModule *)Head::GetInstance());
+    
     // Basic check if passed pointers are valid
     if (!cm730_)
     {
@@ -107,7 +109,7 @@ bool HeadTracking::Initialize(minIni *ini, CM730 *cm730)
         std::cerr << "ERROR: HeadTracking initialization failed: Socket server setup failed." << std::endl;
         return false;
     }
-    
+
     // 3. Initialize MJPG Streamer
     if (!InitializeStreamer())
     {
