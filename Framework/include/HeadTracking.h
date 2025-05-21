@@ -25,114 +25,61 @@
 #include "mjpg_streamer.h"
 #include "LinuxDARwIn.h" // Assuming this provides basic robot control structures (MotionManager, Head, Point2D, JointData)
 #include "minIni.h"      // For INI file loading
-#include <Point.h>
-
-// Structure to hold parsed detection data received from Python
-struct ParsedDetection
+namespace Robot
 {
-      std::string label;
-      float score;
-      float xmin, ymin, xmax, ymax; // Normalized coordinates [0.0, 1.0]
-};
-
-// Declare socket path using extern - the definition is in HeadTracking.cpp
-extern const char *SOCKET_PATH;
+      class MotionManager; // Forward declaration if still needed for other reasons, but not for HeadTracking's direct control
+      class Head;          // Forward declaration for Head
+      class Point2D;       // Forward declaration for Point2D
+}
 
 class HeadTracking
 {
+private:
+      int client_socket_;
+      mjpg_streamer *streamer_;
+      minIni *ini_settings_;
+      Robot::Head *head_module_; // Pointer to the Head singleton
+      CM730 *cm730_;
+      Image *rgb_display_frame_;
+      int no_target_count_;
+      double pan_error_scale_;
+      double tilt_error_scale_;
+      double pan_deadband_deg_;
+      double tilt_deadband_deg_;
+      int black_color_;
+      std::string current_detected_label_;
+      Robot::Point2D current_tracked_object_center_;
+
+      // Private helper methods
+      int InitializeSocketServer();
+      bool InitializeStreamer();
+      bool SendFrameData(Image *frame);
+      std::vector<ParsedDetection> ReceiveDetectionResults();
+      std::vector<ParsedDetection> ParseDetectionOutput(const std::string &output);
+      void DrawBoundingBox(Image *image, const ParsedDetection &detection);
+      void UpdateHeadTracking(const std::vector<ParsedDetection> &detections);
+      std::string ReceiveExact(int sock_fd, size_t num_bytes);
+
+      // Private constructor for singleton pattern
+      HeadTracking();
+      // Prevent copy and assignment
+      HeadTracking(const HeadTracking &) = delete;
+      HeadTracking &operator=(const HeadTracking &) = delete;
+
 public:
-      // Singleton access method
+      // Public method to get the singleton instance
       static HeadTracking *GetInstance();
 
-      // Initialization method
-      // Requires the minIni instance for loading settings and
-      // initialized MotionManager and Head singleton pointers.
-      // Returns true on success, false on failure.
-      bool Initialize(minIni *ini, CM730 *cm730);
+      // Modified Initialize signature to accept Head* and CM730*
+      bool Initialize(minIni *ini, Robot::Head *head_module, CM730 *cm730);
 
       // Main tracking loop
-      // This function will run the main processing loop (capture, send, receive, track).
-      // It will block until an error occurs or the loop is exited internally.
       void Run();
 
       // Cleanup method
       void Cleanup();
 
+      // Public getters for detected label and object center
       std::string GetDetectedLabel();
-      Point2D GetTrackedObjectCenter();
-
-      // Destructor (private to enforce singleton)
-      ~HeadTracking();
-
-private:
-      // Private constructor to enforce singleton pattern
-      HeadTracking();
-
-      // Delete copy constructor and assignment operator
-      HeadTracking(const HeadTracking &) = delete;
-      HeadTracking &operator=(const HeadTracking &) = delete;
-
-      // --- Member Variables ---
-      int client_socket_;                            // File descriptor for the client socket connection
-      mjpg_streamer *streamer_;                      // Pointer to the MJPG streamer instance
-      minIni *ini_settings_;                         // Pointer to loaded INI settings (owned by main)
-      std::string current_detected_label_;           // Current detected label (for tracking state)
-      Robot::Point2D current_tracked_object_center_; // Center of the tracked object in pixel coordinates
-
-      Robot::CM730 *cm730_;
-
-      // Image buffer for the output frame with detections drawn on it
-      Image *rgb_display_frame_;
-
-      // Tracking state variables
-      int no_target_count_;
-      const int NO_TARGET_MAX_COUNT = 30; // Number of frames to wait before initiating scan
-
-      // Tuning Parameters for Centering (loaded from INI in Initialize)
-      double pan_error_scale_;
-      double tilt_error_scale_;
-      double pan_deadband_deg_;
-      double tilt_deadband_deg_;
-
-      // Eye color values for LED panel
-      int black_color_;
-
-      // --- Private Helper Methods ---
-
-      // Initializes the Unix Domain Socket server and waits for connection
-      // Returns client_sock file descriptor on success, -1 on failure
-      int InitializeSocketServer();
-
-      // Initializes the Camera
-      // Returns true on success, false on failure
-      bool InitializeCamera();
-
-      // Initializes the MJPG Streamer
-      // Returns true on success, false on failure
-      bool InitializeStreamer();
-
-      // Handles sending frame data over the socket
-      // Returns true on success, false on failure (e.g., connection closed)
-      bool SendFrameData(Image *frame);
-
-      // Handles receiving detection results over the socket and parsing them
-      // Returns vector of detections on success, empty vector on failure or no detections.
-      // Returns empty vector AND prints error on socket read failure (e.g., connection closed).
-      std::vector<ParsedDetection> ReceiveDetectionResults();
-
-      // Function to parse the detection string received from Python
-      std::vector<ParsedDetection> ParseDetectionOutput(const std::string &output);
-
-      // Basic function to draw bounding boxes on the RGB image
-      void DrawBoundingBox(Image *image, const ParsedDetection &detection);
-
-      // Handles head tracking logic based on detection results
-      // Uses the motion_manager_ and head_module_ member pointers.
-      void UpdateHeadTracking(const std::vector<ParsedDetection> &detections);
-
-      // Helper to receive exact number of bytes from socket
-      // Returns received data or empty string on error/disconnect
-      std::string ReceiveExact(int sock_fd, size_t num_bytes);
+      Robot::Point2D GetTrackedObjectCenter();
 };
-
-#endif /* HEADTRACKING_H_ */
