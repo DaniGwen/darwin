@@ -6,24 +6,23 @@
  * Description: Main program for head tracking with object detection,
  * triggering robot actions based on detected object labels.
  * Runs HeadTracking in a separate thread, with Head control
- * managed directly by HeadTracking, NOT MotionManager or Head.cpp.
+ * managed directly by HeadTracking, not MotionManager.
  */
 
 #include <stdio.h>
 #include <unistd.h>
 #include <string.h>
 #include <libgen.h>
-#include <iostream>   // For std::cout, std::cerr, std::endl
-#include <cstdlib>    // Required for system()
-#include <pthread.h>  // Required for threading
-#include <string>     // Required for std::string
-#include <chrono>     // Required for timing (optional, for loop delay)
-#include <thread>     // Required for std::this_thread::sleep_for (optional)
+#include <iostream>  // For std::cout, std::cerr, std::endl
+#include <cstdlib>   // Required for system()
+#include <pthread.h> // Required for threading
+#include <string>    // Required for std::string
+#include <chrono>    // Required for timing (optional, for loop delay)
+#include <thread>    // Required for std::this_thread::sleep_for (optional)
 
 #include "minIni.h"       // For INI file loading
 #include "HeadTracking.h" // Include the HeadTracking class header
-#include "LinuxDARwIn.h"  // Include for Motion Framework components (MotionManager, Action)
-                          // Note: Head.h is no longer directly included here as its logic is in HeadTracking.
+#include "LinuxDARwIn.h"  // Include for Motion Framework components (MotionManager, Head, Action)
 
 // --- Configuration ---
 #define INI_FILE_PATH "../../../../Data/config.ini"
@@ -78,7 +77,7 @@ int main(void)
         return -1;
     }
 
-    Robot::Action::GetInstance()->LoadFile(MOTION_FILE_PATH); // Load motion file for Action module
+    Action::GetInstance()->LoadFile(MOTION_FILE_PATH); // Load motion file for Action module
 
     // --- Camera Initialization ---
     std::cout << "INFO: Initializing camera..." << std::endl;
@@ -90,8 +89,9 @@ int main(void)
     LinuxCM730 linux_cm730(U2D_DEV_NAME);
     CM730 cm730(&linux_cm730);
 
-    // Get MotionManager and Action singletons
+    // Get MotionManager, Head, and Action singletons
     Robot::MotionManager *motion_manager = Robot::MotionManager::GetInstance();
+    Robot::Head *head_module = Robot::Head::GetInstance();       // Get Head singleton
     Robot::Action *action_module = Robot::Action::GetInstance(); // Get Action singleton
 
     // Initialize MotionManager
@@ -105,7 +105,7 @@ int main(void)
     // Load MotionManager settings from INI
     motion_manager->LoadINISettings(ini);
 
-    // Add Action module to MotionManager (Head is no longer a MotionModule)
+    // Add Action module to MotionManager (Head is handled by HeadTracking directly)
     motion_manager->AddModule((MotionModule *)action_module);
 
     // Start the Motion Timer
@@ -115,12 +115,16 @@ int main(void)
     // Enable MotionManager
     MotionManager::GetInstance()->SetEnable(true);
 
+    // Load Head's general settings (limits, home position) from INI
+    // HeadTracking will handle enabling torque and setting P-gains.
+    head_module->LoadINISettings(ini);
+
     // --- Initialize HeadTracking ---
     HeadTracking *head_tracker = HeadTracking::GetInstance();
 
-    // Pass the INI settings and CM730 instance to HeadTracking.
+    // Pass the INI settings, Head module, and CM730 instance to HeadTracking
     // HeadTracking will now manage the Head's motor control directly.
-    if (!head_tracker->Initialize(ini, &cm730)) // Updated call
+    if (!head_tracker->Initialize(ini, head_module, &cm730))
     {
         std::cerr << "ERROR: HeadTracking initialization failed. Exiting." << std::endl;
         // Perform motion framework cleanup before exiting
@@ -233,7 +237,7 @@ int main(void)
             // An action is currently playing.
             // We could add logic here to potentially interrupt an action
             // if a higher priority object is detected, but for now we wait
-            // for the current action to finish to avoid conflicts.
+            // for the current action to finish before starting a new one.
         }
 
         // Small delay in the main loop to avoid consuming too much CPU
@@ -249,7 +253,8 @@ int main(void)
     std::cout << "INFO: Shutting down motion framework..." << std::endl;
     motion_timer->Stop();
     MotionManager::GetInstance()->SetEnable(false);
-    MotionManager::GetInstance()->RemoveModule((MotionModule *)action_module); // Remove Action module
+    // Only remove Action module, Head is not a module of MotionManager anymore
+    MotionManager::GetInstance()->RemoveModule((MotionModule *)action_module);
 
     delete ini;
     delete motion_timer;

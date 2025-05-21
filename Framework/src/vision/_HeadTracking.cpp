@@ -4,7 +4,17 @@
  * Created on: May 17, 2025
  * Author: Your Name
  * Description: Implementation of the HeadTracking singleton class.
- * Directly controls head motors without relying on Head.cpp.
+ * Receives initialized Motion Framework (Head, CM730) pointers.
+ * Added explicit includes for stringstream fix.
+ * Defined SOCKET_PATH here.
+ * Added detailed logging to Run() loop, including pre-capture log and initial delay.
+ * Added Python script startup to Initialize().
+ * Added CM730 pointer and LED color control logic.
+ * Added member variable and getter to expose the detected label.
+ * Added member variable and getter to expose the tracked object's center coordinates.
+ * Head motor control is now handled directly by HeadTracking, not MotionManager.
+ *
+ * This version includes enhanced debugging for head movement and periodic torque checks.
  */
 
 #include "HeadTracking.h" // Include the corrected header first
@@ -46,62 +56,49 @@ HeadTracking::HeadTracking()
     : client_socket_(-1),
       streamer_(nullptr),
       ini_settings_(nullptr),
-      cm730_(nullptr),
+      head_module_(nullptr), // Initialize head_module_
+      cm730_(nullptr),       // Initialize cm7730_
       rgb_display_frame_(nullptr),
-      m_PanAngle(0.0),
-      m_TiltAngle(0.0),
-      m_Pan_err(0.0),
-      m_Pan_err_diff(0.0),
-      m_Tilt_err(0.0),
-      m_Tilt_err_diff(0.0),
-      m_Pan_p_gain(0.1),
-      m_Pan_d_gain(0.22),
-      m_Tilt_p_gain(0.1),
-      m_Tilt_d_gain(0.22),
-      m_LeftLimit(70.0),
-      m_RightLimit(-70.0),
-      m_TopLimit(0.0), // Will be set by Kinematics::EYE_TILT_OFFSET_ANGLE
-      m_BottomLimit(0.0), // Will be set by Kinematics::EYE_TILT_OFFSET_ANGLE
-      m_Pan_Home(0.0),
-      m_Tilt_Home(0.0), // Will be set by Kinematics::EYE_TILT_OFFSET_ANGLE
       no_target_count_(0),
       pan_error_scale_(2.0), // Default values (can be overridden by INI)
       tilt_error_scale_(2.0),
       pan_deadband_deg_(0.05),
       tilt_deadband_deg_(0.05),
       black_color_(0),
-      current_detected_label_("none"),
-      current_tracked_object_center_(0.0, 0.0),
-      frame_counter_(0)
+      current_detected_label_("none"),         // Initialize detected label
+      current_tracked_object_center_(0.0, 0.0), // Initialize tracked object center (X, Y)
+      frame_counter_(0) // Initialize frame counter for periodic checks
 {
     // Constructor is intentionally minimal.
     // Initialization that might fail or requires external resources
     // should be done in the Initialize() method.
 }
 
-// Destructor definition
+// Destructor definition (must be defined if declared)
 HeadTracking::~HeadTracking()
 {
     Cleanup();
-    // ini_settings_ and cm730_ are not owned by HeadTracking
+    // Note: ini_settings_ is owned by main and should not be deleted here.
+    // Motion framework components (head_module_, cm730_) are not owned here.
 }
 
-// Modified Initialize signature to accept CM730* directly
-bool HeadTracking::Initialize(minIni *ini, CM730 *cm730)
+// Modified Initialize signature to accept Head*
+bool HeadTracking::Initialize(minIni *ini, Robot::Head *head_module, CM730 *cm730)
 {
     ini_settings_ = ini;
+    head_module_ = head_module; // Store passed pointer
     cm730_ = cm730;
 
-    // Basic check if CM730 pointer is valid
-    if (!cm730_)
+    // Basic check if passed pointers are valid
+    if (!head_module_ || !cm730_)
     {
-        std::cerr << "ERROR: HeadTracking initialization failed: Invalid CM730 pointer passed." << std::endl;
+        std::cerr << "ERROR: HeadTracking initialization failed: Invalid Head or CM730 pointer passed." << std::endl;
         return false;
     }
 
     // --- Initialize Components ---
 
-    // 0. Auto-start the Python detector script
+    // 0. Auto-start the Python detector script (moved from main)
     std::string command = "python3 ";
     command += PYTHON_SCRIPT_PATH;
     command += " &"; // Run in background
@@ -122,7 +119,7 @@ bool HeadTracking::Initialize(minIni *ini, CM730 *cm730)
         return false;
     }
 
-    // 2. Initialize MJPG Streamer
+    // 3. Initialize MJPG Streamer
     if (!InitializeStreamer())
     {
         std::cerr << "ERROR: HeadTracking initialization failed: Streamer setup failed." << std::endl;
@@ -130,34 +127,24 @@ bool HeadTracking::Initialize(minIni *ini, CM730 *cm730)
         return false;
     }
 
-    // 3. Load Head-specific settings from INI
-    LoadHeadSettings(ini_settings_);
-
-    // 4. Configure Head Motors directly via CM730
-    std::cout << "INFO: Configuring Head motors directly via CM730..." << std::endl;
+    // 4. Configure Head Module (now directly controlled by HeadTracking)
+    std::cout << "INFO: Configuring Head module directly via HeadTracking..." << std::endl;
     // Explicitly enable head joints and set initial gains
-    // Note: JointData::SetEnableHeadOnly might not be available without JointData class instance.
-    // We will directly write to the torque enable register.
-    cm730_->WriteByte(JointData::ID_HEAD_PAN, MX28::P_TORQUE_ENABLE, 1, 0); // Enable torque for Pan
-    cm730_->WriteByte(JointData::ID_HEAD_TILT, MX28::P_TORQUE_ENABLE, 1, 0); // Enable torque for Tilt
-    cm730_->WriteByte(JointData::ID_HEAD_PAN, MX28::P_P_GAIN, (int)m_Pan_p_gain, 0); // Set P-gain for pan
-    cm730_->WriteByte(JointData::ID_HEAD_TILT, MX28::P_P_GAIN, (int)m_Tilt_p_gain, 0); // Set P-gain for tilt
-    // Also set D-gain if MX28 supports it directly
-    cm730_->WriteByte(JointData::ID_HEAD_PAN, MX28::P_D_GAIN, (int)m_Pan_d_gain, 0);
-    cm730_->WriteByte(JointData::ID_HEAD_TILT, MX28::P_D_GAIN, (int)m_Tilt_d_gain, 0);
-
-    std::cout << "INFO: Head motors configured." << std::endl;
+    head_module_->m_Joint.SetEnableHeadOnly(true, true); // Enable torque for head motors
+    head_module_->m_Joint.SetPGain(JointData::ID_HEAD_PAN, 8); // Set P-gain for pan
+    head_module_->m_Joint.SetPGain(JointData::ID_HEAD_TILT, 8); // Set P-gain for tilt
+    std::cout << "INFO: Head module configured." << std::endl;
 
     // 5. Create display frame buffer
-    rgb_display_frame_ = new Robot::Image(Camera::WIDTH, Camera::HEIGHT, Robot::Image::RGB_PIXEL_SIZE);
+    rgb_display_frame_ = new Robot::Image(Camera::WIDTH, Camera::HEIGHT, Robot::Image::RGB_PIXEL_SIZE); // Use Robot::Image
     if (!rgb_display_frame_)
     {
         std::cerr << "ERROR: HeadTracking initialization failed: Failed to create display frame buffer." << std::endl;
-        Cleanup();
+        Cleanup(); // Clean up already initialized resources
         return false;
     }
 
-    // 6. Load HeadTracking tuning parameters from INI if available
+    // 6. Load tuning parameters from INI if available
     if (ini_settings_)
     {
         pan_error_scale_ = ini_settings_->getd("HeadTracking", "PanErrorScale", pan_error_scale_);
@@ -174,7 +161,7 @@ bool HeadTracking::Initialize(minIni *ini, CM730 *cm730)
 void HeadTracking::Run()
 {
     // Check if essential components are initialized before running
-    if (client_socket_ < 0 || !streamer_ || !rgb_display_frame_ || !ini_settings_ || !cm730_)
+    if (client_socket_ < 0 || !streamer_ || !rgb_display_frame_ || !ini_settings_ || !head_module_ || !cm730_)
     {
         std::cerr << "ERROR: HeadTracking not fully initialized. Cannot run." << std::endl;
         return;
@@ -184,13 +171,14 @@ void HeadTracking::Run()
 
     usleep(500000); // 0.5 second delay
 
+    // Variables for periodic motor status check
     const int STATUS_CHECK_INTERVAL = 30; // Check status every 30 frames
 
     while (1)
     {
         // --- Capture Frame ---
         LinuxCamera::GetInstance()->CaptureFrame();
-        Robot::Image *current_cam_rgb_frame = LinuxCamera::GetInstance()->fbuffer->m_RGBFrame;
+        Robot::Image *current_cam_rgb_frame = LinuxCamera::GetInstance()->fbuffer->m_RGBFrame; // Use Robot::Image
 
         if (!current_cam_rgb_frame || !current_cam_rgb_frame->m_ImageData)
         {
@@ -235,8 +223,13 @@ void HeadTracking::Run()
         // --- Update Head Tracking based on Detections ---
         UpdateHeadTracking(detections);
 
-        // --- Apply calculated angles to motors ---
-        ApplyHeadAngles();
+        // --- IMPORTANT: Manually process the Head module to apply new angles ---
+        // Since Head is no longer added to MotionManager, we must call Process() here.
+        if (head_module_) {
+            head_module_->Process();
+        } else {
+            std::cerr << "ERROR: Head module is null in HeadTracking::Run(). Cannot process head movements." << std::endl;
+        }
 
         // --- Periodic Motor Status Check ---
         frame_counter_++;
@@ -250,11 +243,11 @@ void HeadTracking::Run()
 
             cm730_->ReadByte(JointData::ID_HEAD_PAN, MX28::P_TORQUE_ENABLE, &pan_torque_status, &pan_error);
             cm730_->ReadByte(JointData::ID_HEAD_TILT, MX28::P_TORQUE_ENABLE, &tilt_torque_status, &tilt_error);
-            cm730_->ReadByte(JointData::ID_HEAD_PAN, MX28::P_MOVING, &pan_moving, &pan_error);
+            cm730_->ReadByte(JointData::ID_HEAD_PAN, MX28::P_MOVING, &pan_moving, &pan_error); // Check if motor is moving
             cm730_->ReadByte(JointData::ID_HEAD_TILT, MX28::P_MOVING, &tilt_moving, &tilt_error);
-            cm730_->ReadWord(JointData::ID_HEAD_PAN, MX28::P_PRESENT_LOAD_L, &pan_present_load, &pan_error);
+            cm730_->ReadWord(JointData::ID_HEAD_PAN, MX28::P_PRESENT_LOAD_L, &pan_present_load, &pan_error); // Check load
             cm730_->ReadWord(JointData::ID_HEAD_TILT, MX28::P_PRESENT_LOAD_L, &tilt_present_load, &tilt_error);
-            cm730_->ReadByte(JointData::ID_HEAD_PAN, MX28::P_PRESENT_TEMPERATURE, &pan_present_temp, &pan_error);
+            cm730_->ReadByte(JointData::ID_HEAD_PAN, MX28::P_PRESENT_TEMPERATURE, &pan_present_temp, &pan_error); // Check temperature
             cm730_->ReadByte(JointData::ID_HEAD_TILT, MX28::P_PRESENT_TEMPERATURE, &tilt_present_temp, &tilt_error);
 
             std::cout << "DEBUG: Motor Status - Pan: Torque=" << pan_torque_status << " Moving=" << pan_moving << " Load=" << pan_present_load << " Temp=" << pan_present_temp << " Error=" << pan_error << std::endl;
@@ -263,12 +256,13 @@ void HeadTracking::Run()
             // If torque is off, try re-enabling it
             if (pan_torque_status != 1 || tilt_torque_status != 1) {
                 std::cerr << "WARNING: Head motor torque lost. Attempting to re-enable." << std::endl;
-                cm730_->WriteByte(JointData::ID_HEAD_PAN, MX28::P_TORQUE_ENABLE, 1, 0);
-                cm730_->WriteByte(JointData::ID_HEAD_TILT, MX28::P_TORQUE_ENABLE, 1, 0);
+                Head::GetInstance()->m_Joint.SetEnableHeadOnly(true, true);
+                // Add a small delay after re-enabling
                 usleep(100000); // 100ms
             }
             frame_counter_ = 0; // Reset counter
         }
+
 
         // --- Stream Image ---
         if (streamer_ && rgb_display_frame_)
@@ -279,6 +273,8 @@ void HeadTracking::Run()
         {
             std::cerr << "WARNING: Cannot stream image due to invalid streamer or frame pointer." << std::endl;
         }
+
+        // usleep(10000); // Optional delay
     }
 
     std::cout << "INFO: HeadTracking main loop terminated." << std::endl;
@@ -293,6 +289,8 @@ void HeadTracking::Cleanup()
         close(client_socket_); // Close the client connection socket
         client_socket_ = -1;
     }
+    // The server socket was closed after accepting the connection in InitializeSocketServer.
+    // The socket file is unlinked in main.cpp.
 
     if (streamer_)
     {
@@ -306,7 +304,7 @@ void HeadTracking::Cleanup()
         rgb_display_frame_ = nullptr;
     }
 
-    // cm730_ is not owned here, it is managed externally.
+    // Head module and CM730 are not owned here, they are managed externally.
 
     std::cout << "INFO: HeadTracking cleanup complete." << std::endl;
 }
@@ -374,7 +372,7 @@ bool HeadTracking::InitializeStreamer()
     return true;
 }
 
-bool HeadTracking::SendFrameData(Robot::Image *frame)
+bool HeadTracking::SendFrameData(Robot::Image *frame) // Use Robot::Image
 {
     if (!frame || !frame->m_ImageData || client_socket_ < 0)
     {
@@ -447,7 +445,7 @@ std::vector<ParsedDetection> HeadTracking::ParseDetectionOutput(const std::strin
     while (std::getline(ss, line, '\n'))
     {
         std::stringstream line_ss(line);
-        ParsedDetection det;
+        ParsedDetection det; // Correctly declare ParsedDetection here
 
         std::string label_str;
 
@@ -464,7 +462,7 @@ std::vector<ParsedDetection> HeadTracking::ParseDetectionOutput(const std::strin
     return detections;
 }
 
-void HeadTracking::DrawBoundingBox(Robot::Image *image, const ParsedDetection &detection)
+void HeadTracking::DrawBoundingBox(Robot::Image *image, const ParsedDetection &detection) // Use Robot::Image
 {
     if (!image || !image->m_ImageData)
     {
@@ -519,10 +517,10 @@ void HeadTracking::DrawBoundingBox(Robot::Image *image, const ParsedDetection &d
            detection.label.c_str(), detection.score, xmin, ymin, xmax, ymax);
 }
 
-void HeadTracking::UpdateHeadTracking(const std::vector<ParsedDetection>& detections)
+void HeadTracking::UpdateHeadTracking(const std::vector<ParsedDetection> &detections)
 {
     bool person_found_in_frame = false;
-    Robot::Point2D tracked_object_center_for_head;
+    Robot::Point2D tracked_object_center_for_head; // Use Robot::Point2D
     std::string primary_detected_label = "none";
 
     for (const auto &det : detections)
@@ -548,45 +546,57 @@ void HeadTracking::UpdateHeadTracking(const std::vector<ParsedDetection>& detect
     if (person_found_in_frame)
     {
         no_target_count_ = 0;
-        Robot::Point2D P_err;
+        Robot::Point2D P_err; // Use Robot::Point2D
 
-        Robot::Point2D pixel_offset_from_center;
+        Robot::Point2D pixel_offset_from_center; // Use Robot::Point2D
         pixel_offset_from_center.X = tracked_object_center_for_head.X - (Camera::WIDTH / 2.0);
         pixel_offset_from_center.Y = tracked_object_center_for_head.Y - (Camera::HEIGHT / 2.0);
 
-        std::cout << "DEBUG: Raw Pixel Offset - X: " << pixel_offset_from_center.X
-                  << ", Y: " << pixel_offset_from_center.Y << std::endl;
-
         pixel_offset_from_center.X *= -1;
-        pixel_offset_from_center.Y *= -1;
+        pixel_offset_from_center.Y *= -1; // Keep this inversion if it works for your robot's tilt
 
         P_err.X = pixel_offset_from_center.X * (Camera::VIEW_H_ANGLE / (double)Camera::WIDTH);
         P_err.Y = pixel_offset_from_center.Y * (Camera::VIEW_V_ANGLE / (double)Camera::HEIGHT);
 
-        std::cout << "DEBUG: Raw Angular Error (deg) - Pan: " << P_err.X
-                  << ", Tilt: " << P_err.Y << std::endl;
-
+        // --- Apply Deadband and Error Scaling for Centering ---
+        // Apply deadband: only move if error is greater than the threshold
         if (std::abs(P_err.X) < pan_deadband_deg_) {
-            P_err.X = 0.0;
+            P_err.X = 0.0; // Set error to zero within the deadband
         } else {
+            // Apply additional scaling outside the deadband
             P_err.X *= pan_error_scale_;
         }
 
         if (std::abs(P_err.Y) < tilt_deadband_deg_) {
-            P_err.Y = 0.0;
+            P_err.Y = 0.0; // Set error to zero within the deadband
         } else {
+            // Apply additional scaling outside the deadband
             P_err.Y *= tilt_error_scale_;
         }
 
-        UpdateHeadAngles(P_err); // Call the new method to update angles
-        std::cout << "DEBUG: Head Moving: P_err.X=" << P_err.X << ", P_err.Y=" << P_err.Y << std::endl;
+        if (head_module_)
+        {
+            head_module_->MoveTracking(P_err);
+            std::cout << "DEBUG: Head Moving: P_err.X=" << P_err.X << ", P_err.Y=" << P_err.Y << std::endl; // Debug print
+        }
+        else
+        {
+            std::cerr << "ERROR: Head module not initialized in UpdateHeadTracking." << std::endl;
+        }
     }
     else
     {
-        if (no_target_count_ < NO_TARGET_MAX_COUNT)
+        if (no_target_count_ < NO_TARGET_MAX_COUNT) // Correctly use NO_TARGET_MAX_COUNT
         {
-            UpdateHeadAngles(Robot::Point2D(0.0, 0.0)); // Center head slowly
-            std::cout << "DEBUG: Head Centering: NoTargetCount=" << no_target_count_ << std::endl;
+            if (head_module_)
+            {
+                head_module_->MoveTracking(Robot::Point2D(0.0, 0.0)); // Use Robot::Point2D
+                std::cout << "DEBUG: Head Centering: NoTargetCount=" << no_target_count_ << std::endl; // Debug print
+            }
+            else
+            {
+                std::cerr << "ERROR: Head module not initialized for centering in UpdateHeadTracking." << std::endl;
+            }
             no_target_count_++;
         }
         else
@@ -595,8 +605,16 @@ void HeadTracking::UpdateHeadTracking(const std::vector<ParsedDetection>& detect
             {
                 cm730_->WriteWord(CM730::ID_CM, CM730::P_LED_EYE_L, black_color_, NULL); // Black
             }
-            MoveToHome(); // Return to initial position
-            std::cout << "DEBUG: Head Moving to Home." << std::endl;
+
+            if (head_module_)
+            {
+                head_module_->MoveToHome(); // Return to initial position
+                std::cout << "DEBUG: Head Moving to Home." << std::endl; // Debug print
+            }
+            else
+            {
+                std::cerr << "ERROR: Head module not initialized for MoveToHome in UpdateHeadTracking." << std::endl;
+            }
         }
     }
 }
@@ -630,157 +648,7 @@ std::string HeadTracking::GetDetectedLabel()
     return current_detected_label_;
 }
 
-Robot::Point2D HeadTracking::GetTrackedObjectCenter()
+Robot::Point2D HeadTracking::GetTrackedObjectCenter() // Use Robot::Point2D
 {
     return current_tracked_object_center_;
-}
-
-// --- New methods to replace Head.cpp functionality ---
-
-void HeadTracking::LoadHeadSettings(minIni* ini)
-{
-    m_Pan_p_gain = ini->getd("Head", "Pan_P_GAIN", m_Pan_p_gain);
-    m_Pan_d_gain = ini->getd("Head", "Pan_D_GAIN", m_Pan_d_gain);
-    m_Tilt_p_gain = ini->getd("Head", "Tilt_P_GAIN", m_Tilt_p_gain);
-    m_Tilt_d_gain = ini->getd("Head", "Tilt_D_GAIN", m_Tilt_d_gain);
-
-    m_LeftLimit = ini->getd("Head", "LeftLimit", m_LeftLimit);
-    m_RightLimit = ini->getd("Head", "RightLimit", m_RightLimit);
-    m_TopLimit = ini->getd("Head", "TopLimit", Kinematics::EYE_TILT_OFFSET_ANGLE); // Use Kinematics constant
-    m_BottomLimit = ini->getd("Head", "BottomLimit", Kinematics::EYE_TILT_OFFSET_ANGLE - 65.0); // Use Kinematics constant
-
-    m_Pan_Home = ini->getd("Head", "Pan_Home", 0.0); // Default to 0.0
-    m_Tilt_Home = ini->getd("Head", "Tilt_Home", Kinematics::EYE_TILT_OFFSET_ANGLE - 30.0); // Use Kinematics constant
-
-    std::cout << "INFO: HeadTracking::LoadHeadSettings - Pan_P_GAIN: " << m_Pan_p_gain
-              << ", Pan_D_GAIN: " << m_Pan_d_gain
-              << ", Tilt_P_GAIN: " << m_Tilt_p_gain
-              << ", Tilt_D_GAIN: " << m_Tilt_d_gain << std::endl;
-    std::cout << "INFO: HeadTracking::LoadHeadSettings - Limits: L=" << m_LeftLimit << ", R=" << m_RightLimit
-              << ", T=" << m_TopLimit << ", B=" << m_BottomLimit << std::endl;
-    std::cout << "INFO: HeadTracking::LoadHeadSettings - Home: Pan=" << m_Pan_Home << ", Tilt=" << m_Tilt_Home << std::endl;
-}
-
-void HeadTracking::CheckLimit()
-{
-    if(m_PanAngle > m_LeftLimit)
-        m_PanAngle = m_LeftLimit;
-    else if(m_PanAngle < m_RightLimit)
-        m_PanAngle = m_RightLimit;
-
-    if(m_TiltAngle > m_TopLimit)
-        m_TiltAngle = m_TopLimit;
-    else if(m_TiltAngle < m_BottomLimit)
-        m_TiltAngle = m_BottomLimit;
-
-    std::cout << "DEBUG: HeadTracking::CheckLimit - PanAngle: " << m_PanAngle << ", TiltAngle: " << m_TiltAngle << std::endl;
-}
-
-void HeadTracking::MoveToHome()
-{
-    MoveByAngle(m_Pan_Home, m_Tilt_Home);
-    std::cout << "DEBUG: HeadTracking::MoveToHome - Moving to Pan_Home: " << m_Pan_Home << ", Tilt_Home: " << m_Tilt_Home << std::endl;
-}
-
-void HeadTracking::MoveByAngle(double pan, double tilt)
-{
-    m_PanAngle = pan;
-    m_TiltAngle = tilt;
-
-    CheckLimit();
-    std::cout << "DEBUG: HeadTracking::MoveByAngle - Target Pan: " << pan << ", Target Tilt: " << tilt
-              << " (After Limit: Pan: " << m_PanAngle << ", Tilt: " << m_TiltAngle << ")" << std::endl;
-}
-
-void HeadTracking::MoveByAngleOffset(double pan, double tilt)
-{
-    MoveByAngle(m_PanAngle + pan, m_TiltAngle + tilt);
-    std::cout << "DEBUG: HeadTracking::MoveByAngleOffset - Offset Pan: " << pan << ", Offset Tilt: " << tilt << std::endl;
-}
-
-void HeadTracking::InitTracking()
-{
-    m_Pan_err = 0;
-    m_Pan_err_diff = 0;
-    m_Tilt_err = 0;
-    m_Tilt_err_diff = 0;
-    std::cout << "DEBUG: HeadTracking::InitTracking - Tracking errors reset." << std::endl;
-}
-
-void HeadTracking::UpdateHeadAngles(Robot::Point2D err)
-{
-    // This function combines the logic of Head::MoveTracking(Point2D err) and Head::MoveTracking()
-    m_Pan_err_diff = err.X - m_Pan_err;
-    m_Pan_err = err.X;
-
-    m_Tilt_err_diff = err.Y - m_Tilt_err;
-    m_Tilt_err = err.Y;
-
-    std::cout << "DEBUG: HeadTracking::UpdateHeadAngles - Input P_err.X: " << err.X << ", P_err.Y: " << err.Y << std::endl;
-    std::cout << "DEBUG: HeadTracking::UpdateHeadAngles - m_Pan_err: " << m_Pan_err << ", m_Pan_err_diff: " << m_Pan_err_diff << std::endl;
-    std::cout << "DEBUG: HeadTracking::UpdateHeadAngles - m_Tilt_err: " << m_Tilt_err << ", m_Tilt_err_diff: " << m_Tilt_err_diff << std::endl;
-
-    double pOffset, dOffset;
-
-    // Pan PID calculation
-    pOffset = m_Pan_err * m_Pan_p_gain;
-    dOffset = m_Pan_err_diff * m_Pan_d_gain;
-    m_PanAngle += (pOffset + dOffset);
-
-    // Tilt PID calculation
-    pOffset = m_Tilt_err * m_Tilt_p_gain;
-    dOffset = m_Tilt_err_diff * m_Tilt_d_gain;
-    m_TiltAngle += (pOffset + dOffset);
-
-    std::cout << "DEBUG: HeadTracking::UpdateHeadAngles - Pan pOffset: " << m_Pan_err * m_Pan_p_gain
-              << ", Pan dOffset: " << m_Pan_err_diff * m_Pan_d_gain
-              << ", New PanAngle (before limit): " << m_PanAngle << std::endl;
-    std::cout << "DEBUG: HeadTracking::UpdateHeadAngles - Tilt pOffset: " << m_Tilt_err * m_Tilt_p_gain
-              << ", Tilt dOffset: " << m_Tilt_err_diff * m_Tilt_d_gain
-              << ", New TiltAngle (before limit): " << m_TiltAngle << std::endl;
-
-    CheckLimit(); // Apply limits after calculating new angles
-}
-
-void HeadTracking::ApplyHeadAngles()
-{
-    // Convert angle (degrees) to MX-28 position value (0-4095)
-    // Formula: position = (angle + 150) * 4095 / 300
-    // Pan: -150 to 150 degrees -> 0 to 4095
-    // Tilt: -150 to 150 degrees -> 0 to 4095 (though your limits are tighter)
-    int pan_position = static_cast<int>((m_PanAngle + 150.0) * 4095.0 / 300.0);
-    int tilt_position = static_cast<int>((m_TiltAngle + 150.0) * 4095.0 / 300.0);
-
-    // Ensure positions are within valid range
-    pan_position = std::max(0, std::min(4095, pan_position));
-    tilt_position = std::max(0, std::min(4095, tilt_position));
-
-    // Check if CM730 is available
-    if (cm730_)
-    {
-        // Check if head joints are enabled by reading their torque enable status
-        int pan_torque_enable = 0;
-        int tilt_torque_enable = 0;
-        cm730_->ReadByte(JointData::ID_HEAD_PAN, MX28::P_TORQUE_ENABLE, &pan_torque_enable, 0);
-        cm730_->ReadByte(JointData::ID_HEAD_TILT, MX28::P_TORQUE_ENABLE, &tilt_torque_enable, 0);
-
-        if (pan_torque_enable == 1 && tilt_torque_enable == 1)
-        {
-            // Set target positions for the head motors
-            cm730_->WriteWord(JointData::ID_HEAD_PAN, MX28::P_GOAL_POSITION_L, pan_position, 0);
-            cm730_->WriteWord(JointData::ID_HEAD_TILT, MX28::P_GOAL_POSITION_L, tilt_position, 0);
-
-            std::cout << "DEBUG: HeadTracking::ApplyHeadAngles - Setting Pan Pos: " << pan_position
-                      << " (Angle: " << m_PanAngle << "), Tilt Pos: " << tilt_position
-                      << " (Angle: " << m_TiltAngle << ")" << std::endl;
-        }
-        else
-        {
-            std::cout << "DEBUG: HeadTracking::ApplyHeadAngles - Head joints are not enabled, skipping angle setting." << std::endl;
-        }
-    }
-    else
-    {
-        std::cerr << "ERROR: HeadTracking::ApplyHeadAngles - CM730 not initialized, cannot set angles." << std::endl;
-    }
 }

@@ -1,29 +1,43 @@
+/*
+ * HeadTracking.h
+ *
+ * Created on: May 17, 2025
+ * Author: Your Name
+ * Description: Singleton class to manage head tracking, socket communication
+ * with a detector script, and MJPG streaming for a DARwIn-OP robot.
+ * Directly controls head motors without relying on Head.cpp.
+ */
+
 #ifndef HEADTRACKING_H_
 #define HEADTRACKING_H_
 
 #include <string>   // For std::string
 #include <vector>   // For std::vector
+#include <memory>   // For std::unique_ptr
+#include <iostream> // For std::cerr, std::cout
+#include <cmath>    // For std::abs (needed for CheckLimit, PID)
 
-// Include necessary headers for types used in HeadTracking class members and methods
-#include "Point.h"        // For Robot::Point2D
-#include "Head.h"         // For Robot::Head and JointData (often pulled in by Head.h)
-#include "CM730.h"        // For CM730 class
-#include "Camera.h"       // For Camera::WIDTH, Camera::HEIGHT, and Robot::Image
+// Headers for Unix Domain Sockets
+#include <sys/socket.h>
+#include <sys/un.h>
+#include <errno.h> // For errno and strerror
+
+// Framework includes that are still necessary
+#include "Camera.h"        // For Camera::WIDTH, Camera::HEIGHT, VIEW_H_ANGLE, VIEW_V_ANGLE
 #include "mjpg_streamer.h" // For mjpg_streamer class
-#include "minIni.h"       // For minIni class
+#include "CM730.h"         // For CM730 class (direct motor control)
+#include "minIni.h"        // For minIni class
+#include "Point.h"         // For Robot::Point2D
+#include "JointData.h"     // For JointData::ID_HEAD_PAN, ID_HEAD_TILT, MX28 constants
 
 // Forward declarations for Robot namespace classes if they are only used as pointers/references
-// and their full definition is not needed in the header.
-// However, in this case, we need full definitions for member variables and method parameters,
-// so including the respective headers is more robust.
 namespace Robot
 {
-    class MotionManager; // Still forward declare if HeadTracking.h is included by files that use MotionManager
-    // Robot::Head, Robot::Point2D, Robot::Image are now fully defined by includes above.
+    class MotionManager; // Still forward declare if needed by other parts of the system
+    class Image;         // For Robot::Image
 }
 
 // Structure to hold parsed detection data received from Python
-// This must be defined BEFORE the HeadTracking class if HeadTracking uses it.
 struct ParsedDetection
 {
     std::string label;
@@ -31,53 +45,18 @@ struct ParsedDetection
     float xmin, ymin, xmax, ymax; // Normalized coordinates [0.0, 1.0]
 };
 
+// Declare socket path using extern - the definition is in HeadTracking.cpp
+extern const char *SOCKET_PATH;
+
 class HeadTracking
 {
-private:
-    int client_socket_;
-    mjpg_streamer *streamer_; // Full definition of mjpg_streamer is now available
-    minIni *ini_settings_;
-    Robot::Head *head_module_; // Pointer to the Head singleton
-    CM730 *cm730_;             // Full definition of CM730 is now available
-    Robot::Image *rgb_display_frame_; // Full definition of Robot::Image is now available
-    int no_target_count_;
-    double pan_error_scale_;
-    double tilt_error_scale_;
-    double pan_deadband_deg_;
-    double tilt_deadband_deg_;
-    int black_color_;
-    std::string current_detected_label_;
-    Robot::Point2D current_tracked_object_center_;
-    int frame_counter_;
-
-    // Define NO_TARGET_MAX_COUNT here, as it's a static const member
-    static const int NO_TARGET_MAX_COUNT = 30; // Number of frames to wait before initiating scan
-
-    // Private helper methods
-    int InitializeSocketServer();
-    bool InitializeStreamer();
-    bool SendFrameData(Robot::Image *frame);
-    std::vector<ParsedDetection> ReceiveDetectionResults();
-    std::vector<ParsedDetection> ParseDetectionOutput(const std::string &output);
-    void DrawBoundingBox(Robot::Image *image, const ParsedDetection &detection);
-    void UpdateHeadTracking(const std::vector<ParsedDetection> &detections);
-    std::string ReceiveExact(int sock_fd, size_t num_bytes);
-
-    // Private constructor for singleton pattern
-    HeadTracking();
-    // Prevent copy and assignment
-    HeadTracking(const HeadTracking &) = delete;
-    HeadTracking &operator=(const HeadTracking &) = delete;
-
 public:
-    // Explicitly declare the destructor
-    ~HeadTracking();
+    // Singleton access method
+    static HeadTracking* GetInstance();
 
-    // Public method to get the singleton instance
-    static HeadTracking *GetInstance();
-
-    // Modified Initialize signature to accept Head* and CM730*
-    bool Initialize(minIni *ini, Robot::Head *head_module, CM730 *cm730);
+    // Initialization method
+    // Now only takes minIni and CM730, as Head module is integrated.
+    bool Initialize(minIni* ini, CM730 *cm730);
 
     // Main tracking loop
     void Run();
@@ -85,9 +64,95 @@ public:
     // Cleanup method
     void Cleanup();
 
-    // Public getters for detected label and object center
-    std::string GetDetectedLabel();
-    Robot::Point2D GetTrackedObjectCenter();
+    // Explicitly declare the destructor
+    ~HeadTracking();
+
+private:
+    // Private constructor to enforce singleton pattern
+    HeadTracking();
+
+    // Delete copy constructor and assignment operator
+    HeadTracking(const HeadTracking&) = delete;
+    HeadTracking& operator=(const HeadTracking&) = delete;
+
+    // --- Member Variables ---
+    int client_socket_;         // File descriptor for the client socket connection
+    mjpg_streamer* streamer_;   // Pointer to the MJPG streamer instance
+    minIni* ini_settings_;      // Pointer to loaded INI settings (owned by main)
+    CM730 *cm730_;              // Pointer to CM730 instance (direct motor control)
+    Robot::Image *rgb_display_frame_; // Image buffer for the output frame with detections
+
+    // Head control state variables (moved from Head.h)
+    double m_PanAngle;
+    double m_TiltAngle;
+    double m_Pan_err;
+    double m_Pan_err_diff;
+    double m_Tilt_err;
+    double m_Tilt_err_diff;
+
+    // PID Gains (moved from Head.h)
+    double m_Pan_p_gain;
+    double m_Pan_d_gain;
+    double m_Tilt_p_gain;
+    double m_Tilt_d_gain;
+
+    // Limits (moved from Head.h)
+    double m_LeftLimit;
+    double m_RightLimit;
+    double m_TopLimit;
+    double m_BottomLimit;
+
+    // Home position (moved from Head.h)
+    double m_Pan_Home;
+    double m_Tilt_Home;
+
+    // Tracking state variables
+    int no_target_count_;
+    static const int NO_TARGET_MAX_COUNT = 30; // Number of frames to wait before initiating scan
+
+    // Tuning Parameters for Centering (loaded from INI in Initialize)
+    double pan_error_scale_;
+    double tilt_error_scale_;
+    double pan_deadband_deg_;
+    double tilt_deadband_deg_;
+    int black_color_; // For LED control
+
+    // Frame counter for periodic motor status checks
+    int frame_counter_;
+
+    // Current detected label and tracked object center (for getters)
+    std::string current_detected_label_;
+    Robot::Point2D current_tracked_object_center_;
+
+
+    // --- Private Helper Methods (implementing Head.cpp functionality) ---
+
+    // Initializes the Unix Domain Socket server and waits for connection
+    int InitializeSocketServer();
+    // Initializes the MJPG Streamer
+    bool InitializeStreamer();
+    // Handles sending frame data over the socket
+    bool SendFrameData(Robot::Image* frame);
+    // Handles receiving detection results over the socket and parsing them
+    std::vector<ParsedDetection> ReceiveDetectionResults();
+    // Function to parse the detection string received from Python
+    std::vector<ParsedDetection> ParseDetectionOutput(const std::string &output);
+    // Basic function to draw bounding boxes on the RGB image
+    void DrawBoundingBox(Robot::Image *image, const ParsedDetection &detection);
+    // Handles head tracking logic based on detection results
+    void UpdateHeadTracking(const std::vector<ParsedDetection>& detections);
+    // Helper to receive exact number of bytes from socket
+    std::string ReceiveExact(int sock_fd, size_t num_bytes);
+
+    // New methods to replace Head.cpp functionality:
+    void LoadHeadSettings(minIni* ini); // Load head-specific settings from INI
+    void CheckLimit(); // Apply angle limits
+    void MoveToHome(); // Move head to home position
+    void MoveByAngle(double pan, double tilt); // Set target angles
+    void MoveByAngleOffset(double pan, double tilt); // Move by angle offset
+    void InitTracking(); // Reset tracking errors
+    void UpdateHeadAngles(Robot::Point2D err); // Calculate new angles based on error (replaces MoveTracking(Point2D err))
+    void ApplyHeadAngles(); // Apply calculated angles to motors (replaces Head::Process())
 };
 
 #endif // HEADTRACKING_H_
