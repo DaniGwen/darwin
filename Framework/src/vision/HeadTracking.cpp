@@ -72,14 +72,6 @@ HeadTracking::HeadTracking()
     // should be done in the Initialize() method.
 }
 
-// Destructor definition (must be defined if declared)
-HeadTracking::~HeadTracking()
-{
-    Cleanup();
-    // Note: ini_settings_ is owned by main and should not be deleted here.
-    // Motion framework components (head_module_, cm730_) are not owned here.
-}
-
 // Modified Initialize signature to accept Head*
 bool HeadTracking::Initialize(minIni *ini, Robot::Head *head_module, CM730 *cm730)
 {
