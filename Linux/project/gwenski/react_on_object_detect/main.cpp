@@ -151,6 +151,8 @@ int main(void)
 
     while (1)
     {
+         MotionManager::GetInstance()->AddModule((MotionModule *)Head::GetInstance());
+
         // Get the latest detected label from the HeadTracking thread
         std::string detected_object_label = head_tracker->GetDetectedLabel();
 
@@ -160,6 +162,8 @@ int main(void)
         // Use if-else if to check the detected label
         if (detected_object_label == "person" && current_action_label != "person")
         {
+            MotionManager::GetInstance()->RemoveModule((MotionModule *)Head::GetInstance());
+
             std::cout << "INFO: Detected person. Playing action (Page " << ACTION_PAGE_WAVE << ")..." << std::endl;
             Action::GetInstance()->Start(ACTION_PAGE_WAVE);
             while (Action::GetInstance()->IsRunning())
@@ -192,6 +196,8 @@ int main(void)
         }
         else if (detected_object_label == "none" && current_action_label != "standby")
         {
+             MotionManager::GetInstance()->RemoveModule((MotionModule *)Head::GetInstance());
+             
             // If no specific object is detected and we are not already in standby, go to standby
             std::cout << "INFO: No target detected. Returning to standby action (Page " << ACTION_PAGE_STAND << ")..." << std::endl;
             Action::GetInstance()->Start(ACTION_PAGE_STAND);
