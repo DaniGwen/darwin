@@ -48,6 +48,7 @@ private:
     int black_color_;
     std::string current_detected_label_;
     Robot::Point2D current_tracked_object_center_;
+    int frame_counter_;
 
     // Define NO_TARGET_MAX_COUNT here, as it's a static const member
     static const int NO_TARGET_MAX_COUNT = 30; // Number of frames to wait before initiating scan
