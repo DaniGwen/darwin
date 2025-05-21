@@ -54,10 +54,13 @@ HeadTracking::HeadTracking()
       m_Pan_err_diff(0.0),
       m_Tilt_err(0.0),
       m_Tilt_err_diff(0.0),
-      m_Pan_p_gain(0.1),
-      m_Pan_d_gain(0.22),
-      m_Tilt_p_gain(0.1),
-      m_Tilt_d_gain(0.22),
+      // Set very conservative default P and D gains here.
+      // These will be overridden by INI settings if they exist.
+      // The INI values are the ones you need to tune.
+      m_Pan_p_gain(0.05), // Starting point for P-gain (adjust in INI)
+      m_Pan_d_gain(0.01), // Starting point for D-gain (adjust in INI)
+      m_Tilt_p_gain(0.05), // Starting point for P-gain (adjust in INI)
+      m_Tilt_d_gain(0.01), // Starting point for D-gain (adjust in INI)
       m_LeftLimit(70.0),
       m_RightLimit(-70.0),
       m_TopLimit(0.0), // Will be set by Kinematics::EYE_TILT_OFFSET_ANGLE
@@ -65,8 +68,10 @@ HeadTracking::HeadTracking()
       m_Pan_Home(0.0),
       m_Tilt_Home(0.0), // Will be set by Kinematics::EYE_TILT_OFFSET_ANGLE
       no_target_count_(0),
-      pan_error_scale_(1.0), // **CHANGED: Reduced default to 1.0**
-      tilt_error_scale_(1.0), // **CHANGED: Reduced default to 1.0**
+      // These scales multiply the error *before* applying P/D gains.
+      // Keep them at 1.0 unless you have a specific reason to scale the error itself.
+      pan_error_scale_(1.0),
+      tilt_error_scale_(1.0),
       pan_deadband_deg_(0.05),
       tilt_deadband_deg_(0.05),
       black_color_(0),
@@ -139,6 +144,11 @@ bool HeadTracking::Initialize(minIni *ini, CM730 *cm730)
     cm730_->WriteByte(JointData::ID_HEAD_PAN, MX28::P_TORQUE_ENABLE, 1, 0); // Enable torque for Pan
     cm730_->WriteByte(JointData::ID_HEAD_TILT, MX28::P_TORQUE_ENABLE, 1, 0); // Enable torque for Tilt
     // Set P and D gains using values loaded from INI
+    // IMPORTANT: The values loaded from INI (Pan_P_GAIN, Pan_D_GAIN, etc.)
+    // are the ones that directly control the motor responsiveness.
+    // If the head is jerking, these values in your config.ini are too high.
+    // Start with very small values (e.g., 0.01 to 0.1 for P-gain, and even smaller for D-gain like 0.001 to 0.05)
+    // and gradually increase them until you get smooth tracking without oscillation.
     cm730_->WriteByte(JointData::ID_HEAD_PAN, MX28::P_P_GAIN, (int)m_Pan_p_gain, 0);
     cm730_->WriteByte(JointData::ID_HEAD_TILT, MX28::P_P_GAIN, (int)m_Tilt_p_gain, 0);
     cm730_->WriteByte(JointData::ID_HEAD_PAN, MX28::P_D_GAIN, (int)m_Pan_d_gain, 0);
@@ -247,8 +257,8 @@ void HeadTracking::Run()
             int pan_present_load = 0, tilt_present_load = 0;
             int pan_present_temp = 0, tilt_present_temp = 0;
 
-            cm730_->ReadByte(JointData::ID_HEAD_PAN, MX28::P_TORQUE_ENABLE, &pan_torque_status, &pan_error);
-            cm730_->ReadByte(JointData::ID_HEAD_TILT, MX28::P_TORQUE_ENABLE, &tilt_torque_status, &tilt_error);
+            cm730_->ReadByte(JointData::ID_HEAD_PAN, MX28::P_TORQUE_ENABLE, 1, 0);
+            cm730_->ReadByte(JointData::ID_HEAD_TILT, MX28::P_TORQUE_ENABLE, 1, 0);
             cm730_->ReadByte(JointData::ID_HEAD_PAN, MX28::P_MOVING, &pan_moving, &pan_error);
             cm730_->ReadByte(JointData::ID_HEAD_TILT, MX28::P_MOVING, &tilt_moving, &tilt_error);
             cm730_->ReadWord(JointData::ID_HEAD_PAN, MX28::P_PRESENT_LOAD_L, &pan_present_load, &pan_error);
@@ -638,18 +648,21 @@ Robot::Point2D HeadTracking::GetTrackedObjectCenter()
 
 void HeadTracking::LoadHeadSettings(minIni* ini)
 {
-    m_Pan_p_gain = ini->getd("Head Pan/Tilt", "Pan_P_GAIN", m_Pan_p_gain);
-    m_Pan_d_gain = ini->getd("Head Pan/Tilt", "Pan_D_GAIN", m_Pan_d_gain);
-    m_Tilt_p_gain = ini->getd("Head Pan/Tilt", "Tilt_P_GAIN", m_Tilt_p_gain);
-    m_Tilt_d_gain = ini->getd("Head Pan/Tilt", "Tilt_D_GAIN", m_Tilt_d_gain);
+    // Load P and D gains from INI. These are the values that directly control motor responsiveness.
+    // If the head is jerking, these values in your config.ini are too high.
+    // Start with very small values and gradually increase them.
+    m_Pan_p_gain = ini->getd("Head Pan/Tilt", "pan_p_gain", m_Pan_p_gain);
+    m_Pan_d_gain = ini->getd("Head Pan/Tilt", "Pan_d_gain", m_Pan_d_gain);
+    m_Tilt_p_gain = ini->getd("Head Pan/Tilt", "tilt_p_gain", m_Tilt_p_gain);
+    m_Tilt_d_gain = ini->getd("Head Pan/Tilt", "tilt_d_gain", m_Tilt_d_gain);
 
-    m_LeftLimit = ini->getd("Head Pan/Tilt", "LeftLimit", m_LeftLimit);
-    m_RightLimit = ini->getd("Head Pan/Tilt", "RightLimit", m_RightLimit);
-    m_TopLimit = ini->getd("Head Pan/Tilt", "TopLimit", Kinematics::EYE_TILT_OFFSET_ANGLE);
-    m_BottomLimit = ini->getd("Head Pan/Tilt", "BottomLimit", Kinematics::EYE_TILT_OFFSET_ANGLE - 65.0);
+    m_LeftLimit = ini->getd("Head Pan/Tilt", "left_limit", m_LeftLimit);
+    m_RightLimit = ini->getd("Head Pan/Tilt", "right_limit", m_RightLimit);
+    m_TopLimit = ini->getd("Head Pan/Tilt", "top_limit", Kinematics::EYE_TILT_OFFSET_ANGLE);
+    m_BottomLimit = ini->getd("Head Pan/Tilt", "bottom_limit", Kinematics::EYE_TILT_OFFSET_ANGLE - 65.0);
 
-    m_Pan_Home = ini->getd("Head Pan/Tilt", "Pan_Home", 0.0);
-    m_Tilt_Home = ini->getd("Head Pan/Tilt", "Tilt_Home", Kinematics::EYE_TILT_OFFSET_ANGLE - 30.0);
+    m_Pan_Home = ini->getd("Head Pan/Tilt", "pan_home", 0.0);
+    m_Tilt_Home = ini->getd("Head Pan/Tilt", "tilt_home", Kinematics::EYE_TILT_OFFSET_ANGLE - 30.0);
 
     std::cout << "INFO: HeadTracking::LoadHeadSettings - Pan_P_GAIN: " << m_Pan_p_gain
               << ", Pan_D_GAIN: " << m_Pan_d_gain
@@ -720,6 +733,10 @@ void HeadTracking::UpdateHeadAngles(Robot::Point2D err)
 
     double pOffset, dOffset;
 
+    // The `pan_error_scale_` and `tilt_error_scale_` (loaded from INI or default 1.0)
+    // are applied to the raw angular error (P_err.X, P_err.Y) before PID calculation.
+    // The m_Pan_p_gain, m_Pan_d_gain (loaded from INI) are the actual PID gains.
+    // If the head is jerking, reduce the P_GAIN and D_GAIN values in your config.ini.
     pOffset = m_Pan_err * m_Pan_p_gain;
     dOffset = m_Pan_err_diff * m_Pan_d_gain;
     m_PanAngle += (pOffset + dOffset);
