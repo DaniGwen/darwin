@@ -22,6 +22,8 @@ int main()
 
     MotionManager::GetInstance()->Initialize(&cm730);
     MotionManager::GetInstance()->AddModule((MotionModule *)Head::GetInstance());
+    Head::GetInstance()->m_Joint.SetPGain(JointData::ID_HEAD_PAN, 8);
+	Head::GetInstance()->m_Joint.SetPGain(JointData::ID_HEAD_TILT, 8);
     Head::GetInstance()->MoveToHome();
  
     // cm730.WriteWord(CM730::ID_CM, CM730::P_LED_EYE_L, cm730.MakeColor(255, 0, 0), 0);
