@@ -22,7 +22,7 @@ int main()
 
     Head::GetInstance()->Initialize();
     Head::GetInstance()->m_Joint.SetEnableHeadOnly(true, true);
-    Head::GetInstance()->MoveToHome(); 
+    Head::GetInstance()->MoveByAngleOffset(10, 5);
 
     // cm730.WriteWord(CM730::ID_CM, CM730::P_LED_EYE_L, cm730.MakeColor(255, 0, 0), 0);
     // sleep(1); // Wait for 1 second
