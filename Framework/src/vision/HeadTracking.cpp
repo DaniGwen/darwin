@@ -257,8 +257,9 @@ void HeadTracking::Run()
             int pan_present_load = 0, tilt_present_load = 0;
             int pan_present_temp = 0, tilt_present_temp = 0;
 
-            cm730_->ReadByte(JointData::ID_HEAD_PAN, MX28::P_TORQUE_ENABLE, 1, 0);
-            cm730_->ReadByte(JointData::ID_HEAD_TILT, MX28::P_TORQUE_ENABLE, 1, 0);
+            // Corrected: Reading torque status into variables
+            cm730_->ReadByte(JointData::ID_HEAD_PAN, MX28::P_TORQUE_ENABLE, &pan_torque_status, &pan_error);
+            cm730_->ReadByte(JointData::ID_HEAD_TILT, MX28::P_TORQUE_ENABLE, &tilt_torque_status, &tilt_error);
             cm730_->ReadByte(JointData::ID_HEAD_PAN, MX28::P_MOVING, &pan_moving, &pan_error);
             cm730_->ReadByte(JointData::ID_HEAD_TILT, MX28::P_MOVING, &tilt_moving, &tilt_error);
             cm730_->ReadWord(JointData::ID_HEAD_PAN, MX28::P_PRESENT_LOAD_L, &pan_present_load, &pan_error);
@@ -272,8 +273,9 @@ void HeadTracking::Run()
             // If torque is off, try re-enabling it
             if (pan_torque_status != 1 || tilt_torque_status != 1) {
                 std::cerr << "WARNING: Head motor torque lost. Attempting to re-enable." << std::endl;
-                cm730_->WriteByte(JointData::ID_HEAD_PAN, MX28::P_TORQUE_ENABLE, 1, 0);
-                cm730_->WriteByte(JointData::ID_HEAD_TILT, MX28::P_TORQUE_ENABLE, 1, 0);
+                // Corrected: Changed ReadByte to WriteByte for re-enabling torque
+                cm730_->WriteByte(JointData::ID_HEAD_PAN, MX28::P_TORQUE_ENABLE, 1, 0); // Corrected to WriteByte
+                cm730_->WriteByte(JointData::ID_HEAD_TILT, MX28::P_TORQUE_ENABLE, 1, 0); // Corrected to WriteByte
                 usleep(100000); // 100ms
             }
             frame_counter_ = 0; // Reset counter
