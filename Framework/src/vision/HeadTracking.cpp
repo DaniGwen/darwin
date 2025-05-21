@@ -642,18 +642,18 @@ Robot::Point2D HeadTracking::GetTrackedObjectCenter()
 
 void HeadTracking::LoadHeadSettings(minIni* ini)
 {
-    m_Pan_p_gain = ini->getd("Head", "Pan_P_GAIN", m_Pan_p_gain);
-    m_Pan_d_gain = ini->getd("Head", "Pan_D_GAIN", m_Pan_d_gain);
-    m_Tilt_p_gain = ini->getd("Head", "Tilt_P_GAIN", m_Tilt_p_gain);
-    m_Tilt_d_gain = ini->getd("Head", "Tilt_D_GAIN", m_Tilt_d_gain);
+    m_Pan_p_gain = ini->getd("Head Pan/Tilt", "Pan_P_GAIN", m_Pan_p_gain);
+    m_Pan_d_gain = ini->getd("Head Pan/Tilt", "Pan_D_GAIN", m_Pan_d_gain);
+    m_Tilt_p_gain = ini->getd("Head Pan/Tilt", "Tilt_P_GAIN", m_Tilt_p_gain);
+    m_Tilt_d_gain = ini->getd("Head Pan/Tilt", "Tilt_D_GAIN", m_Tilt_d_gain);
 
-    m_LeftLimit = ini->getd("Head", "LeftLimit", m_LeftLimit);
-    m_RightLimit = ini->getd("Head", "RightLimit", m_RightLimit);
-    m_TopLimit = ini->getd("Head", "TopLimit", Kinematics::EYE_TILT_OFFSET_ANGLE); // Use Kinematics constant
-    m_BottomLimit = ini->getd("Head", "BottomLimit", Kinematics::EYE_TILT_OFFSET_ANGLE - 65.0); // Use Kinematics constant
+    m_LeftLimit = ini->getd("Head Pan/Tilt", "LeftLimit", m_LeftLimit);
+    m_RightLimit = ini->getd("Head Pan/Tilt", "RightLimit", m_RightLimit);
+    m_TopLimit = ini->getd("Head Pan/Tilt", "TopLimit", Kinematics::EYE_TILT_OFFSET_ANGLE); // Use Kinematics constant
+    m_BottomLimit = ini->getd("Head Pan/Tilt", "BottomLimit", Kinematics::EYE_TILT_OFFSET_ANGLE - 65.0); // Use Kinematics constant
 
-    m_Pan_Home = ini->getd("Head", "Pan_Home", 0.0); // Default to 0.0
-    m_Tilt_Home = ini->getd("Head", "Tilt_Home", Kinematics::EYE_TILT_OFFSET_ANGLE - 30.0); // Use Kinematics constant
+    m_Pan_Home = ini->getd("Head Pan/Tilt", "Pan_Home", 0.0); // Default to 0.0
+    m_Tilt_Home = ini->getd("Head Pan/Tilt", "Tilt_Home", Kinematics::EYE_TILT_OFFSET_ANGLE - 30.0); // Use Kinematics constant
 
     std::cout << "INFO: HeadTracking::LoadHeadSettings - Pan_P_GAIN: " << m_Pan_p_gain
               << ", Pan_D_GAIN: " << m_Pan_d_gain
