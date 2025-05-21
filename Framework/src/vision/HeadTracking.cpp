@@ -10,10 +10,11 @@
  * Added detailed logging to Run() loop, including pre-capture log and initial delay.
  * Added Python script startup to Initialize().
  * Added CM730 pointer and LED color control logic.
- * Added debug logging for LED commands and a basic LED test.
  * Added member variable and getter to expose the detected label.
  * Added member variable and getter to expose the tracked object's center coordinates.
  * Head motor control is now handled directly by HeadTracking, not MotionManager.
+ *
+ * This version includes enhanced debugging for head movement and periodic torque checks.
  */
 
 #include "HeadTracking.h" // Include the corrected header first
@@ -65,7 +66,8 @@ HeadTracking::HeadTracking()
       tilt_deadband_deg_(1.0),
       black_color_(0),
       current_detected_label_("none"),         // Initialize detected label
-      current_tracked_object_center_(0.0, 0.0) // Initialize tracked object center (X, Y)
+      current_tracked_object_center_(0.0, 0.0), // Initialize tracked object center (X, Y)
+      frame_counter_(0) // Initialize frame counter for periodic checks
 {
     // Constructor is intentionally minimal.
     // Initialization that might fail or requires external resources
@@ -169,6 +171,9 @@ void HeadTracking::Run()
 
     usleep(500000); // 0.5 second delay
 
+    // Variables for periodic motor status check
+    const int STATUS_CHECK_INTERVAL = 30; // Check status every 30 frames
+
     while (1)
     {
         // --- Capture Frame ---
@@ -224,6 +229,38 @@ void HeadTracking::Run()
             head_module_->Process();
         } else {
             std::cerr << "ERROR: Head module is null in HeadTracking::Run(). Cannot process head movements." << std::endl;
+        }
+
+        // --- Periodic Motor Status Check ---
+        frame_counter_++;
+        if (frame_counter_ >= STATUS_CHECK_INTERVAL && cm730_)
+        {
+            int pan_torque_status = 0, pan_error = 0;
+            int tilt_torque_status = 0, tilt_error = 0;
+            int pan_moving = 0, tilt_moving = 0;
+            int pan_present_load = 0, tilt_present_load = 0;
+            int pan_present_temp = 0, tilt_present_temp = 0;
+
+            cm730_->ReadByte(JointData::ID_HEAD_PAN, MX28::P_TORQUE_ENABLE, &pan_torque_status, &pan_error);
+            cm730_->ReadByte(JointData::ID_HEAD_TILT, MX28::P_TORQUE_ENABLE, &tilt_torque_status, &tilt_error);
+            cm730_->ReadByte(JointData::ID_HEAD_PAN, MX28::P_MOVING, &pan_moving, &pan_error); // Check if motor is moving
+            cm730_->ReadByte(JointData::ID_HEAD_TILT, MX28::P_MOVING, &tilt_moving, &tilt_error);
+            cm730_->ReadWord(JointData::ID_HEAD_PAN, MX28::P_PRESENT_LOAD_L, &pan_present_load, &pan_error); // Check load
+            cm730_->ReadWord(JointData::ID_HEAD_TILT, MX28::P_PRESENT_LOAD_L, &tilt_present_load, &tilt_error);
+            cm730_->ReadByte(JointData::ID_HEAD_PAN, MX28::P_PRESENT_TEMPERATURE, &pan_present_temp, &pan_error); // Check temperature
+            cm730_->ReadByte(JointData::ID_HEAD_TILT, MX28::P_PRESENT_TEMPERATURE, &tilt_present_temp, &tilt_error);
+
+            std::cout << "DEBUG: Motor Status - Pan: Torque=" << pan_torque_status << " Moving=" << pan_moving << " Load=" << pan_present_load << " Temp=" << pan_present_temp << " Error=" << pan_error << std::endl;
+            std::cout << "DEBUG: Motor Status - Tilt: Torque=" << tilt_torque_status << " Moving=" << tilt_moving << " Load=" << tilt_present_load << " Temp=" << tilt_present_temp << " Error=" << tilt_error << std::endl;
+
+            // If torque is off, try re-enabling it
+            if (pan_torque_status != 1 || tilt_torque_status != 1) {
+                std::cerr << "WARNING: Head motor torque lost. Attempting to re-enable." << std::endl;
+                Head::GetInstance()->m_Joint.SetEnableHeadOnly(true, true);
+                // Add a small delay after re-enabling
+                usleep(100000); // 100ms
+            }
+            frame_counter_ = 0; // Reset counter
         }
 
 
@@ -521,27 +558,26 @@ void HeadTracking::UpdateHeadTracking(const std::vector<ParsedDetection> &detect
         P_err.X = pixel_offset_from_center.X * (Camera::VIEW_H_ANGLE / (double)Camera::WIDTH);
         P_err.Y = pixel_offset_from_center.Y * (Camera::VIEW_V_ANGLE / (double)Camera::HEIGHT);
 
-        if (std::abs(P_err.X) < pan_deadband_deg_)
-        {
-            P_err.X = 0.0;
-        }
-        else
-        {
+        // --- Apply Deadband and Error Scaling for Centering ---
+        // Apply deadband: only move if error is greater than the threshold
+        if (std::abs(P_err.X) < pan_deadband_deg_) {
+            P_err.X = 0.0; // Set error to zero within the deadband
+        } else {
+            // Apply additional scaling outside the deadband
             P_err.X *= pan_error_scale_;
         }
 
-        if (std::abs(P_err.Y) < tilt_deadband_deg_)
-        {
-            P_err.Y = 0.0;
-        }
-        else
-        {
+        if (std::abs(P_err.Y) < tilt_deadband_deg_) {
+            P_err.Y = 0.0; // Set error to zero within the deadband
+        } else {
+            // Apply additional scaling outside the deadband
             P_err.Y *= tilt_error_scale_;
         }
 
         if (head_module_)
         {
             head_module_->MoveTracking(P_err);
+            std::cout << "DEBUG: Head Moving: P_err.X=" << P_err.X << ", P_err.Y=" << P_err.Y << std::endl; // Debug print
         }
         else
         {
@@ -555,6 +591,7 @@ void HeadTracking::UpdateHeadTracking(const std::vector<ParsedDetection> &detect
             if (head_module_)
             {
                 head_module_->MoveTracking(Robot::Point2D(0.0, 0.0)); // Use Robot::Point2D
+                std::cout << "DEBUG: Head Centering: NoTargetCount=" << no_target_count_ << std::endl; // Debug print
             }
             else
             {
@@ -572,6 +609,7 @@ void HeadTracking::UpdateHeadTracking(const std::vector<ParsedDetection> &detect
             if (head_module_)
             {
                 head_module_->MoveToHome(); // Return to initial position
+                std::cout << "DEBUG: Head Moving to Home." << std::endl; // Debug print
             }
             else
             {
