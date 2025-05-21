@@ -15,6 +15,23 @@
 
 using namespace Robot;
 
+void Head::Initialize()
+{
+
+	m_PanAngle = MotionStatus::m_CurrentJoints.GetAngle(JointData::ID_HEAD_PAN);
+
+	m_TiltAngle = -MotionStatus::m_CurrentJoints.GetAngle(JointData::ID_HEAD_TILT);
+
+	CheckLimit();
+
+
+
+	InitTracking();
+
+	MoveToHome();
+
+}
+
 
 Head* Head::m_UniqueInstance = new Head();
 
