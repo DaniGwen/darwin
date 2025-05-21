@@ -16,7 +16,7 @@
  * Head motor control is now handled directly by HeadTracking, not MotionManager.
  */
 
-#include "HeadTracking.h"
+#include "HeadTracking.h" // Include the corrected header first
 #include <string>   // Explicitly include string
 #include <vector>   // Explicitly include vector
 #include <sstream>  // Include sstream where stringstream is used
@@ -26,6 +26,12 @@
 #include <unistd.h> // For usleep
 #include <cstdlib>  // For system()
 #include <mutex>    // For std::mutex (optional, but good practice for shared data)
+
+// Headers for Unix Domain Sockets (these are usually included in LinuxDARwIn.h or similar,
+// but explicitly including them here ensures they are available for socket functions)
+#include <sys/socket.h>
+#include <sys/un.h>
+#include <errno.h> // For errno and strerror
 
 // Define socket path here (only once)
 const char *SOCKET_PATH = "/tmp/darwin_detector.sock";
@@ -63,7 +69,7 @@ HeadTracking::HeadTracking()
     // should be done in the Initialize() method.
 }
 
-// Destructor
+// Destructor definition (must be defined if declared)
 HeadTracking::~HeadTracking()
 {
     Cleanup();
@@ -125,7 +131,7 @@ bool HeadTracking::Initialize(minIni *ini, Robot::Head *head_module, CM730 *cm73
     std::cout << "INFO: Head module configured." << std::endl;
 
     // 5. Create display frame buffer
-    rgb_display_frame_ = new Image(Camera::WIDTH, Camera::HEIGHT, Image::RGB_PIXEL_SIZE);
+    rgb_display_frame_ = new Robot::Image(Camera::WIDTH, Camera::HEIGHT, Robot::Image::RGB_PIXEL_SIZE); // Use Robot::Image
     if (!rgb_display_frame_)
     {
         std::cerr << "ERROR: HeadTracking initialization failed: Failed to create display frame buffer." << std::endl;
@@ -164,7 +170,7 @@ void HeadTracking::Run()
     {
         // --- Capture Frame ---
         LinuxCamera::GetInstance()->CaptureFrame();
-        Image *current_cam_rgb_frame = LinuxCamera::GetInstance()->fbuffer->m_RGBFrame;
+        Robot::Image *current_cam_rgb_frame = LinuxCamera::GetInstance()->fbuffer->m_RGBFrame; // Use Robot::Image
 
         if (!current_cam_rgb_frame || !current_cam_rgb_frame->m_ImageData)
         {
@@ -326,7 +332,7 @@ bool HeadTracking::InitializeStreamer()
     return true;
 }
 
-bool HeadTracking::SendFrameData(Image *frame)
+bool HeadTracking::SendFrameData(Robot::Image *frame) // Use Robot::Image
 {
     if (!frame || !frame->m_ImageData || client_socket_ < 0)
     {
@@ -399,7 +405,8 @@ std::vector<ParsedDetection> HeadTracking::ParseDetectionOutput(const std::strin
     while (std::getline(ss, line, '\n'))
     {
         std::stringstream line_ss(line);
-        ParsedDetection det;
+        ParsedDetection det; // Correctly declare ParsedDetection here
+
         std::string label_str;
 
         if (line_ss >> label_str >> det.score >> det.xmin >> det.ymin >> det.xmax >> det.ymax)
@@ -415,7 +422,7 @@ std::vector<ParsedDetection> HeadTracking::ParseDetectionOutput(const std::strin
     return detections;
 }
 
-void HeadTracking::DrawBoundingBox(Image *image, const ParsedDetection &detection)
+void HeadTracking::DrawBoundingBox(Robot::Image *image, const ParsedDetection &detection) // Use Robot::Image
 {
     if (!image || !image->m_ImageData)
     {
@@ -473,7 +480,7 @@ void HeadTracking::DrawBoundingBox(Image *image, const ParsedDetection &detectio
 void HeadTracking::UpdateHeadTracking(const std::vector<ParsedDetection> &detections)
 {
     bool person_found_in_frame = false;
-    Point2D tracked_object_center_for_head;
+    Robot::Point2D tracked_object_center_for_head; // Use Robot::Point2D
     std::string primary_detected_label = "none";
 
     for (const auto &det : detections)
@@ -499,9 +506,9 @@ void HeadTracking::UpdateHeadTracking(const std::vector<ParsedDetection> &detect
     if (person_found_in_frame)
     {
         no_target_count_ = 0;
-        Point2D P_err;
+        Robot::Point2D P_err; // Use Robot::Point2D
 
-        Point2D pixel_offset_from_center;
+        Robot::Point2D pixel_offset_from_center; // Use Robot::Point2D
         pixel_offset_from_center.X = tracked_object_center_for_head.X - (Camera::WIDTH / 2.0);
         pixel_offset_from_center.Y = tracked_object_center_for_head.Y - (Camera::HEIGHT / 2.0);
 
@@ -540,11 +547,11 @@ void HeadTracking::UpdateHeadTracking(const std::vector<ParsedDetection> &detect
     }
     else
     {
-        if (no_target_count_ < NO_TARGET_MAX_COUNT)
+        if (no_target_count_ < NO_TARGET_MAX_COUNT) // Correctly use NO_TARGET_MAX_COUNT
         {
             if (head_module_)
             {
-                head_module_->MoveTracking(Point2D(0.0, 0.0)); // Stop active tracking and center head slowly
+                head_module_->MoveTracking(Robot::Point2D(0.0, 0.0)); // Use Robot::Point2D
             }
             else
             {
@@ -600,7 +607,7 @@ std::string HeadTracking::GetDetectedLabel()
     return current_detected_label_;
 }
 
-Point2D HeadTracking::GetTrackedObjectCenter()
+Robot::Point2D HeadTracking::GetTrackedObjectCenter() // Use Robot::Point2D
 {
     return current_tracked_object_center_;
 }
