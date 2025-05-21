@@ -65,10 +65,10 @@ HeadTracking::HeadTracking()
       m_Pan_Home(0.0),
       m_Tilt_Home(0.0), // Will be set by Kinematics::EYE_TILT_OFFSET_ANGLE
       no_target_count_(0),
-      pan_error_scale_(2.0), // Default values (can be overridden by INI)
-      tilt_error_scale_(2.0),
-      pan_deadband_deg_(0.05),
-      tilt_deadband_deg_(0.05),
+      pan_error_scale_(1.0), // Default values (can be overridden by INI)
+      tilt_error_scale_(1.0),
+      pan_deadband_deg_(0.5),
+      tilt_deadband_deg_(0.5),
       black_color_(0),
       frame_counter_(0), // **Reordered to match declaration in .h**
       current_detected_label_("none"),
