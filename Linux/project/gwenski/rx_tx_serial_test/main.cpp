@@ -21,7 +21,7 @@ int main()
     }
 
     Head::GetInstance()->Initialize();
-    Head::m_Joint.SetEnableHeadOnly(true, true);
+    Head::m_Joint->SetEnableHeadOnly(true, true);
     Head::GetInstance()->MoveToHome();
 
     // cm730.WriteWord(CM730::ID_CM, CM730::P_LED_EYE_L, cm730.MakeColor(255, 0, 0), 0);
