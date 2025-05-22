@@ -57,13 +57,13 @@ HeadTracking::HeadTracking()
       // Set very conservative default P and D gains here.
       // These will be overridden by INI settings if they exist.
       // The INI values are the ones you need to tune.
-      m_Pan_p_gain(0.2),  // Starting point for P-gain (adjust in INI)
+      m_Pan_p_gain(0.2),   // Starting point for P-gain (adjust in INI)
       m_Pan_d_gain(0.75),  // Starting point for D-gain (adjust in INI)
-      m_Tilt_p_gain(0.2), // Starting point for P-gain (adjust in INI)
+      m_Tilt_p_gain(0.2),  // Starting point for P-gain (adjust in INI)
       m_Tilt_d_gain(0.75), // Starting point for D-gain (adjust in INI)
       m_LeftLimit(80.0),
       m_RightLimit(-80.0),
-      m_TopLimit(0.0),    // Will be set by Kinematics::EYE_TILT_OFFSET_ANGLE
+      m_TopLimit(0.0),      // Will be set by Kinematics::EYE_TILT_OFFSET_ANGLE
       m_BottomLimit(-68.0), // Will be set by Kinematics::EYE_TILT_OFFSET_ANGLE
       m_Pan_Home(0.0),
       m_Tilt_Home(-30.0), // Will be set by Kinematics::EYE_TILT_OFFSET_ANGLE
@@ -793,31 +793,16 @@ void HeadTracking::ApplyHeadAngles()
         cm730_->ReadByte(JointData::ID_HEAD_PAN, MX28::P_MOVING, &pan_moving, 0);
         cm730_->ReadByte(JointData::ID_HEAD_TILT, MX28::P_MOVING, &tilt_moving, 0);
 
-
         if (pan_torque_enable == 1 && tilt_torque_enable == 1)
         {
-             int param[2 * 3];
-
-            int n = 0;
-
-            // Data for Head Pan Motor
-            param[n++] = JointData::ID_HEAD_PAN;
-            param[n++] = CM730::GetLowByte(pan_position);
-            param[n++] = CM730::GetHighByte(pan_position);
-
-            // Data for Head Tilt Motor
-            param[n++] = JointData::ID_HEAD_TILT;
-            param[n++] = CM730::GetLowByte(tilt_position);
-            param[n++] = CM730::GetHighByte(tilt_position);
-
-           cm730_->SyncWrite(MX28::P_GOAL_POSITION_L, 3, 2, param);
-
-            // cm730_->WriteWord(JointData::ID_HEAD_PAN, MX28::P_GOAL_POSITION_L, pan_position, 0);
-            // cm730_->WriteWord(JointData::ID_HEAD_TILT, MX28::P_GOAL_POSITION_L, tilt_position, 0);
-
-            std::cout << "DEBUG: HeadTracking::ApplyHeadAngles - Setting Pan Pos: " << pan_position
-                      << " (Angle: " << m_PanAngle << "), Tilt Pos: " << tilt_position
-                      << " (Angle: " << m_TiltAngle << ")" << std::endl;
+            cm730_->WriteWord(JointData::ID_HEAD_PAN, MX28::P_GOAL_POSITION_L, pan_position, 0);
+            cm730_->WriteWord(JointData::ID_HEAD_TILT, MX28::P_GOAL_POSITION_L, tilt_position, 0);
+            usleep(100 * 5000)
+            
+                    std::cout
+                << "DEBUG: HeadTracking::ApplyHeadAngles - Setting Pan Pos: " << pan_position
+                << " (Angle: " << m_PanAngle << "), Tilt Pos: " << tilt_position
+                << " (Angle: " << m_TiltAngle << ")" << std::endl;
         }
         else
         {
