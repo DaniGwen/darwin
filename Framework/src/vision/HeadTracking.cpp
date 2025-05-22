@@ -784,16 +784,16 @@ void HeadTracking::ApplyHeadAngles()
     {
         int pan_torque_enable = 0;
         int tilt_torque_enable = 0;
-        int is_pan_moving = 0;
-        int is_tilt_moving = 0;
+        int pan_moving = 0;
+        int tilt_moving = 0;
 
         cm730_->ReadByte(JointData::ID_HEAD_PAN, MX28::P_TORQUE_ENABLE, &pan_torque_enable, 0);
         cm730_->ReadByte(JointData::ID_HEAD_TILT, MX28::P_TORQUE_ENABLE, &tilt_torque_enable, 0);
 
-        cm730_->ReadByte(JointData::ID_HEAD_PAN, MX28::P_MOVING, &is_pan_moving, 0);
-        cm730_->ReadByte(JointData::ID_HEAD_TILT, MX28::P_MOVING, &is_tilt_moving, 0);
+        cm730_->ReadByte(JointData::ID_HEAD_PAN, MX28::P_MOVING, &pan_moving, 0);
+        cm730_->ReadByte(JointData::ID_HEAD_TILT, MX28::P_MOVING, &tilt_moving, 0);
 
-        if (pan_torque_enable == 1 && tilt_torque_enable == 1 && !is_tilt_moving && !is_pan_moving)
+        if (pan_torque_enable == 1 && tilt_torque_enable == 1 && tilt_moving == 0 && pan_moving == 0)
         {
             cm730_->WriteWord(JointData::ID_HEAD_PAN, MX28::P_GOAL_POSITION_L, pan_position, 0);
             cm730_->WriteWord(JointData::ID_HEAD_TILT, MX28::P_GOAL_POSITION_L, tilt_position, 0);
