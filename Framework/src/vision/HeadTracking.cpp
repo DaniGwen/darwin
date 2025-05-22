@@ -8,16 +8,16 @@
  */
 
 #include "HeadTracking.h" // Include the corrected header first
-#include <iostream> // Explicitly include iostream for std::cout, std::cerr, std::endl
-#include <string>   // Explicitly include string
-#include <vector>   // Explicitly include vector
-#include <sstream>  // Include sstream where stringstream is used
-#include <cmath>    // For std::abs
-#include <cstring>  // For memcpy
-#include <cstdio>   // For printf (used in DrawBoundingBox)
-#include <unistd.h> // For usleep
-#include <cstdlib>  // For system()
-#include <mutex>    // For std::mutex (optional, but good practice for shared data)
+#include <iostream>       // Explicitly include iostream for std::cout, std::cerr, std::endl
+#include <string>         // Explicitly include string
+#include <vector>         // Explicitly include vector
+#include <sstream>        // Include sstream where stringstream is used
+#include <cmath>          // For std::abs
+#include <cstring>        // For memcpy
+#include <cstdio>         // For printf (used in DrawBoundingBox)
+#include <unistd.h>       // For usleep
+#include <cstdlib>        // For system()
+#include <mutex>          // For std::mutex (optional, but good practice for shared data)
 
 // Headers for Unix Domain Sockets
 #include <sys/socket.h>
@@ -57,13 +57,13 @@ HeadTracking::HeadTracking()
       // Set very conservative default P and D gains here.
       // These will be overridden by INI settings if they exist.
       // The INI values are the ones you need to tune.
-      m_Pan_p_gain(0.05), // Starting point for P-gain (adjust in INI)
-      m_Pan_d_gain(0.01), // Starting point for D-gain (adjust in INI)
+      m_Pan_p_gain(0.05),  // Starting point for P-gain (adjust in INI)
+      m_Pan_d_gain(0.01),  // Starting point for D-gain (adjust in INI)
       m_Tilt_p_gain(0.05), // Starting point for P-gain (adjust in INI)
       m_Tilt_d_gain(0.01), // Starting point for D-gain (adjust in INI)
       m_LeftLimit(70.0),
       m_RightLimit(-70.0),
-      m_TopLimit(0.0), // Will be set by Kinematics::EYE_TILT_OFFSET_ANGLE
+      m_TopLimit(0.0),    // Will be set by Kinematics::EYE_TILT_OFFSET_ANGLE
       m_BottomLimit(0.0), // Will be set by Kinematics::EYE_TILT_OFFSET_ANGLE
       m_Pan_Home(0.0),
       m_Tilt_Home(0.0), // Will be set by Kinematics::EYE_TILT_OFFSET_ANGLE
@@ -141,7 +141,7 @@ bool HeadTracking::Initialize(minIni *ini, CM730 *cm730)
     // 4. Configure Head Motors directly via CM730
     std::cout << "INFO: Configuring Head motors directly via CM730..." << std::endl;
     // Explicitly enable head joints and set initial gains
-    cm730_->WriteByte(JointData::ID_HEAD_PAN, MX28::P_TORQUE_ENABLE, 1, 0); // Enable torque for Pan
+    cm730_->WriteByte(JointData::ID_HEAD_PAN, MX28::P_TORQUE_ENABLE, 1, 0);  // Enable torque for Pan
     cm730_->WriteByte(JointData::ID_HEAD_TILT, MX28::P_TORQUE_ENABLE, 1, 0); // Enable torque for Tilt
     // Set P and D gains using values loaded from INI
     // IMPORTANT: The values loaded from INI (Pan_P_GAIN, Pan_D_GAIN, etc.)
@@ -271,12 +271,13 @@ void HeadTracking::Run()
             std::cout << "DEBUG: Motor Status - Tilt: Torque=" << tilt_torque_status << " Moving=" << tilt_moving << " Load=" << tilt_present_load << " Temp=" << tilt_present_temp << " Error=" << tilt_error << std::endl;
 
             // If torque is off, try re-enabling it
-            if (pan_torque_status != 1 || tilt_torque_status != 1) {
+            if (pan_torque_status != 1 || tilt_torque_status != 1)
+            {
                 std::cerr << "WARNING: Head motor torque lost. Attempting to re-enable." << std::endl;
                 // Corrected: Changed ReadByte to WriteByte for re-enabling torque
-                cm730_->WriteByte(JointData::ID_HEAD_PAN, MX28::P_TORQUE_ENABLE, 1, 0); // Corrected to WriteByte
+                cm730_->WriteByte(JointData::ID_HEAD_PAN, MX28::P_TORQUE_ENABLE, 1, 0);  // Corrected to WriteByte
                 cm730_->WriteByte(JointData::ID_HEAD_TILT, MX28::P_TORQUE_ENABLE, 1, 0); // Corrected to WriteByte
-                usleep(100000); // 100ms
+                usleep(100000);                                                          // 100ms
             }
             frame_counter_ = 0; // Reset counter
         }
@@ -504,12 +505,16 @@ void HeadTracking::DrawBoundingBox(Robot::Image *image, const ParsedDetection &d
         if (ymin >= 0 && ymin < img_height)
         {
             unsigned char *p = &image->m_ImageData[(ymin * img_width + x) * pixel_size];
-            p[0] = r; p[1] = g; p[2] = b;
+            p[0] = r;
+            p[1] = g;
+            p[2] = b;
         }
         if (ymax >= 0 && ymax < img_height)
         {
             unsigned char *p = &image->m_ImageData[(ymax * img_width + x) * pixel_size];
-            p[0] = r; p[1] = g; p[2] = b;
+            p[0] = r;
+            p[1] = g;
+            p[2] = b;
         }
     }
     for (int y = ymin; y <= ymax; ++y)
@@ -517,12 +522,16 @@ void HeadTracking::DrawBoundingBox(Robot::Image *image, const ParsedDetection &d
         if (xmin >= 0 && xmin < img_width)
         {
             unsigned char *p = &image->m_ImageData[(y * img_width + xmin) * pixel_size];
-            p[0] = r; p[1] = g; p[2] = b;
+            p[0] = r;
+            p[1] = g;
+            p[2] = b;
         }
         if (xmax >= 0 && xmax < img_width)
         {
             unsigned char *p = &image->m_ImageData[(y * img_width + xmax) * pixel_size];
-            p[0] = r; p[1] = g; p[2] = b;
+            p[0] = r;
+            p[1] = g;
+            p[2] = b;
         }
     }
 
@@ -577,15 +586,21 @@ void HeadTracking::UpdateHeadTracking(const std::vector<ParsedDetection> &detect
         std::cout << "DEBUG: Raw Angular Error (deg) - Pan: " << P_err.X
                   << ", Tilt: " << P_err.Y << std::endl;
 
-        if (std::abs(P_err.X) < pan_deadband_deg_) {
+        if (std::abs(P_err.X) < pan_deadband_deg_)
+        {
             P_err.X = 0.0;
-        } else {
+        }
+        else
+        {
             P_err.X *= pan_error_scale_;
         }
 
-        if (std::abs(P_err.Y) < tilt_deadband_deg_) {
+        if (std::abs(P_err.Y) < tilt_deadband_deg_)
+        {
             P_err.Y = 0.0;
-        } else {
+        }
+        else
+        {
             P_err.Y *= tilt_error_scale_;
         }
 
@@ -648,7 +663,7 @@ Robot::Point2D HeadTracking::GetTrackedObjectCenter()
 
 // --- New methods to replace Head.cpp functionality ---
 
-void HeadTracking::LoadHeadSettings(minIni* ini)
+void HeadTracking::LoadHeadSettings(minIni *ini)
 {
     // Load P and D gains from INI. These are the values that directly control motor responsiveness.
     // If the head is jerking, these values in your config.ini are too high.
@@ -677,14 +692,14 @@ void HeadTracking::LoadHeadSettings(minIni* ini)
 
 void HeadTracking::CheckLimit()
 {
-    if(m_PanAngle > m_LeftLimit)
+    if (m_PanAngle > m_LeftLimit)
         m_PanAngle = m_LeftLimit;
-    else if(m_PanAngle < m_RightLimit)
+    else if (m_PanAngle < m_RightLimit)
         m_PanAngle = m_RightLimit;
 
-    if(m_TiltAngle > m_TopLimit)
+    if (m_TiltAngle > m_TopLimit)
         m_TiltAngle = m_TopLimit;
-    else if(m_TiltAngle < m_BottomLimit)
+    else if (m_TiltAngle < m_BottomLimit)
         m_TiltAngle = m_BottomLimit;
 
     std::cout << "DEBUG: HeadTracking::CheckLimit - PanAngle: " << m_PanAngle << ", TiltAngle: " << m_TiltAngle << std::endl;
@@ -769,10 +784,16 @@ void HeadTracking::ApplyHeadAngles()
     {
         int pan_torque_enable = 0;
         int tilt_torque_enable = 0;
+        int is_pan_moving = 0;
+        int is_tilt_moving = 0;
+
         cm730_->ReadByte(JointData::ID_HEAD_PAN, MX28::P_TORQUE_ENABLE, &pan_torque_enable, 0);
         cm730_->ReadByte(JointData::ID_HEAD_TILT, MX28::P_TORQUE_ENABLE, &tilt_torque_enable, 0);
 
-        if (pan_torque_enable == 1 && tilt_torque_enable == 1)
+        cm730_->ReadByte(JointData::ID_HEAD_PAN, MX28::P_MOVING, &is_pan_moving, 0);
+        cm730_->ReadByte(JointData::ID_HEAD_TILT, MX28::P_MOVING, &is_tilt_moving, 0);
+
+        if (pan_torque_enable == 1 && tilt_torque_enable == 1 && !is_tilt_moving && !is_pan_moving)
         {
             cm730_->WriteWord(JointData::ID_HEAD_PAN, MX28::P_GOAL_POSITION_L, pan_position, 0);
             cm730_->WriteWord(JointData::ID_HEAD_TILT, MX28::P_GOAL_POSITION_L, tilt_position, 0);
