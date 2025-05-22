@@ -774,11 +774,11 @@ void HeadTracking::UpdateHeadAngles(Robot::Point2D err)
 
 void HeadTracking::ApplyHeadAngles()
 {
-    int pan_position = static_cast<int>((m_PanAngle + 150.0) * 4095.0 / 300.0);
-    int tilt_position = static_cast<int>((m_TiltAngle + 150.0) * 4095.0 / 300.0);
+    // int pan_position = static_cast<int>((m_PanAngle + 150.0) * 4095.0 / 300.0);
+    // int tilt_position = static_cast<int>((m_TiltAngle + 150.0) * 4095.0 / 300.0);
 
-    pan_position = std::max(0, std::min(4095, pan_position));
-    tilt_position = std::max(0, std::min(4095, tilt_position));
+    // pan_position = std::max(0, std::min(4095, pan_position));
+    // tilt_position = std::max(0, std::min(4095, tilt_position));
 
     if (cm730_)
     {
@@ -799,12 +799,12 @@ void HeadTracking::ApplyHeadAngles()
 
             int n = 0;
 
-            cm730_->WriteWord(JointData::ID_HEAD_PAN, MX28::P_GOAL_POSITION_L, pan_present_position + pan_position, 0);
-            cm730_->WriteWord(JointData::ID_HEAD_TILT, MX28::P_GOAL_POSITION_L, tilt_present_position + tilt_position, 0);
+            cm730_->WriteWord(JointData::ID_HEAD_PAN, MX28::P_GOAL_POSITION_L, pan_present_position + m_PanAngle, 0);
+            cm730_->WriteWord(JointData::ID_HEAD_TILT, MX28::P_GOAL_POSITION_L, tilt_present_position + m_TiltAngle, 0);
 
             std::cout
-                << "DEBUG: HeadTracking::ApplyHeadAngles - Setting Pan Pos: " << pan_position
-                << " (Angle: " << m_PanAngle << "), Tilt Pos: " << tilt_position
+                << "DEBUG: HeadTracking::ApplyHeadAngles - Setting Pan Pos: " << m_PanAngle
+                << " (Angle: " << m_PanAngle << "), Tilt Pos: " << m_TiltAngle
                 << " (Angle: " << m_TiltAngle << ")" << std::endl;
         }
         else
