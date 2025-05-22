@@ -16,13 +16,17 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
 
+    - name: clean up build
+      working-directory: ./
+      run: find . -name "*.o" -type f -delete
+
     - name: Build Project with Make
       working-directory: ./Linux/build # Ensure we are in the correct build directory
-      run: make
+      run: make clean && make
 
     - name: Build react_on_object_detect
       working-directory: ./Linux/project/gwenski/react_on_object_detect
-      run: make
+      run: make clean && make
 
     # You might want to add steps for:
     # - Packaging artifacts
