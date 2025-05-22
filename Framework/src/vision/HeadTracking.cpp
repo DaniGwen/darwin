@@ -774,24 +774,14 @@ void HeadTracking::UpdateHeadAngles(Robot::Point2D err)
 
 void HeadTracking::ApplyHeadAngles()
 {
-    // int pan_position = static_cast<int>((m_PanAngle + 150.0) * 4095.0 / 300.0);
-    // int tilt_position = static_cast<int>((m_TiltAngle + 150.0) * 4095.0 / 300.0);
-
-    // pan_position = std::max(0, std::min(4095, pan_position));
-    // tilt_position = std::max(0, std::min(4095, tilt_position));
 
     if (cm730_)
     {
         int pan_torque_enable = 0;
         int tilt_torque_enable = 0;
-        int pan_present_position = 0;
-        int tilt_present_position = 0;
 
         cm730_->ReadByte(JointData::ID_HEAD_PAN, MX28::P_TORQUE_ENABLE, &pan_torque_enable, 0);
         cm730_->ReadByte(JointData::ID_HEAD_TILT, MX28::P_TORQUE_ENABLE, &tilt_torque_enable, 0);
-
-        cm730_->ReadByte(JointData::ID_HEAD_PAN, MX28::P_PRESENT_POSITION_H, &pan_present_position, 0);
-        cm730_->ReadByte(JointData::ID_HEAD_TILT, MX28::P_PRESENT_POSITION_H, & tilt_present_position, 0);
 
         if (pan_torque_enable == 1 && tilt_torque_enable == 1)
         {
