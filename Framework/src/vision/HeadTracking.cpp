@@ -785,8 +785,8 @@ void HeadTracking::ApplyHeadAngles()
 
         if (pan_torque_enable == 1 && tilt_torque_enable == 1)
         {
-            cm730_->WriteWord(JointData::ID_HEAD_PAN, MX28::P_GOAL_POSITION_L, pan_present_position + m_PanAngle, 0);
-            cm730_->WriteWord(JointData::ID_HEAD_TILT, MX28::P_GOAL_POSITION_L, tilt_present_position + m_TiltAngle, 0);
+            cm730_->WriteWord(JointData::ID_HEAD_PAN, MX28::P_GOAL_POSITION_L, m_PanAngle, 0);
+            cm730_->WriteWord(JointData::ID_HEAD_TILT, MX28::P_GOAL_POSITION_L, m_TiltAngle, 0);
 
             std::cout
                 << "DEBUG: HeadTracking::ApplyHeadAngles - Setting Pan Pos: " << m_PanAngle
