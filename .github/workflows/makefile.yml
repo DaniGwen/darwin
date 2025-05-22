@@ -16,22 +16,9 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
 
-    - name: Create Linux Build Directory
-      # This step creates the "Linux/build" directory relative to the repository root
-      run: mkdir -p Linux/build
-
-    - name: Configure CMake for Linux
-      working-directory: ./Linux/build # Change working directory to Linux/build
-      # '..' refers to the 'Linux' directory, and '../..' refers to the repository root 'darwin'
-      run: cmake ../.. # Configure CMake, pointing to the project root for CMakeLists.txt
-
     - name: Build Project with Make
       working-directory: ./Linux/build # Ensure we are in the correct build directory
       run: make # This will run 'make' within the Linux/build directory
-
-    - name: Run Tests (Optional)
-      working-directory: ./Linux/build
-      run: ctest --output-on-failure || true # Run CTest if you have tests configured. Adjust '|| true' as needed.
 
     # You might want to add steps for:
     # - Packaging artifacts
