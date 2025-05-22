@@ -18,7 +18,11 @@ jobs:
 
     - name: Build Project with Make
       working-directory: ./Linux/build # Ensure we are in the correct build directory
-      run: make # This will run 'make' within the Linux/build directory
+      run: make
+
+    - name: Build react_on_object_detect
+      working-directory: ./Linux/project/gwenski/react_on_object_detect
+      run: make
 
     # You might want to add steps for:
     # - Packaging artifacts
