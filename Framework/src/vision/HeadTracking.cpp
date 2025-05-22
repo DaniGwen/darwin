@@ -791,14 +791,10 @@ void HeadTracking::ApplyHeadAngles()
         cm730_->ReadByte(JointData::ID_HEAD_TILT, MX28::P_TORQUE_ENABLE, &tilt_torque_enable, 0);
 
         cm730_->ReadByte(JointData::ID_HEAD_PAN, MX28::P_PRESENT_POSITION_H, &pan_present_position, 0);
-        cm730_->ReadByte(JointData::ID_HEAD_TILT, MX28::P_PRESENT_POSITION_H &tilt_present_position, 0);
+        cm730_->ReadByte(JointData::ID_HEAD_TILT, MX28::P_PRESENT_POSITION_H, & tilt_present_position, 0);
 
         if (pan_torque_enable == 1 && tilt_torque_enable == 1)
         {
-            int param[2 * 3]; // 2 motors (Pan and Tilt) * 5 bytes of data per motor
-
-            int n = 0;
-
             cm730_->WriteWord(JointData::ID_HEAD_PAN, MX28::P_GOAL_POSITION_L, pan_present_position + m_PanAngle, 0);
             cm730_->WriteWord(JointData::ID_HEAD_TILT, MX28::P_GOAL_POSITION_L, tilt_present_position + m_TiltAngle, 0);
 
