@@ -784,14 +784,14 @@ void HeadTracking::ApplyHeadAngles()
     {
         int pan_torque_enable = 0;
         int tilt_torque_enable = 0;
-        int pan_moving = 0;
-        int tilt_moving = 0;
+        int pan_present_position = 0;
+        int tilt_present_position = 0;
 
         cm730_->ReadByte(JointData::ID_HEAD_PAN, MX28::P_TORQUE_ENABLE, &pan_torque_enable, 0);
         cm730_->ReadByte(JointData::ID_HEAD_TILT, MX28::P_TORQUE_ENABLE, &tilt_torque_enable, 0);
 
-        cm730_->ReadByte(JointData::ID_HEAD_PAN, MX28::P_MOVING, &pan_moving, 0);
-        cm730_->ReadByte(JointData::ID_HEAD_TILT, MX28::P_MOVING, &tilt_moving, 0);
+        cm730_->ReadByte(JointData::ID_HEAD_PAN, MX28::P_PRESENT_POSITION_L, &pan_present_position, 0);
+        cm730_->ReadByte(JointData::ID_HEAD_TILT, MX28::P_PRESENT_POSITION_L, &tilt_present_position, 0);
 
         if (pan_torque_enable == 1 && tilt_torque_enable == 1)
         {
@@ -799,22 +799,8 @@ void HeadTracking::ApplyHeadAngles()
 
             int n = 0;
 
-            // Data for Head Pan Motor
-            param[n++] = JointData::ID_HEAD_PAN;
-            param[n++] = CM730::GetLowByte(pan_position);
-            param[n++] = CM730::GetHighByte(pan_position);
-          
-
-            // Data for Head Tilt Motor
-            param[n++] = JointData::ID_HEAD_TILT;
-            param[n++] = CM730::GetLowByte(tilt_position);
-            param[n++] = CM730::GetHighByte(tilt_position);
-         
-
-            cm730_->SyncWrite(MX28::P_GOAL_POSITION_L, 3, 2, param);
-
-            // cm730_->WriteWord(JointData::ID_HEAD_PAN, MX28::P_GOAL_POSITION_L, pan_position, 0);
-            // cm730_->WriteWord(JointData::ID_HEAD_TILT, MX28::P_GOAL_POSITION_L, tilt_position, 0);
+            cm730_->WriteWord(JointData::ID_HEAD_PAN, MX28::P_GOAL_POSITION_L, pan_present_position + pan_position, 0);
+            cm730_->WriteWord(JointData::ID_HEAD_TILT, MX28::P_GOAL_POSITION_L, tilt_present_position + tilt_position, 0);
 
             std::cout
                 << "DEBUG: HeadTracking::ApplyHeadAngles - Setting Pan Pos: " << pan_position
