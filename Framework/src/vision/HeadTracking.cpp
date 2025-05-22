@@ -797,7 +797,7 @@ void HeadTracking::ApplyHeadAngles()
         {
             cm730_->WriteWord(JointData::ID_HEAD_PAN, MX28::P_GOAL_POSITION_L, pan_position, 0);
             cm730_->WriteWord(JointData::ID_HEAD_TILT, MX28::P_GOAL_POSITION_L, tilt_position, 0);
-            usleep(100 * 5000);
+            usleep(100 * 10000);
 
                     std::cout
                 << "DEBUG: HeadTracking::ApplyHeadAngles - Setting Pan Pos: " << pan_position
