@@ -16,6 +16,9 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
 
+    - name: Install libjpeg-dev
+      run: sudo apt-get install -y libjpeg-dev
+    
     - name: clean up build
       working-directory: ./
       run: find . -name "*.o" -type f -delete
