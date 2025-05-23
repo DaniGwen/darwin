@@ -12,12 +12,13 @@
 #include <string>         // Explicitly include string
 #include <vector>         // Explicitly include vector
 #include <sstream>        // Include sstream where stringstream is used
-#include <cmath>          // For std::abs
+#include <cmath>          // For std::abs, round
 #include <cstring>        // For memcpy
 #include <cstdio>         // For printf (used in DrawBoundingBox)
 #include <unistd.h>       // For usleep
 #include <cstdlib>        // For system()
 #include <mutex>          // For std::mutex (optional, but good practice for shared data)
+#include <algorithm>      // For std::max, std::min
 
 // Headers for Unix Domain Sockets
 #include <sys/socket.h>
@@ -33,6 +34,21 @@ const char *SOCKET_PATH = "/tmp/darwin_detector.sock";
 // --- Python Script Configuration ---
 // IMPORTANT: Set the correct path to your Python detector script
 const char *PYTHON_SCRIPT_PATH = "/home/darwin/darwin/aiy-maker-kit/examples/custom_detect_objects.py";
+
+// --- MX-28 Motor Conversion Constants ---
+// These constants are crucial for converting between degrees and the raw motor position values (0-4095).
+// MX-28 motors have a range of 300 degrees (from -150 to +150 relative to center).
+// The full range of 4096 units maps to 360 degrees, but the usable range is 300 degrees.
+// A common mapping for MX-28: 2048 is center (0 degrees), 0 is -150 degrees, 4095 is +150 degrees.
+// So, 1 degree = (4095 - 0) / 300 degrees = 13.65 units/degree.
+// Let's use the standard 0.088 degrees per unit or 11.375 units per degree for 360 degrees range.
+// However, for the 300 degree range, it's 4096 / 300 = 13.65 units/degree.
+// The DXL SDK often uses 0.088 degrees/unit (360/4096). Let's use this for consistency if the
+// angles are relative to the motor's full 360-degree resolution.
+// Assuming 2048 is the mechanical center (0 degrees relative to motor).
+const double MX28_CENTER_VALUE = 2048.0;
+const double MX28_DEGREE_PER_UNIT = 360.0 / 4096.0; // 0.08789 degrees per unit
+const double MX28_UNIT_PER_DEGREE = 4096.0 / 360.0; // 11.3777 units per degree
 
 // Static member initialization (singleton instance)
 HeadTracking *HeadTracking::GetInstance()
@@ -57,6 +73,8 @@ HeadTracking::HeadTracking()
       // Set very conservative default P and D gains here.
       // These will be overridden by INI settings if they exist.
       // The INI values are the ones you need to tune.
+      // Start with very small values (e.g., 0.01 to 0.1 for P-gain, and even smaller for D-gain like 0.001 to 0.05)
+      // and gradually increase them until you get smooth tracking without oscillation.
       m_Pan_p_gain(0.2),   // Starting point for P-gain (adjust in INI)
       m_Pan_d_gain(0.75),  // Starting point for D-gain (adjust in INI)
       m_Tilt_p_gain(0.2),  // Starting point for P-gain (adjust in INI)
@@ -577,8 +595,8 @@ void HeadTracking::UpdateHeadTracking(const std::vector<ParsedDetection> &detect
         std::cout << "DEBUG: Raw Pixel Offset - X: " << pixel_offset_from_center.X
                   << ", Y: " << pixel_offset_from_center.Y << std::endl;
 
-        pixel_offset_from_center.X *= -1;
-        pixel_offset_from_center.Y *= -1;
+        pixel_offset_from_center.X *= -1; // Invert X for pan (left is positive angle)
+        pixel_offset_from_center.Y *= -1; // Invert Y for tilt (up is positive angle)
 
         P_err.X = pixel_offset_from_center.X * (Camera::VIEW_H_ANGLE / (double)Camera::WIDTH);
         P_err.Y = pixel_offset_from_center.Y * (Camera::VIEW_V_ANGLE / (double)Camera::HEIGHT);
@@ -611,7 +629,11 @@ void HeadTracking::UpdateHeadTracking(const std::vector<ParsedDetection> &detect
     {
         if (no_target_count_ < NO_TARGET_MAX_COUNT)
         {
-            UpdateHeadAngles(Robot::Point2D(0.0, 0.0)); // Center head slowly
+            // Slowly center head if no target for a few frames
+            // This applies a small, fixed correction towards home.
+            double pan_center_speed = (m_Pan_Home - m_PanAngle) * 0.05; // 5% of distance to home
+            double tilt_center_speed = (m_Tilt_Home - m_TiltAngle) * 0.05; // 5% of distance to home
+            UpdateHeadAngles(Robot::Point2D(pan_center_speed, tilt_center_speed));
             std::cout << "DEBUG: Head Centering: NoTargetCount=" << no_target_count_ << std::endl;
             no_target_count_++;
         }
@@ -661,7 +683,29 @@ Robot::Point2D HeadTracking::GetTrackedObjectCenter()
     return current_tracked_object_center_;
 }
 
-// --- New methods to replace Head.cpp functionality ---
+// --- New methods to replace Head.cpp functionality and for angle conversion ---
+
+// Converts an angle in degrees to a raw MX-28 motor value (0-4095)
+// Assumes 0 degrees is the center position (2048).
+// Positive angles move towards higher values, negative towards lower.
+int HeadTracking::Deg2Value(double angle_deg)
+{
+    // Calculate the raw value relative to the center position
+    double value = MX28_CENTER_VALUE + (angle_deg * MX28_UNIT_PER_DEGREE);
+
+    // Clamp the value to the valid MX-28 range (0-4095)
+    value = std::max(0.0, std::min(4095.0, value));
+
+    return static_cast<int>(round(value));
+}
+
+// Converts a raw MX-28 motor value (0-4095) to an angle in degrees
+// Assumes 2048 is the center position (0 degrees).
+double HeadTracking::Value2Deg(int value)
+{
+    return (value - MX28_CENTER_VALUE) * MX28_DEGREE_PER_UNIT;
+}
+
 
 void HeadTracking::LoadHeadSettings(minIni *ini)
 {
@@ -669,15 +713,17 @@ void HeadTracking::LoadHeadSettings(minIni *ini)
     // If the head is jerking, these values in your config.ini are too high.
     // Start with very small values and gradually increase them.
     m_Pan_p_gain = ini->getd("Head Pan/Tilt", "pan_p_gain", m_Pan_p_gain);
-    m_Pan_d_gain = ini->getd("Head Pan/Tilt", "Pan_d_gain", m_Pan_d_gain);
+    m_Pan_d_gain = ini->getd("Head Pan/Tilt", "pan_d_gain", m_Pan_d_gain); // Corrected ini key for consistency
     m_Tilt_p_gain = ini->getd("Head Pan/Tilt", "tilt_p_gain", m_Tilt_p_gain);
     m_Tilt_d_gain = ini->getd("Head Pan/Tilt", "tilt_d_gain", m_Tilt_d_gain);
 
+    // Load angle limits in degrees
     m_LeftLimit = ini->getd("Head Pan/Tilt", "left_limit", m_LeftLimit);
     m_RightLimit = ini->getd("Head Pan/Tilt", "right_limit", m_RightLimit);
     m_TopLimit = ini->getd("Head Pan/Tilt", "top_limit", Kinematics::EYE_TILT_OFFSET_ANGLE);
     m_BottomLimit = ini->getd("Head Pan/Tilt", "bottom_limit", Kinematics::EYE_TILT_OFFSET_ANGLE - 65.0);
 
+    // Load home positions in degrees
     m_Pan_Home = ini->getd("Head Pan/Tilt", "pan_home", 0.0);
     m_Tilt_Home = ini->getd("Head Pan/Tilt", "tilt_home", Kinematics::EYE_TILT_OFFSET_ANGLE - 30.0);
 
@@ -692,17 +738,11 @@ void HeadTracking::LoadHeadSettings(minIni *ini)
 
 void HeadTracking::CheckLimit()
 {
-    if (m_PanAngle > m_LeftLimit)
-        m_PanAngle = m_LeftLimit;
-    else if (m_PanAngle < m_RightLimit)
-        m_PanAngle = m_RightLimit;
+    // Clamp the angles to the defined limits
+    m_PanAngle = std::max(m_RightLimit, std::min(m_LeftLimit, m_PanAngle));
+    m_TiltAngle = std::max(m_BottomLimit, std::min(m_TopLimit, m_TiltAngle));
 
-    if (m_TiltAngle > m_TopLimit)
-        m_TiltAngle = m_TopLimit;
-    else if (m_TiltAngle < m_BottomLimit)
-        m_TiltAngle = m_BottomLimit;
-
-    std::cout << "DEBUG: HeadTracking::CheckLimit - PanAngle: " << m_PanAngle << ", TiltAngle: " << m_TiltAngle << std::endl;
+    std::cout << "DEBUG: HeadTracking::CheckLimit - PanAngle (clamped): " << m_PanAngle << ", TiltAngle (clamped): " << m_TiltAngle << std::endl;
 }
 
 void HeadTracking::MoveToHome()
@@ -716,15 +756,16 @@ void HeadTracking::MoveByAngle(double pan, double tilt)
     m_PanAngle = pan;
     m_TiltAngle = tilt;
 
-    CheckLimit();
+    CheckLimit(); // Apply limits after setting new angles
     std::cout << "DEBUG: HeadTracking::MoveByAngle - Target Pan: " << pan << ", Target Tilt: " << tilt
               << " (After Limit: Pan: " << m_PanAngle << ", Tilt: " << m_TiltAngle << ")" << std::endl;
 }
 
-void HeadTracking::MoveByAngleOffset(double pan, double tilt)
+void HeadTracking::MoveByAngleOffset(double pan_offset, double tilt_offset)
 {
-    MoveByAngle(m_PanAngle + pan, m_TiltAngle + tilt);
-    std::cout << "DEBUG: HeadTracking::MoveByAngleOffset - Offset Pan: " << pan << ", Offset Tilt: " << tilt << std::endl;
+    // Apply offset to current angles and then move to the new absolute angles
+    MoveByAngle(m_PanAngle + pan_offset, m_TiltAngle + tilt_offset);
+    std::cout << "DEBUG: HeadTracking::MoveByAngleOffset - Offset Pan: " << pan_offset << ", Offset Tilt: " << tilt_offset << std::endl;
 }
 
 void HeadTracking::InitTracking()
@@ -738,11 +779,12 @@ void HeadTracking::InitTracking()
 
 void HeadTracking::UpdateHeadAngles(Robot::Point2D err)
 {
+    // Calculate the derivative error (change in error)
     m_Pan_err_diff = err.X - m_Pan_err;
-    m_Pan_err = err.X;
+    m_Pan_err = err.X; // Update current error
 
     m_Tilt_err_diff = err.Y - m_Tilt_err;
-    m_Tilt_err = err.Y;
+    m_Tilt_err = err.Y; // Update current error
 
     std::cout << "DEBUG: HeadTracking::UpdateHeadAngles - Input P_err.X: " << err.X << ", P_err.Y: " << err.Y << std::endl;
     std::cout << "DEBUG: HeadTracking::UpdateHeadAngles - m_Pan_err: " << m_Pan_err << ", m_Pan_err_diff: " << m_Pan_err_diff << std::endl;
@@ -750,17 +792,18 @@ void HeadTracking::UpdateHeadAngles(Robot::Point2D err)
 
     double pOffset, dOffset;
 
+    // Calculate PID components and update target angles
     // The `pan_error_scale_` and `tilt_error_scale_` (loaded from INI or default 1.0)
     // are applied to the raw angular error (P_err.X, P_err.Y) before PID calculation.
     // The m_Pan_p_gain, m_Pan_d_gain (loaded from INI) are the actual PID gains.
     // If the head is jerking, reduce the P_GAIN and D_GAIN values in your config.ini.
     pOffset = m_Pan_err * m_Pan_p_gain;
     dOffset = m_Pan_err_diff * m_Pan_d_gain;
-    m_PanAngle += (pOffset + dOffset);
+    m_PanAngle += (pOffset + dOffset); // Update target pan angle
 
     pOffset = m_Tilt_err * m_Tilt_p_gain;
     dOffset = m_Tilt_err_diff * m_Tilt_d_gain;
-    m_TiltAngle += (pOffset + dOffset);
+    m_TiltAngle += (pOffset + dOffset); // Update target tilt angle
 
     std::cout << "DEBUG: HeadTracking::UpdateHeadAngles - Pan pOffset: " << m_Pan_err * m_Pan_p_gain
               << ", Pan dOffset: " << m_Pan_err_diff * m_Pan_d_gain
@@ -769,29 +812,34 @@ void HeadTracking::UpdateHeadAngles(Robot::Point2D err)
               << ", Tilt dOffset: " << m_Tilt_err_diff * m_Tilt_d_gain
               << ", New TiltAngle (before limit): " << m_TiltAngle << std::endl;
 
-    CheckLimit();
+    CheckLimit(); // Ensure the updated angles are within limits
 }
 
 void HeadTracking::ApplyHeadAngles()
 {
-
     if (cm730_)
     {
         int pan_torque_enable = 0;
         int tilt_torque_enable = 0;
 
+        // Read current torque status
         cm730_->ReadByte(JointData::ID_HEAD_PAN, MX28::P_TORQUE_ENABLE, &pan_torque_enable, 0);
         cm730_->ReadByte(JointData::ID_HEAD_TILT, MX28::P_TORQUE_ENABLE, &tilt_torque_enable, 0);
 
         if (pan_torque_enable == 1 && tilt_torque_enable == 1)
         {
-            cm730_->WriteWord(JointData::ID_HEAD_PAN, MX28::P_GOAL_POSITION_L, m_PanAngle, 0);
-            cm730_->WriteWord(JointData::ID_HEAD_TILT, MX28::P_GOAL_POSITION_L, m_TiltAngle, 0);
+            // Convert the calculated angles (in degrees) to MX-28 motor values (0-4095)
+            int pan_goal_value = Deg2Value(m_PanAngle);
+            int tilt_goal_value = Deg2Value(m_TiltAngle);
+
+            // Write the converted values to the motor goal position registers
+            cm730_->WriteWord(JointData::ID_HEAD_PAN, MX28::P_GOAL_POSITION_L, pan_goal_value, 0);
+            cm730_->WriteWord(JointData::ID_HEAD_TILT, MX28::P_GOAL_POSITION_L, tilt_goal_value, 0);
 
             std::cout
-                << "DEBUG: HeadTracking::ApplyHeadAngles - Setting Pan Pos: " << m_PanAngle
-                << " (Angle: " << m_PanAngle << "), Tilt Pos: " << m_TiltAngle
-                << " (Angle: " << m_TiltAngle << ")" << std::endl;
+                << "DEBUG: HeadTracking::ApplyHeadAngles - Setting Pan Deg: " << m_PanAngle
+                << " (Value: " << pan_goal_value << "), Tilt Deg: " << m_TiltAngle
+                << " (Value: " << tilt_goal_value << ")" << std::endl;
         }
         else
         {
