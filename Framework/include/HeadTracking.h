@@ -158,8 +158,8 @@ private:
     void InitTracking(); // Reset tracking errors
     void UpdateHeadAngles(Robot::Point2D err); // Calculate new angles based on error (replaces MoveTracking(Point2D err))
     void ApplyHeadAngles(); // Apply calculated angles to motors (replaces Head::Process())
-    double HeadTracking::Value2Deg(int value);
-    int HeadTracking::Deg2Value(double angle);
-}
+    double Value2Deg(int value);
+    int Deg2Value(double angle);
+};
 
 #endif // HEADTRACKING_H_
