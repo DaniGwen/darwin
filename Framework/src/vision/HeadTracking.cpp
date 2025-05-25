@@ -85,7 +85,7 @@ HeadTracking::HeadTracking()
       m_TopLimit(0.0),      // Will be set by Kinematics::EYE_TILT_OFFSET_ANGLE
       m_BottomLimit(-68.0), // Will be set by Kinematics::EYE_TILT_OFFSET_ANGLE
       m_Pan_Home(0.0),
-      m_Tilt_Home(-10.0), // Will be set by Kinematics::EYE_TILT_OFFSET_ANGLE
+      m_Tilt_Home(0.0), // Will be set by Kinematics::EYE_TILT_OFFSET_ANGLE
       no_target_count_(0),
       // These scales multiply the error *before* applying P/D gains.
       // Keep them at 1.0 unless you have a specific reason to scale the error itself.
@@ -585,12 +585,12 @@ void HeadTracking::UpdateHeadTracking(const std::vector<ParsedDetection> &detect
     {
         if (no_target_count_ < NO_TARGET_MAX_COUNT)
         {
-            // // Slowly center head if no target for a few frames
-            // // This applies a small, fixed correction towards home.
-            // double pan_center_speed = (m_Pan_Home - m_PanAngle) * 0.05;    // 5% of distance to home
-            // double tilt_center_speed = (m_Tilt_Home - m_TiltAngle) * 0.05; // 5% of distance to home
-            // UpdateHeadAngles(Robot::Point2D(pan_center_speed, tilt_center_speed));
-            // std::cout << "DEBUG: Head Centering: NoTargetCount=" << no_target_count_ << std::endl;
+            // Slowly center head if no target for a few frames
+            // This applies a small, fixed correction towards home.
+            double pan_center_speed = (m_Pan_Home - m_PanAngle) * 0.05;    // 5% of distance to home
+            double tilt_center_speed = (m_Tilt_Home - m_TiltAngle) * 0.05; // 5% of distance to home
+            UpdateHeadAngles(Robot::Point2D(pan_center_speed, tilt_center_speed));
+            std::cout << "DEBUG: Head Centering: NoTargetCount=" << no_target_count_ << std::endl;
             no_target_count_++;
         }
         else
