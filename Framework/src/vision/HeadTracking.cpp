@@ -162,10 +162,7 @@ bool HeadTracking::Initialize(minIni *ini, CM730 *cm730)
     // Explicitly enable head joints and set initial gains
     // cm730_->WriteByte(JointData::ID_HEAD_PAN, MX28::P_TORQUE_ENABLE, 1, 0);  // Enable torque for Pan
     // cm730_->WriteByte(JointData::ID_HEAD_TILT, MX28::P_TORQUE_ENABLE, 1, 0); // Enable torque for Tilt
-    
-    Robot::Head::GetInstance()->m_Joint.SetEnableHeadOnly(true, true);
-	Robot::Head::GetInstance()->m_Joint.SetPGain(JointData::ID_HEAD_PAN, 8);
-	Robot:Head::GetInstance()->m_Joint.SetPGain(JointData::ID_HEAD_TILT, 8);
+
 
     // Set P and D gains using values loaded from INI
     // IMPORTANT: The values loaded from INI (Pan_P_GAIN, Pan_D_GAIN, etc.)

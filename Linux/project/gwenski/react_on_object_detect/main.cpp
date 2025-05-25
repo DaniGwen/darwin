@@ -91,9 +91,12 @@ int main(void)
     CM730 cm730(&linux_cm730);
 
     // Get MotionManager and Action singletons
-    Robot::MotionManager *motion_manager = Robot::MotionManager::GetInstance();
-    Robot::Action *action_module = Robot::Action::GetInstance(); // Get Action singleton
+    MotionManager *motion_manager = MotionManager::GetInstance();
+    Action *action_module = Action::GetInstance(); // Get Action singleton
     Walking::GetInstance()->m_Joint.SetEnableBodyWithoutHead(true, true);
+    Head::GetInstance()->m_Joint.SetEnableHeadOnly(true, true);
+	Head::GetInstance()->m_Joint.SetPGain(JointData::ID_HEAD_PAN, 8);
+	Head::GetInstance()->m_Joint.SetPGain(JointData::ID_HEAD_TILT, 8);
 
     // Initialize MotionManager
     if (motion_manager->Initialize(&cm730) == false)
