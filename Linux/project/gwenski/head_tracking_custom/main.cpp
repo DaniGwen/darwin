@@ -85,7 +85,6 @@ int main(void)
 
     // Get MotionManager singleton and initialize it with the CM730 instance
     Robot::MotionManager *motion_manager = Robot::MotionManager::GetInstance();
-    Robot::Head *head_module = Robot::Head::GetInstance(); // Get Head singleton now as well
 
     if (motion_manager->Initialize(&cm730) == false)
     {
@@ -106,13 +105,12 @@ int main(void)
 
     // Pass the INI settings and the initialized motion framework singletons to HeadTracking
     // The Python script startup is now handled inside head_tracker->Initialize()
-    if (!head_tracker->Initialize(ini, motion_manager, head_module, &cm730))
+    if (!head_tracker->Initialize(ini, &cm730))
     {
         std::cerr << "ERROR: HeadTracking initialization failed. Exiting." << std::endl;
         // Perform motion framework cleanup before exiting
         motion_timer->Stop();
         motion_manager->SetEnable(false);
-        motion_manager->RemoveModule((MotionModule *)head_module);
         delete ini;
         delete motion_timer;
         return -1;
@@ -129,7 +127,6 @@ int main(void)
         head_tracker->Cleanup(); // Cleanup HeadTracking resources
         motion_timer->Stop();
         motion_manager->SetEnable(false);
-        motion_manager->RemoveModule((MotionModule *)head_module);
         delete ini;
         delete motion_timer;
         return -1;
@@ -158,7 +155,6 @@ int main(void)
     std::cout << "INFO: Shutting down motion framework..." << std::endl;
     motion_timer->Stop();
     motion_manager->SetEnable(false);                          // Disable motion
-    motion_manager->RemoveModule((MotionModule *)head_module); // Remove Head module
 
     // LinuxCM730 and CM730 are stack allocated and will be cleaned up when main exits.
     // Their destructors should handle closing the serial port.

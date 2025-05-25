@@ -157,17 +157,9 @@ bool HeadTracking::Initialize(minIni *ini, CM730 *cm730)
     // 3. Load Head-specific settings from INI
     LoadHeadSettings(ini_settings_);
 
-    // 4. Configure Head Motors directly via CM730
-    std::cout << "INFO: Configuring Head motors directly via CM730..." << std::endl;
-    // Explicitly enable head joints and set initial gains
-    // cm730_->WriteByte(JointData::ID_HEAD_PAN, MX28::P_TORQUE_ENABLE, 1, 0);  // Enable torque for Pan
-    // cm730_->WriteByte(JointData::ID_HEAD_TILT, MX28::P_TORQUE_ENABLE, 1, 0); // Enable torque for Tilt
-
     // Set P and D gains using values loaded from INI
     cm730_->WriteByte(JointData::ID_HEAD_PAN, MX28::P_P_GAIN, 8, 0);
     cm730_->WriteByte(JointData::ID_HEAD_TILT, MX28::P_P_GAIN, 8, 0);
-
-    std::cout << "INFO: Head motors configured." << std::endl;
 
     // 5. Create display frame buffer
     rgb_display_frame_ = new Robot::Image(Camera::WIDTH, Camera::HEIGHT, Robot::Image::RGB_PIXEL_SIZE);
