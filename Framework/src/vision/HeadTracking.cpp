@@ -91,8 +91,8 @@ HeadTracking::HeadTracking()
       // Keep them at 1.0 unless you have a specific reason to scale the error itself.
       pan_error_scale_(1.0),
       tilt_error_scale_(1.0),
-      pan_deadband_deg_(0.2),
-      tilt_deadband_deg_(0.2),
+      pan_deadband_deg_(1.0),
+      tilt_deadband_deg_(1.0),
       black_color_(0),
       frame_counter_(0),
       current_detected_label_("none"),
@@ -157,7 +157,7 @@ bool HeadTracking::Initialize(minIni *ini, CM730 *cm730)
     // 3. Load Head-specific settings from INI
     LoadHeadSettings(ini_settings_);
 
-      // Explicitly enable head joints and set initial gains
+    // Explicitly enable head joints and set initial gains
     cm730_->WriteByte(JointData::ID_HEAD_PAN, MX28::P_TORQUE_ENABLE, 1, 0);  // Enable torque for Pan
     cm730_->WriteByte(JointData::ID_HEAD_TILT, MX28::P_TORQUE_ENABLE, 1, 0); // Enable torque for Tilt
 
@@ -595,10 +595,6 @@ void HeadTracking::UpdateHeadTracking(const std::vector<ParsedDetection> &detect
         }
         else
         {
-            if (cm730_)
-            {
-                cm730_->WriteWord(CM730::ID_CM, CM730::P_LED_EYE_L, black_color_, NULL); // Black
-            }
             MoveToHome(); // Return to initial position
             std::cout << "DEBUG: Head Moving to Home." << std::endl;
         }
@@ -702,6 +698,11 @@ void HeadTracking::CheckLimit()
 
 void HeadTracking::MoveToHome()
 {
+    if (cm730_)
+    {
+        cm730_->WriteWord(CM730::ID_CM, CM730::P_LED_EYE_L, black_color_, NULL); // Black
+    }
+
     MoveByAngle(m_Pan_Home, m_Tilt_Home);
     std::cout << "DEBUG: HeadTracking::MoveToHome - Moving to Pan_Home: " << m_Pan_Home << ", Tilt_Home: " << m_Tilt_Home << std::endl;
 }
