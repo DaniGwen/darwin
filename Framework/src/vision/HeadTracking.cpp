@@ -163,17 +163,9 @@ bool HeadTracking::Initialize(minIni *ini, CM730 *cm730)
     // cm730_->WriteByte(JointData::ID_HEAD_PAN, MX28::P_TORQUE_ENABLE, 1, 0);  // Enable torque for Pan
     // cm730_->WriteByte(JointData::ID_HEAD_TILT, MX28::P_TORQUE_ENABLE, 1, 0); // Enable torque for Tilt
 
-
     // Set P and D gains using values loaded from INI
-    // IMPORTANT: The values loaded from INI (Pan_P_GAIN, Pan_D_GAIN, etc.)
-    // are the ones that directly control the motor responsiveness.
-    // If the head is jerking, these values in your config.ini are too high.
-    // Start with very small values (e.g., 0.01 to 0.1 for P-gain, and even smaller for D-gain like 0.001 to 0.05)
-    // and gradually increase them until you get smooth tracking without oscillation.
-    // cm730_->WriteByte(JointData::ID_HEAD_PAN, MX28::P_P_GAIN, (int)m_Pan_p_gain, 0);
-    // cm730_->WriteByte(JointData::ID_HEAD_TILT, MX28::P_P_GAIN, (int)m_Tilt_p_gain, 0);
-    // cm730_->WriteByte(JointData::ID_HEAD_PAN, MX28::P_D_GAIN, (int)m_Pan_d_gain, 0);
-    // cm730_->WriteByte(JointData::ID_HEAD_TILT, MX28::P_D_GAIN, (int)m_Tilt_d_gain, 0);
+    cm730_->WriteByte(JointData::ID_HEAD_PAN, MX28::P_P_GAIN, 8, 0);
+    cm730_->WriteByte(JointData::ID_HEAD_TILT, MX28::P_P_GAIN, 8, 0);
 
     std::cout << "INFO: Head motors configured." << std::endl;
 
@@ -599,7 +591,7 @@ void HeadTracking::UpdateHeadTracking(const std::vector<ParsedDetection> &detect
         {
             // Slowly center head if no target for a few frames
             // This applies a small, fixed correction towards home.
-            double pan_center_speed = (m_Pan_Home - m_PanAngle) * 0.05; // 5% of distance to home
+            double pan_center_speed = (m_Pan_Home - m_PanAngle) * 0.05;    // 5% of distance to home
             double tilt_center_speed = (m_Tilt_Home - m_TiltAngle) * 0.05; // 5% of distance to home
             UpdateHeadAngles(Robot::Point2D(pan_center_speed, tilt_center_speed));
             std::cout << "DEBUG: Head Centering: NoTargetCount=" << no_target_count_ << std::endl;
@@ -673,7 +665,6 @@ double HeadTracking::Value2Deg(int value)
 {
     return (value - MX28_CENTER_VALUE) * MX28_DEGREE_PER_UNIT;
 }
-
 
 void HeadTracking::LoadHeadSettings(minIni *ini)
 {
