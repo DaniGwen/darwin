@@ -91,8 +91,8 @@ HeadTracking::HeadTracking()
       // Keep them at 1.0 unless you have a specific reason to scale the error itself.
       pan_error_scale_(1.0),
       tilt_error_scale_(1.0),
-      pan_deadband_deg_(1.0),
-      tilt_deadband_deg_(1.0),
+      pan_deadband_deg_(0.5),
+      tilt_deadband_deg_(0.5),
       black_color_(0),
       frame_counter_(0),
       current_detected_label_("none"),
