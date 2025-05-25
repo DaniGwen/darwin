@@ -13,12 +13,12 @@
 #include <unistd.h>
 #include <string.h>
 #include <libgen.h>
-#include <iostream>   // For std::cout, std::cerr, std::endl
-#include <cstdlib>    // Required for system()
-#include <pthread.h>  // Required for threading
-#include <string>     // Required for std::string
-#include <chrono>     // Required for timing (optional, for loop delay)
-#include <thread>     // Required for std::this_thread::sleep_for (optional)
+#include <iostream>  // For std::cout, std::cerr, std::endl
+#include <cstdlib>   // Required for system()
+#include <pthread.h> // Required for threading
+#include <string>    // Required for std::string
+#include <chrono>    // Required for timing (optional, for loop delay)
+#include <thread>    // Required for std::this_thread::sleep_for (optional)
 
 #include "minIni.h"       // For INI file loading
 #include "HeadTracking.h" // Include the HeadTracking class header
@@ -31,12 +31,12 @@
 #define MOTION_FILE_PATH "../../../../Data/motion_4096.bin"
 
 // Define action page numbers for different detected objects
-#define ACTION_PAGE_WAVE        7
-#define ACTION_PAGE_DOG         11
-#define ACTION_PAGE_CAT         12
+#define ACTION_PAGE_WAVE 7
+#define ACTION_PAGE_DOG 11
+#define ACTION_PAGE_CAT 12
 #define ACTION_PAGE_SPORTS_BALL 13
-#define ACTION_PAGE_BOTTLE      14
-#define ACTION_PAGE_STAND       1 // Example standby/initial pose action
+#define ACTION_PAGE_BOTTLE 14
+#define ACTION_PAGE_STAND 1 // Example standby/initial pose action
 
 void change_current_dir()
 {
@@ -93,6 +93,7 @@ int main(void)
     // Get MotionManager and Action singletons
     Robot::MotionManager *motion_manager = Robot::MotionManager::GetInstance();
     Robot::Action *action_module = Robot::Action::GetInstance(); // Get Action singleton
+    Walking::GetInstance()->m_Joint.SetEnableBodyWithoutHead(true, true);
 
     // Initialize MotionManager
     if (motion_manager->Initialize(&cm730) == false)

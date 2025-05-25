@@ -159,18 +159,24 @@ bool HeadTracking::Initialize(minIni *ini, CM730 *cm730)
     // 4. Configure Head Motors directly via CM730
     std::cout << "INFO: Configuring Head motors directly via CM730..." << std::endl;
     // Explicitly enable head joints and set initial gains
-    cm730_->WriteByte(JointData::ID_HEAD_PAN, MX28::P_TORQUE_ENABLE, 1, 0);  // Enable torque for Pan
-    cm730_->WriteByte(JointData::ID_HEAD_TILT, MX28::P_TORQUE_ENABLE, 1, 0); // Enable torque for Tilt
+    // cm730_->WriteByte(JointData::ID_HEAD_PAN, MX28::P_TORQUE_ENABLE, 1, 0);  // Enable torque for Pan
+    // cm730_->WriteByte(JointData::ID_HEAD_TILT, MX28::P_TORQUE_ENABLE, 1, 0); // Enable torque for Tilt
+
+    Head::GetInstance()->m_Joint.SetEnableHeadOnly(true, true);
+
+	Head::GetInstance()->m_Joint.SetPGain(JointData::ID_HEAD_PAN, 8);
+	Head::GetInstance()->m_Joint.SetPGain(JointData::ID_HEAD_TILT, 8);
+
     // Set P and D gains using values loaded from INI
     // IMPORTANT: The values loaded from INI (Pan_P_GAIN, Pan_D_GAIN, etc.)
     // are the ones that directly control the motor responsiveness.
     // If the head is jerking, these values in your config.ini are too high.
     // Start with very small values (e.g., 0.01 to 0.1 for P-gain, and even smaller for D-gain like 0.001 to 0.05)
     // and gradually increase them until you get smooth tracking without oscillation.
-    cm730_->WriteByte(JointData::ID_HEAD_PAN, MX28::P_P_GAIN, (int)m_Pan_p_gain, 0);
-    cm730_->WriteByte(JointData::ID_HEAD_TILT, MX28::P_P_GAIN, (int)m_Tilt_p_gain, 0);
-    cm730_->WriteByte(JointData::ID_HEAD_PAN, MX28::P_D_GAIN, (int)m_Pan_d_gain, 0);
-    cm730_->WriteByte(JointData::ID_HEAD_TILT, MX28::P_D_GAIN, (int)m_Tilt_d_gain, 0);
+    // cm730_->WriteByte(JointData::ID_HEAD_PAN, MX28::P_P_GAIN, (int)m_Pan_p_gain, 0);
+    // cm730_->WriteByte(JointData::ID_HEAD_TILT, MX28::P_P_GAIN, (int)m_Tilt_p_gain, 0);
+    // cm730_->WriteByte(JointData::ID_HEAD_PAN, MX28::P_D_GAIN, (int)m_Pan_d_gain, 0);
+    // cm730_->WriteByte(JointData::ID_HEAD_TILT, MX28::P_D_GAIN, (int)m_Tilt_d_gain, 0);
 
     std::cout << "INFO: Head motors configured." << std::endl;
 
@@ -264,41 +270,6 @@ void HeadTracking::Run()
 
         // --- Apply calculated angles to motors ---
         ApplyHeadAngles();
-
-        // --- Periodic Motor Status Check ---
-        frame_counter_++;
-        if (frame_counter_ >= STATUS_CHECK_INTERVAL && cm730_)
-        {
-            int pan_torque_status = 0, pan_error = 0;
-            int tilt_torque_status = 0, tilt_error = 0;
-            int pan_moving = 0, tilt_moving = 0;
-            int pan_present_load = 0, tilt_present_load = 0;
-            int pan_present_temp = 0, tilt_present_temp = 0;
-
-            // Corrected: Reading torque status into variables
-            cm730_->ReadByte(JointData::ID_HEAD_PAN, MX28::P_TORQUE_ENABLE, &pan_torque_status, &pan_error);
-            cm730_->ReadByte(JointData::ID_HEAD_TILT, MX28::P_TORQUE_ENABLE, &tilt_torque_status, &tilt_error);
-            cm730_->ReadByte(JointData::ID_HEAD_PAN, MX28::P_MOVING, &pan_moving, &pan_error);
-            cm730_->ReadByte(JointData::ID_HEAD_TILT, MX28::P_MOVING, &tilt_moving, &tilt_error);
-            cm730_->ReadWord(JointData::ID_HEAD_PAN, MX28::P_PRESENT_LOAD_L, &pan_present_load, &pan_error);
-            cm730_->ReadWord(JointData::ID_HEAD_TILT, MX28::P_PRESENT_LOAD_L, &tilt_present_load, &tilt_error);
-            cm730_->ReadByte(JointData::ID_HEAD_PAN, MX28::P_PRESENT_TEMPERATURE, &pan_present_temp, &pan_error);
-            cm730_->ReadByte(JointData::ID_HEAD_TILT, MX28::P_PRESENT_TEMPERATURE, &tilt_present_temp, &tilt_error);
-
-            std::cout << "DEBUG: Motor Status - Pan: Torque=" << pan_torque_status << " Moving=" << pan_moving << " Load=" << pan_present_load << " Temp=" << pan_present_temp << " Error=" << pan_error << std::endl;
-            std::cout << "DEBUG: Motor Status - Tilt: Torque=" << tilt_torque_status << " Moving=" << tilt_moving << " Load=" << tilt_present_load << " Temp=" << tilt_present_temp << " Error=" << tilt_error << std::endl;
-
-            // If torque is off, try re-enabling it
-            if (pan_torque_status != 1 || tilt_torque_status != 1)
-            {
-                std::cerr << "WARNING: Head motor torque lost. Attempting to re-enable." << std::endl;
-                // Corrected: Changed ReadByte to WriteByte for re-enabling torque
-                cm730_->WriteByte(JointData::ID_HEAD_PAN, MX28::P_TORQUE_ENABLE, 1, 0);  // Corrected to WriteByte
-                cm730_->WriteByte(JointData::ID_HEAD_TILT, MX28::P_TORQUE_ENABLE, 1, 0); // Corrected to WriteByte
-                usleep(100000);                                                          // 100ms
-            }
-            frame_counter_ = 0; // Reset counter
-        }
 
         // --- Stream Image ---
         if (streamer_ && rgb_display_frame_)
