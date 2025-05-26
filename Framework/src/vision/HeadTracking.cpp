@@ -82,7 +82,7 @@ HeadTracking::HeadTracking()
       m_Tilt_d_gain(0.75), // Starting point for D-gain (adjust in INI)
       m_LeftLimit(80.0),
       m_RightLimit(-80.0),
-      m_TopLimit(0.0),      // Will be set by Kinematics::EYE_TILT_OFFSET_ANGLE
+      m_TopLimit(20.0),      // Will be set by Kinematics::EYE_TILT_OFFSET_ANGLE
       m_BottomLimit(-68.0), // Will be set by Kinematics::EYE_TILT_OFFSET_ANGLE
       m_Pan_Home(0.0),
       m_Tilt_Home(0.0), // Will be set by Kinematics::EYE_TILT_OFFSET_ANGLE
