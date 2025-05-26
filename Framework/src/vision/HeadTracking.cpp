@@ -268,9 +268,10 @@ namespace Robot
                 DrawBoundingBox(rgb_display_frame_, det);
             }
 
+            UpdateHeadTracking(detections);
+
             if (m_TrackingEnabled)
             {
-                UpdateHeadTracking(detections);
                 ApplyHeadAngles();
             }
 

@@ -20,10 +20,10 @@
 #include <chrono>    // Required for timing (optional, for loop delay)
 #include <thread>    // Required for std::this_thread::sleep_for (optional)
 
-#include "minIni.h"       // For INI file loading
+#include "minIni.h" // For INI file loading
 #include "HeadTracking.h"
 #include "LeftArmController.h"
-#include "LinuxDARwIn.h"  // Include for Motion Framework components (MotionManager, Action)
+#include "LinuxDARwIn.h" // Include for Motion Framework components (MotionManager, Action)
 
 // --- Configuration ---
 #define INI_FILE_PATH "../../../../Data/config.ini"
@@ -173,63 +173,51 @@ int main(void)
         // Get the latest detected label from the HeadTracking thread
         std::string detected_object_label = head_tracker->GetDetectedLabel();
 
-        bool is_action_playing = action_module->IsRunning();
-
-        if (!is_action_playing)
+        if (detected_object_label == "person" && current_action_label != "person")
         {
-            if (detected_object_label == "person" && current_action_label != "person")
-            {
-                std::cout << "INFO: Detected person. Playing action (Page " << ACTION_PAGE_WAVE << ")..." << std::endl;
-               left_arm_controller.Wave(); // Example: Move arm sequence before action
+            std::cout << "INFO: Detected person. Playing Wave" << std::endl;
+            left_arm_controller.Wave(3, 100_000);
 
-                current_action_label = "person";
-            }
-            else if (detected_object_label == "dog" && current_action_label != "dog")
-            {
-                std::cout << "INFO: Detected dog. Playing action (Page " << ACTION_PAGE_DOG << ")..." << std::endl;
-                run_action(ACTION_PAGE_DOG);
-
-                current_action_label = "dog";
-            }
-            else if (detected_object_label == "cat" && current_action_label != "cat")
-            {
-                std::cout << "INFO: Detected cat. Playing action (Page " << ACTION_PAGE_CAT << ")..." << std::endl;
-                run_action(ACTION_PAGE_CAT);
-
-                current_action_label = "cat";
-            }
-            else if (detected_object_label == "sports ball" && current_action_label != "sports ball")
-            {
-                std::cout << "INFO: Detected sports ball. Playing action (Page " << ACTION_PAGE_SPORTS_BALL << ")..." << std::endl;
-                run_action(ACTION_PAGE_SPORTS_BALL);
-
-                current_action_label = "sports ball";
-            }
-            else if (detected_object_label == "bottle" && current_action_label != "bottle")
-            {
-                std::cout << "INFO: Detected bottle. Playing action (Page " << ACTION_PAGE_BOTTLE << ")..." << std::endl;
-                run_action(ACTION_PAGE_BOTTLE);
-
-                current_action_label = "bottle";
-            }
-            else if (detected_object_label == "none" && current_action_label != "standby")
-            {
-                // If no specific object is detected and we are not already in standby, go to standby
-                std::cout << "INFO: No target detected. Returning to standby action (Page " << ACTION_PAGE_STAND << ")..." << std::endl;
-                run_action(ACTION_PAGE_STAND);
-
-                current_action_label = "standby";
-            }
-            // If the detected label is the same as the current action label,
-            // we don't need to start the action again.
+            current_action_label = "person";
         }
-        else
+        else if (detected_object_label == "dog" && current_action_label != "dog")
         {
-            // An action is currently playing.
-            // We could add logic here to potentially interrupt an action
-            // if a higher priority object is detected, but for now we wait
-            // for the current action to finish to avoid conflicts.
+            std::cout << "INFO: Detected dog. Playing action (Page " << ACTION_PAGE_DOG << ")..." << std::endl;
+            run_action(ACTION_PAGE_DOG);
+
+            current_action_label = "dog";
         }
+        else if (detected_object_label == "cat" && current_action_label != "cat")
+        {
+            std::cout << "INFO: Detected cat. Playing action (Page " << ACTION_PAGE_CAT << ")..." << std::endl;
+            run_action(ACTION_PAGE_CAT);
+
+            current_action_label = "cat";
+        }
+        else if (detected_object_label == "sports ball" && current_action_label != "sports ball")
+        {
+            std::cout << "INFO: Detected sports ball. Playing action (Page " << ACTION_PAGE_SPORTS_BALL << ")..." << std::endl;
+            run_action(ACTION_PAGE_SPORTS_BALL);
+
+            current_action_label = "sports ball";
+        }
+        else if (detected_object_label == "bottle" && current_action_label != "bottle")
+        {
+            std::cout << "INFO: Detected bottle. Playing action (Page " << ACTION_PAGE_BOTTLE << ")..." << std::endl;
+            run_action(ACTION_PAGE_BOTTLE);
+
+            current_action_label = "bottle";
+        }
+        else if (detected_object_label == "none" && current_action_label != "standby")
+        {
+            // If no specific object is detected and we are not already in standby, go to standby
+            std::cout << "INFO: No target detected. Returning to standby action (Page " << ACTION_PAGE_STAND << ")..." << std::endl;
+            run_action(ACTION_PAGE_STAND);
+
+            current_action_label = "standby";
+        }
+        // If the detected label is the same as the current action label,
+        // we don't need to start the action again.
 
         // Small delay in the main loop to avoid consuming too much CPU
         std::this_thread::sleep_for(std::chrono::milliseconds(100)); // Check every 100ms

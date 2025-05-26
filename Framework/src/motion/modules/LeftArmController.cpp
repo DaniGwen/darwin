@@ -26,8 +26,6 @@ namespace Robot
             int joint_id = joint_pair.first;
             int goal_value = joint_pair.second;
 
-            // Write the goal position to the motor.
-            // The last parameter '0' indicates no error return.
             cm730_->WriteWord(joint_id, MX28::P_GOAL_POSITION_L, goal_value, 0);
             std::cout << "DEBUG: Set Joint ID " << joint_id << " to value " << goal_value << std::endl;
         }
