@@ -13,7 +13,7 @@ namespace Robot
         else
         {
             std::cout << "INFO: LeftArmController initialized successfully." << std::endl;
-            InitializeLeftArm();
+            InitializeLeftArm(5, 5); // Initialize with default P and D gains
         }
     }
 
