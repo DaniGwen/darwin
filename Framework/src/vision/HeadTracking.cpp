@@ -39,7 +39,6 @@ const char *SOCKET_PATH = "/tmp/darwin_detector.sock";
 
 namespace Robot
 {
-
     HeadTracking *HeadTracking::m_UniqueInstance = nullptr;
     std::mutex HeadTracking::m_Mutex;
     bool HeadTracking::m_TrackingEnabled = true; // Start enabled by default
@@ -189,7 +188,7 @@ namespace Robot
         cm730_->WriteByte(JointData::ID_HEAD_TILT, MX28::P_P_GAIN, 8, 0);
 
         // 5. Create display frame buffer
-        rgb_display_frame_ = new Robot::Image(Camera::WIDTH, Camera::HEIGHT, Robot::Image::RGB_PIXEL_SIZE);
+        rgb_display_frame_ = new Image(Camera::WIDTH, Camera::HEIGHT, Image::RGB_PIXEL_SIZE);
         if (!rgb_display_frame_)
         {
             std::cerr << "ERROR: HeadTracking initialization failed: Failed to create display frame buffer." << std::endl;
@@ -230,7 +229,7 @@ namespace Robot
         {
             // --- Capture Frame ---
             LinuxCamera::GetInstance()->CaptureFrame();
-            Robot::Image *current_cam_rgb_frame = LinuxCamera::GetInstance()->fbuffer->m_RGBFrame;
+            Image *current_cam_rgb_frame = LinuxCamera::GetInstance()->fbuffer->m_RGBFrame;
 
             if (!current_cam_rgb_frame || !current_cam_rgb_frame->m_ImageData)
             {
@@ -381,7 +380,7 @@ namespace Robot
         return true;
     }
 
-    bool HeadTracking::SendFrameData(Robot::Image *frame)
+    bool HeadTracking::SendFrameData(Image *frame)
     {
         if (!frame || !frame->m_ImageData || client_socket_ < 0)
         {
@@ -471,7 +470,7 @@ namespace Robot
         return detections;
     }
 
-    void HeadTracking::DrawBoundingBox(Robot::Image *image, const ParsedDetection &detection)
+    void HeadTracking::DrawBoundingBox(Image *image, const ParsedDetection &detection)
     {
         if (!image || !image->m_ImageData)
         {
@@ -537,7 +536,7 @@ namespace Robot
     void HeadTracking::UpdateHeadTracking(const std::vector<ParsedDetection> &detections)
     {
         bool person_found_in_frame = false;
-        Robot::Point2D tracked_object_center_for_head;
+        Point2D tracked_object_center_for_head;
         std::string primary_detected_label = "none";
 
         for (const auto &det : detections)
@@ -563,9 +562,9 @@ namespace Robot
         if (person_found_in_frame)
         {
             no_target_count_ = 0;
-            Robot::Point2D P_err;
+            Point2D P_err;
 
-            Robot::Point2D pixel_offset_from_center;
+            Point2D pixel_offset_from_center;
             pixel_offset_from_center.X = tracked_object_center_for_head.X - (Camera::WIDTH / 2.0);
             pixel_offset_from_center.Y = tracked_object_center_for_head.Y - (Camera::HEIGHT / 2.0);
 
@@ -610,7 +609,7 @@ namespace Robot
                 // This applies a small, fixed correction towards home.
                 double pan_center_speed = (m_Pan_Home - m_PanAngle) * 0.05;    // 5% of distance to home
                 double tilt_center_speed = (m_Tilt_Home - m_TiltAngle) * 0.05; // 5% of distance to home
-                UpdateHeadAngles(Robot::Point2D(pan_center_speed, tilt_center_speed));
+                UpdateHeadAngles(Point2D(pan_center_speed, tilt_center_speed));
                 std::cout << "DEBUG: Head Centering: NoTargetCount=" << no_target_count_ << std::endl;
                 no_target_count_++;
             }
@@ -651,7 +650,7 @@ namespace Robot
         return current_detected_label_;
     }
 
-    Robot::Point2D HeadTracking::GetTrackedObjectCenter()
+    Point2D HeadTracking::GetTrackedObjectCenter()
     {
         return current_tracked_object_center_;
     }
@@ -754,7 +753,7 @@ namespace Robot
         std::cout << "DEBUG: HeadTracking::InitTracking - Tracking errors reset." << std::endl;
     }
 
-    void HeadTracking::UpdateHeadAngles(Robot::Point2D err)
+    void HeadTracking::UpdateHeadAngles(Point2D err)
     {
         // Calculate the derivative error (change in error)
         m_Pan_err_diff = err.X - m_Pan_err;
@@ -850,4 +849,4 @@ namespace Robot
         std::lock_guard<std::mutex> lock(m_Mutex); // Protect access
         return m_TrackingEnabled;
     }
-};
+}
