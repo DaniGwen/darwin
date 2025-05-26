@@ -38,6 +38,12 @@
 #define ACTION_PAGE_BOTTLE 14
 #define ACTION_PAGE_STAND 1 // Example standby/initial pose action
 
+void set_head_joints_torque(CM730 *cm730, bool enable = true)
+{
+    cm730->WriteByte(JointData::ID_HEAD_PAN, MX28::P_TORQUE_ENABLE, enable, 0);
+    cm730->WriteByte(JointData::ID_HEAD_TILT, MX28::P_TORQUE_ENABLE, enable, 0);
+}
+
 void change_current_dir()
 {
     char exepath[1024] = {0};
@@ -93,7 +99,6 @@ int main(void)
     // Get MotionManager and Action singletons
     MotionManager *motion_manager = MotionManager::GetInstance();
     Action *action_module = Action::GetInstance(); // Get Action singleton
-    Walking::GetInstance()->m_Joint.SetEnableBodyWithoutHead(true, true);
 
     // Initialize MotionManager
     if (motion_manager->Initialize(&cm730) == false)
@@ -135,10 +140,13 @@ int main(void)
 
     // Play initial standby action
     std::cout << "INFO: Playing initial standby action (Page " << ACTION_PAGE_STAND << ")..." << std::endl;
+    set_head_joints_torque(&cm730, false);
     action_module->Start(ACTION_PAGE_STAND);
     // Wait for the action to complete before proceeding
     while (action_module->IsRunning())
-        usleep(8 * 1000); // Small delay to prevent busy-waiting
+        usleep(8 * 1000);
+
+    set_head_joints_torque(&cm730, true);
 
     // --- Create and Start HeadTracking Thread ---
     pthread_t tracking_thread;
@@ -179,18 +187,24 @@ int main(void)
             if (detected_object_label == "person" && current_action_label != "person")
             {
                 std::cout << "INFO: Detected person. Playing action (Page " << ACTION_PAGE_WAVE << ")..." << std::endl;
+                set_head_joints_torque(&cm730, false);
                 action_module->Start(ACTION_PAGE_WAVE);
                 // Wait for action to complete before allowing new actions
                 while (action_module->IsRunning())
                     usleep(8 * 1000);
+                set_head_joints_torque(&cm730, true);
+
                 current_action_label = "person";
             }
             else if (detected_object_label == "dog" && current_action_label != "dog")
             {
                 std::cout << "INFO: Detected dog. Playing action (Page " << ACTION_PAGE_DOG << ")..." << std::endl;
+                set_head_joints_torque(&cm730, false);
                 action_module->Start(ACTION_PAGE_DOG);
                 while (action_module->IsRunning())
                     usleep(8 * 1000);
+                set_head_joints_torque(&cm730, true);
+
                 current_action_label = "dog";
             }
             else if (detected_object_label == "cat" && current_action_label != "cat")
@@ -221,9 +235,12 @@ int main(void)
             {
                 // If no specific object is detected and we are not already in standby, go to standby
                 std::cout << "INFO: No target detected. Returning to standby action (Page " << ACTION_PAGE_STAND << ")..." << std::endl;
+                set_head_joints_torque(&cm730, false);
                 action_module->Start(ACTION_PAGE_STAND);
                 while (action_module->IsRunning())
                     usleep(8 * 1000);
+                set_head_joints_torque(&cm730, true);
+
                 current_action_label = "standby";
             }
             // If the detected label is the same as the current action label,

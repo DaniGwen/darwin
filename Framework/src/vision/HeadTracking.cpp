@@ -75,7 +75,6 @@ HeadTracking::HeadTracking()
       // These will be overridden by INI settings if they exist.
       // The INI values are the ones you need to tune.
       // Start with very small values (e.g., 0.01 to 0.1 for P-gain, and even smaller for D-gain like 0.001 to 0.05)
-      // and gradually increase them until you get smooth tracking without oscillation.
       m_Pan_p_gain(0.2),   // Starting point for P-gain (adjust in INI)
       m_Pan_d_gain(0.75),  // Starting point for D-gain (adjust in INI)
       m_Tilt_p_gain(0.2),  // Starting point for P-gain (adjust in INI)
@@ -99,15 +98,13 @@ HeadTracking::HeadTracking()
       current_tracked_object_center_(0.0, 0.0)
 {
     // Constructor is intentionally minimal.
-    // Initialization that might fail or requires external resources
-    // should be done in the Initialize() method.
+    // initialization should be done in the Initialize() method.
 }
 
 // Destructor definition
 HeadTracking::~HeadTracking()
 {
     Cleanup();
-    // ini_settings_ and cm730_ are not owned by HeadTracking
 }
 
 // Modified Initialize signature to accept CM730* directly
