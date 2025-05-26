@@ -53,14 +53,18 @@ class HeadTracking
 {
 public:
     // Singleton access method
-    static HeadTracking* GetInstance();
+    static HeadTracking *GetInstance();
 
     // Initialization method
     // Now only takes minIni and CM730, as Head module is integrated.
-    bool Initialize(minIni* ini, CM730 *cm730);
+    bool Initialize(minIni *ini, CM730 *cm730);
 
     // Main tracking loop
     void Run();
+
+    // Static methods to control tracking state
+    static void SetTrackingEnabled(bool enable);
+    static bool IsTrackingEnabled();
 
     // Cleanup method
     void Cleanup();
@@ -75,16 +79,22 @@ public:
 private:
     // Private constructor to enforce singleton pattern
     HeadTracking();
+    ~HeadTracking();
 
-    // Delete copy constructor and assignment operator
-    HeadTracking(const HeadTracking&) = delete;
-    HeadTracking& operator=(const HeadTracking&) = delete;
+    // Singleton instance
+    static HeadTracking *m_UniqueInstance;
+    static std::mutex m_Mutex;     // Mutex to protect shared resources (like the enable flag)
+    static bool m_TrackingEnabled; // New flag to control tracking
+
+    // // Delete copy constructor and assignment operator
+    // HeadTracking(const HeadTracking &) = delete;
+    // HeadTracking &operator=(const HeadTracking &) = delete;
 
     // --- Member Variables (Ordered to match constructor for -Wreorder warning) ---
-    int client_socket_;         // File descriptor for the client socket connection
-    mjpg_streamer* streamer_;   // Pointer to the MJPG streamer instance
-    minIni* ini_settings_;      // Pointer to loaded INI settings (owned by main)
-    CM730 *cm730_;              // Pointer to CM730 instance (direct motor control)
+    int client_socket_;               // File descriptor for the client socket connection
+    mjpg_streamer *streamer_;         // Pointer to the MJPG streamer instance
+    minIni *ini_settings_;            // Pointer to loaded INI settings (owned by main)
+    CM730 *cm730_;                    // Pointer to CM730 instance (direct motor control)
     Robot::Image *rgb_display_frame_; // Image buffer for the output frame with detections
 
     // Head control state variables (moved from Head.h)
@@ -129,7 +139,6 @@ private:
     std::string current_detected_label_;
     Robot::Point2D current_tracked_object_center_;
 
-
     // --- Private Helper Methods (implementing Head.cpp functionality) ---
 
     // Initializes the Unix Domain Socket server and waits for connection
@@ -137,7 +146,7 @@ private:
     // Initializes the MJPG Streamer
     bool InitializeStreamer();
     // Handles sending frame data over the socket
-    bool SendFrameData(Robot::Image* frame);
+    bool SendFrameData(Robot::Image *frame);
     // Handles receiving detection results over the socket and parsing them
     std::vector<ParsedDetection> ReceiveDetectionResults();
     // Function to parse the detection string received from Python
@@ -145,19 +154,19 @@ private:
     // Basic function to draw bounding boxes on the RGB image
     void DrawBoundingBox(Robot::Image *image, const ParsedDetection &detection);
     // Handles head tracking logic based on detection results
-    void UpdateHeadTracking(const std::vector<ParsedDetection>& detections);
+    void UpdateHeadTracking(const std::vector<ParsedDetection> &detections);
     // Helper to receive exact number of bytes from socket
     std::string ReceiveExact(int sock_fd, size_t num_bytes);
 
     // New methods to replace Head.cpp functionality:
-    void LoadHeadSettings(minIni* ini); // Load head-specific settings from INI
-    void CheckLimit(); // Apply angle limits
-    void MoveToHome(); // Move head to home position
-    void MoveByAngle(double pan, double tilt); // Set target angles
+    void LoadHeadSettings(minIni *ini);              // Load head-specific settings from INI
+    void CheckLimit();                               // Apply angle limits
+    void MoveToHome();                               // Move head to home position
+    void MoveByAngle(double pan, double tilt);       // Set target angles
     void MoveByAngleOffset(double pan, double tilt); // Move by angle offset
-    void InitTracking(); // Reset tracking errors
-    void UpdateHeadAngles(Robot::Point2D err); // Calculate new angles based on error (replaces MoveTracking(Point2D err))
-    void ApplyHeadAngles(); // Apply calculated angles to motors (replaces Head::Process())
+    void InitTracking();                             // Reset tracking errors
+    void UpdateHeadAngles(Robot::Point2D err);       // Calculate new angles based on error (replaces MoveTracking(Point2D err))
+    void ApplyHeadAngles();                          // Apply calculated angles to motors (replaces Head::Process())
     double Value2Deg(int value);
     int Deg2Value(double angle);
 };

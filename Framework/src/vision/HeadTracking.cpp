@@ -29,6 +29,10 @@
 #include "LinuxCamera.h" // Needed for LinuxCamera::GetInstance()
 #include "MotionManager.h"
 
+Robot::HeadTracking *Robot::HeadTracking::m_UniqueInstance = nullptr;
+std::mutex Robot::HeadTracking::m_Mutex;
+bool Robot::HeadTracking::m_TrackingEnabled = true; // Start enabled by default
+
 // Define socket path here (only once)
 const char *SOCKET_PATH = "/tmp/darwin_detector.sock";
 
@@ -81,7 +85,7 @@ HeadTracking::HeadTracking()
       m_Tilt_d_gain(0.75), // Starting point for D-gain (adjust in INI)
       m_LeftLimit(80.0),
       m_RightLimit(-80.0),
-      m_TopLimit(20.0),      // Will be set by Kinematics::EYE_TILT_OFFSET_ANGLE
+      m_TopLimit(20.0),     // Will be set by Kinematics::EYE_TILT_OFFSET_ANGLE
       m_BottomLimit(-68.0), // Will be set by Kinematics::EYE_TILT_OFFSET_ANGLE
       m_Pan_Home(0.0),
       m_Tilt_Home(-20.0), // Will be set by Kinematics::EYE_TILT_OFFSET_ANGLE
@@ -770,6 +774,15 @@ void HeadTracking::UpdateHeadAngles(Robot::Point2D err)
 
 void HeadTracking::ApplyHeadAngles()
 {
+    if (!m_TrackingEnabled)
+    {
+        // If tracking is disabled, skip motor control and home logic
+        // You might want to reset error terms or just do nothing here.
+        // For now, let's just continue to the next loop iteration.
+        std::this_thread::sleep_for(std::chrono::milliseconds(10)); // Short sleep to avoid busy-waiting
+        return;
+    }
+
     if (cm730_)
     {
         int pan_torque_enable = 0;
@@ -803,4 +816,17 @@ void HeadTracking::ApplyHeadAngles()
     {
         std::cerr << "ERROR: HeadTracking::ApplyHeadAngles - CM730 not initialized, cannot set angles." << std::endl;
     }
+}
+
+void Robot::HeadTracking::SetTrackingEnabled(bool enable)
+{
+    std::lock_guard<std::mutex> lock(m_Mutex); // Protect access to m_TrackingEnabled
+    m_TrackingEnabled = enable;
+    std::cout << "DEBUG: HeadTracking::m_TrackingEnabled set to " << (enable ? "true" : "false") << std::endl;
+}
+
+bool Robot::HeadTracking::IsTrackingEnabled()
+{
+    std::lock_guard<std::mutex> lock(m_Mutex); // Protect access
+    return m_TrackingEnabled;
 }
