@@ -176,7 +176,7 @@ int main(void)
         if (detected_object_label == "person" && current_action_label != "person")
         {
             std::cout << "INFO: Detected person. Playing Wave" << std::endl;
-            left_arm_controller.Wave(3, 700, 5, 5);
+            left_arm_controller.Wave(3, 900, 5, 5);
 
             current_action_label = "person";
         }
