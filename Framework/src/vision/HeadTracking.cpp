@@ -594,7 +594,7 @@ namespace Robot
                 P_err.Y *= tilt_error_scale_;
             }
 
-            UpdateHeadAngles(P_err); // Call the new method to update angles
+            UpdateHeadAngles(P_err);
             std::cout << "DEBUG: Head Moving: P_err.X=" << P_err.X << ", P_err.Y=" << P_err.Y << std::endl;
         }
         else
