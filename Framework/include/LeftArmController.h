@@ -23,10 +23,7 @@ namespace Robot
     public:
         LeftArmController(CM730 *cm730);
 
-        // repetitions: The number of times the entire sequence (Pose 1 -> Pose 2) should repeat.
-        // delay_ms: The delay in milliseconds between each pose movement to allow motors to reach their positions.
-        void Wave(int repetitions = 3, int delay_ms = 700);
-        void InitializeLeftArm(int p_gain = 4, int d_gain = 4);
+        void Wave(int repetitions = 3, int delay_ms = 700, int p_gain = 4, int d_gain = 4);
 
     private:
         CM730 *cm730_; // Pointer to the CM730 instance for direct motor control
@@ -34,20 +31,21 @@ namespace Robot
         // Define the two poses for the left arm
         const ArmPose POSE_1 = {
             std::map<int, int>{
-                {JointData::ID_L_SHOULDER_PITCH, 1251},  // Example: Assuming ID_L_SHOULDER_ROLL is Joint ID 2
-                {JointData::ID_L_SHOULDER_ROLL, 1670}, // Example: Assuming ID_L_ELBOW is Joint ID 4
+                {JointData::ID_L_SHOULDER_PITCH, 1251}, // Example: Assuming ID_L_SHOULDER_ROLL is Joint ID 2
+                {JointData::ID_L_SHOULDER_ROLL, 1670},  // Example: Assuming ID_L_ELBOW is Joint ID 4
                 {JointData::ID_L_ELBOW, 1869}           // Example: Assuming ID_L_WRIST_YAW is Joint ID 6
             }};
 
         const ArmPose POSE_2 = {
             std::map<int, int>{
-                {JointData::ID_L_SHOULDER_PITCH, 1251},  // Example: Assuming ID_L_SHOULDER_ROLL is Joint ID 2
-                {JointData::ID_L_SHOULDER_ROLL, 1670}, // Example: Assuming ID_L_ELBOW is Joint ID 4
+                {JointData::ID_L_SHOULDER_PITCH, 1251}, // Example: Assuming ID_L_SHOULDER_ROLL is Joint ID 2
+                {JointData::ID_L_SHOULDER_ROLL, 1670},  // Example: Assuming ID_L_ELBOW is Joint ID 4
                 {JointData::ID_L_ELBOW, 2433}           // Example: Assuming ID_L_WRIST_YAW is Joint ID 6
             }};
 
         // Helper method to apply a single arm pose
         void ApplyPose(const ArmPose &pose);
+        void InitializeLeftArm(int p_gain, int d_gain);
     };
 }
 

@@ -10,11 +10,6 @@ namespace Robot
         {
             std::cerr << "ERROR: LeftArmController initialized with a NULL CM730 pointer. Motor control will not be possible." << std::endl;
         }
-        else
-        {
-            std::cout << "INFO: LeftArmController initialized successfully." << std::endl;
-            InitializeLeftArm(5, 5); // Initialize with default P and D gains
-        }
     }
 
     void LeftArmController::ApplyPose(const ArmPose &pose)
@@ -36,8 +31,9 @@ namespace Robot
         }
     }
 
-    void LeftArmController::Wave(int repetitions, int delay_ms)
+    void LeftArmController::Wave(int repetitions, int delay_ms , int p_gain, int d_gain)
     {
+        InitializeLeftArm(p_gain, d_gain);
 
         if (!cm730_)
         {
