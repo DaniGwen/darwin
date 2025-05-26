@@ -268,11 +268,11 @@ namespace Robot
                 DrawBoundingBox(rgb_display_frame_, det);
             }
 
-            // --- Update Head Tracking based on Detections ---
-            UpdateHeadTracking(detections);
-
-            // --- Apply calculated angles to motors ---
-            ApplyHeadAngles();
+            if (m_TrackingEnabled)
+            {
+                UpdateHeadTracking(detections);
+                ApplyHeadAngles();
+            }
 
             // --- Stream Image ---
             if (streamer_ && rgb_display_frame_)
@@ -751,12 +751,6 @@ namespace Robot
 
     void HeadTracking::UpdateHeadAngles(Point2D err)
     {
-        if (!m_TrackingEnabled)
-        {
-            std::this_thread::sleep_for(std::chrono::milliseconds(10)); // Short sleep to avoid busy-waiting
-            return;
-        }
-
         // Calculate the derivative error (change in error)
         m_Pan_err_diff = err.X - m_Pan_err;
         m_Pan_err = err.X; // Update current error
@@ -795,12 +789,6 @@ namespace Robot
 
     void HeadTracking::ApplyHeadAngles()
     {
-        if (!m_TrackingEnabled)
-        {
-            std::this_thread::sleep_for(std::chrono::milliseconds(10)); // Short sleep to avoid busy-waiting
-            return;
-        }
-
         if (cm730_)
         {
             int pan_torque_enable = 0;
