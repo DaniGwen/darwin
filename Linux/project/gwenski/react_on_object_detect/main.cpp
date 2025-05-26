@@ -134,13 +134,11 @@ int main(void)
 
     // Play initial standby action
     std::cout << "INFO: Playing initial standby action (Page " << ACTION_PAGE_STAND << ")..." << std::endl;
-    HeadTracking::SetTrackingEnabled(false);
+
     action_module->Start(ACTION_PAGE_STAND);
     // Wait for the action to complete before proceeding
     while (action_module->IsRunning())
         usleep(8 * 1000);
-
-    HeadTracking::SetTrackingEnabled(true);
 
     // --- Create and Start HeadTracking Thread ---
     pthread_t tracking_thread;
@@ -181,7 +179,7 @@ int main(void)
             if (detected_object_label == "person" && current_action_label != "person")
             {
                 std::cout << "INFO: Detected person. Playing action (Page " << ACTION_PAGE_WAVE << ")..." << std::endl;
-                HeadTracking::SetTrackingEnabled(false);
+
                 MotionManager::GetInstance()->SetEnable(true);
                 action_module->Start(ACTION_PAGE_WAVE);
                 // Wait for action to complete before allowing new actions
@@ -189,7 +187,6 @@ int main(void)
                     usleep(8 * 1000);
 
                 MotionManager::GetInstance()->SetEnable(false);
-                HeadTracking::SetTrackingEnabled(true);
 
                 current_action_label = "person";
             }
@@ -232,14 +229,13 @@ int main(void)
             {
                 // If no specific object is detected and we are not already in standby, go to standby
                 std::cout << "INFO: No target detected. Returning to standby action (Page " << ACTION_PAGE_STAND << ")..." << std::endl;
-                HeadTracking::SetTrackingEnabled(false);
+            
                 MotionManager::GetInstance()->SetEnable(true);
                 action_module->Start(ACTION_PAGE_STAND);
                 while (action_module->IsRunning())
                     usleep(8 * 1000);
 
                 MotionManager::GetInstance()->SetEnable(false);
-                HeadTracking::SetTrackingEnabled(true);
 
                 current_action_label = "standby";
             }
