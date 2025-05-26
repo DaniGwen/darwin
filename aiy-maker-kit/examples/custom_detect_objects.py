@@ -33,10 +33,6 @@ from tflite_runtime.interpreter import Interpreter
 # Import pycoral utilities for Edge TPU
 from pycoral.utils.edgetpu import make_interpreter
 from pycoral.utils import dataset
-
-# Assume models.py exists and defines OBJECT_DETECTION_MODEL
-# from . import models # Use relative import if models.py is in the same package
-# Or if models.py is just in the same directory:
 import models
 
 # --- Socket Configuration ---
@@ -48,7 +44,7 @@ SOCKET_RETRY_DELAY_SEC = 0.5 # Delay between socket connection retries in second
 # Use the model path from models.py
 MODEL_PATH = models.OBJECT_DETECTION_MODEL
 # Labels path is often MODEL_PATH with .tflite replaced by .txt
-LABELS_PATH = '/home/darwin/darwin/aiy-maker-kit/examples/models/coco_labels.txt'; # Using the path you provided
+LABELS_PATH = '/home/darwin/darwin/aiy-maker-kit/examples/models/coco_labels.txt'
 DETECTION_THRESHOLD = 0.5 # Use the threshold you want
 # MAX_DETECTIONS = 10 # The model outputs a fixed number, we'll filter by threshold
 
