@@ -32,6 +32,7 @@ OBJS =  ../../Framework/src/MX28.o     	\
         ../../Framework/src/motion/modules/Action.o \
         ../../Framework/src/motion/modules/Head.o   \
         ../../Framework/src/motion/modules/Walking.o\
+        ../../Framework/src/motion/modules/LeftArmController.o\
         ../../Framework/src/vision/BallFollower.o   \
         ../../Framework/src/vision/BallTracker.o    \
         ../../Framework/src/vision/ColorFinder.o    \

@@ -107,7 +107,6 @@ int main(void)
     MotionManager *motion_manager = MotionManager::GetInstance();
     Action *action_module = Action::GetInstance(); // Get Action singleton
 
-    // Initialize MotionManager
     if (motion_manager->Initialize(&cm730) == false)
     {
         std::cerr << "ERROR: Failed to initialize Motion Manager in main!" << std::endl;
@@ -115,17 +114,16 @@ int main(void)
         return -1;
     }
 
-    // Load MotionManager settings from INI
     motion_manager->LoadINISettings(ini);
 
     // Add Action module to MotionManager (Head is no longer a MotionModule)
     motion_manager->AddModule((MotionModule *)action_module);
+    MotionManager::GetInstance()->SetEnable(true);
 
-    // Start the Motion Timer
     LinuxMotionTimer *motion_timer = new LinuxMotionTimer(motion_manager);
     motion_timer->Start();
 
-    // --- Initialize HeadTracking ---
+    LeftArmController left_arm_controller(&cm730); // Initialize LeftArmController
     HeadTracking *head_tracker = HeadTracking::GetInstance();
 
     // Pass the INI settings and CM730 instance to HeadTracking.
@@ -186,7 +184,7 @@ int main(void)
             if (detected_object_label == "person" && current_action_label != "person")
             {
                 std::cout << "INFO: Detected person. Playing action (Page " << ACTION_PAGE_WAVE << ")..." << std::endl;
-                run_action(ACTION_PAGE_WAVE);
+              left_arm_controller.Wave(); // Example: Move arm sequence before action
 
                 current_action_label = "person";
             }
