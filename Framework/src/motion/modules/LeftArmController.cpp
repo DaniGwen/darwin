@@ -10,20 +10,6 @@ namespace Robot
         {
             std::cerr << "ERROR: LeftArmController initialized with a NULL CM730 pointer. Motor control will not be possible." << std::endl;
         }
-        else
-        {
-            std::cout << "INFO: LeftArmController initialized." << std::endl;
-
-            cm730_->WriteByte(JointData::ID_L_SHOULDER_ROLL, MX28::P_TORQUE_ENABLE, 1, 0);
-            cm730_->WriteByte(JointData::ID_L_SHOULDER_PITCH, MX28::P_TORQUE_ENABLE, 1, 0);
-            cm730_->WriteByte(JointData::ID_L_ELBOW, MX28::P_TORQUE_ENABLE, 1, 0);
-
-            cm730_->WriteByte(JointData::ID_L_SHOULDER_ROLL, MX28::P_D_GAIN, 8, 0);
-            cm730_->WriteByte(JointData::ID_L_SHOULDER_PITCH, MX28::P_D_GAIN, 8, 0);
-            cm730_->WriteByte(JointData::ID_L_ELBOW, MX28::P_D_GAIN, 8, 0);
-            
-            std::cout << "INFO: Torque enabled for left arm joints." << std::endl;
-        }
     }
 
     void LeftArmController::ApplyPose(const ArmPose &pose)
@@ -49,6 +35,8 @@ namespace Robot
 
     void LeftArmController::Wave(int repetitions, int delay_ms)
     {
+        InitializeLeftArm();
+
         if (!cm730_)
         {
             std::cerr << "ERROR: CM730 not initialized, cannot run arm sequence." << std::endl;
@@ -73,5 +61,18 @@ namespace Robot
         }
 
         std::cout << "INFO: Left arm movement sequence finished." << std::endl;
+    }
+
+    void LeftArmController::InitializeLeftArm()
+    {
+        cm730_->WriteByte(JointData::ID_L_SHOULDER_ROLL, MX28::P_TORQUE_ENABLE, 1, 0);
+        cm730_->WriteByte(JointData::ID_L_SHOULDER_PITCH, MX28::P_TORQUE_ENABLE, 1, 0);
+        cm730_->WriteByte(JointData::ID_L_ELBOW, MX28::P_TORQUE_ENABLE, 1, 0);
+
+        cm730_->WriteByte(JointData::ID_L_SHOULDER_ROLL, MX28::P_D_GAIN, 8, 0);
+        cm730_->WriteByte(JointData::ID_L_SHOULDER_PITCH, MX28::P_D_GAIN, 8, 0);
+        cm730_->WriteByte(JointData::ID_L_ELBOW, MX28::P_D_GAIN, 8, 0);
+
+        std::cout << "INFO: LeftArmController initialized." << std::endl;
     }
 }

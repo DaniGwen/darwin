@@ -47,6 +47,7 @@ namespace Robot
 
         // Helper method to apply a single arm pose
         void ApplyPose(const ArmPose &pose);
+        void InitializeLeftArm();
     };
 
 }

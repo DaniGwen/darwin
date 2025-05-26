@@ -20,10 +20,10 @@
 #include <chrono>    // Required for timing (optional, for loop delay)
 #include <thread>    // Required for std::this_thread::sleep_for (optional)
 
-#include "minIni.h" // For INI file loading
+#include "minIni.h"       // For INI file loading
 #include "HeadTracking.h"
 #include "LeftArmController.h"
-#include "LinuxDARwIn.h" // Include for Motion Framework components (MotionManager, Action)
+#include "LinuxDARwIn.h"  // Include for Motion Framework components (MotionManager, Action)
 
 // --- Configuration ---
 #define INI_FILE_PATH "../../../../Data/config.ini"
@@ -48,13 +48,13 @@ void change_current_dir()
 void run_action(int action_page)
 {
     HeadTracking::SetTrackingEnabled(false);
-    MotionManager::GetInstance()->AddModule((MotionModule *)Action::GetInstance());
+    MotionManager::GetInstance()->SetEnable(true);
 
     Action::GetInstance()->Start(action_page);
     while (Action::GetInstance()->IsRunning())
         usleep(8 * 1000);
 
-    MotionManager::GetInstance()->RemoveModule((MotionModule *)Action::GetInstance());
+    MotionManager::GetInstance()->SetEnable(false);
     HeadTracking::SetTrackingEnabled(true);
 }
 
@@ -115,7 +115,10 @@ int main(void)
     }
 
     motion_manager->LoadINISettings(ini);
+
+    motion_manager->AddModule((MotionModule *)action_module);
     MotionManager::GetInstance()->SetEnable(true);
+
     LinuxMotionTimer *motion_timer = new LinuxMotionTimer(motion_manager);
     motion_timer->Start();
 
@@ -177,7 +180,7 @@ int main(void)
             if (detected_object_label == "person" && current_action_label != "person")
             {
                 std::cout << "INFO: Detected person. Playing action (Page " << ACTION_PAGE_WAVE << ")..." << std::endl;
-                left_arm_controller.Wave(); // Example: Move arm sequence before action
+               left_arm_controller.Wave(); // Example: Move arm sequence before action
 
                 current_action_label = "person";
             }
