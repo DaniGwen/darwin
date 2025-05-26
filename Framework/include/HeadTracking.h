@@ -113,7 +113,7 @@ private:
 
     // Tracking state variables
     int no_target_count_;
-    static const int NO_TARGET_MAX_COUNT = 30; // Number of frames to wait before initiating scan
+    static const int NO_TARGET_MAX_COUNT = 40; // Number of frames to wait before initiating scan
 
     // Tuning Parameters for Centering (loaded from INI in Initialize)
     double pan_error_scale_;
