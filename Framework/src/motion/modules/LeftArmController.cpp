@@ -67,9 +67,9 @@ namespace Robot
         cm730_->WriteByte(JointData::ID_L_SHOULDER_PITCH, MX28::P_TORQUE_ENABLE, 1, 0);
         cm730_->WriteByte(JointData::ID_L_ELBOW, MX28::P_TORQUE_ENABLE, 1, 0);
 
-        cm730_->WriteByte(JointData::ID_L_SHOULDER_ROLL, MX28::P_D_GAIN, 8, 0);
-        cm730_->WriteByte(JointData::ID_L_SHOULDER_PITCH, MX28::P_D_GAIN, 8, 0);
-        cm730_->WriteByte(JointData::ID_L_ELBOW, MX28::P_D_GAIN, 8, 0);
+        cm730_->WriteByte(JointData::ID_L_SHOULDER_ROLL, MX28::P_P_GAIN, 8, 0);
+        cm730_->WriteByte(JointData::ID_L_SHOULDER_PITCH, MX28::P_P_GAIN, 8, 0);
+        cm730_->WriteByte(JointData::ID_L_ELBOW, MX28::P_P_GAIN, 8, 0);
 
         std::cout << "INFO: LeftArmController initialized." << std::endl;
     }
