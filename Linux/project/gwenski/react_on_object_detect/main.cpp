@@ -212,7 +212,7 @@ int main(void)
         {
             // If no specific object is detected and we are not already in standby, go to standby
             std::cout << "INFO: No target detected. Returning to standby action (Page " << ACTION_PAGE_STAND << ")..." << std::endl;
-           // run_action(ACTION_PAGE_STAND);
+            run_action(ACTION_PAGE_STAND);
 
             current_action_label = "standby";
         }
