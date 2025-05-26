@@ -16,7 +16,7 @@
 #include <memory>   // For std::unique_ptr
 #include <iostream> // For std::cerr, std::cout
 #include <cmath>    // For std::abs (needed for CheckLimit, PID)
-#include <mutex>  
+#include <mutex>
 
 // Headers for Unix Domain Sockets
 #include <sys/socket.h>
@@ -31,7 +31,6 @@
 #include "Point.h"         // For Robot::Point2D
 #include "JointData.h"     // For JointData::ID_HEAD_PAN, ID_HEAD_TILT, MX28 constants
 #include "Kinematics.h"    // **ADDED: For Kinematics::EYE_TILT_OFFSET_ANGLE**
-
 
 // Forward declarations for Robot namespace classes if they are only used as pointers/references
 namespace Robot
@@ -64,33 +63,32 @@ public:
     // Main tracking loop
     void Run();
 
-    // Static methods to control tracking state
-    static void SetTrackingEnabled(bool enable);
-    static bool IsTrackingEnabled();
-
     // Cleanup method
     void Cleanup();
-
-    // Explicitly declare the destructor
-    ~HeadTracking();
 
     // Public getters for detected label and tracked object center (needed by main.cpp)
     std::string GetDetectedLabel();
     Robot::Point2D GetTrackedObjectCenter();
 
+    // Static methods to control tracking state
+    static void SetTrackingEnabled(bool enable);
+    static bool IsTrackingEnabled();
+
+    // Explicitly declare the destructor
+    ~HeadTracking();
+
 private:
     // Private constructor to enforce singleton pattern
     HeadTracking();
-    ~HeadTracking();
 
     // Singleton instance
     static HeadTracking *m_UniqueInstance;
     static std::mutex m_Mutex;     // Mutex to protect shared resources (like the enable flag)
     static bool m_TrackingEnabled; // New flag to control tracking
 
-    // // Delete copy constructor and assignment operator
-    // HeadTracking(const HeadTracking &) = delete;
-    // HeadTracking &operator=(const HeadTracking &) = delete;
+    // Delete copy constructor and assignment operator
+    HeadTracking(const HeadTracking &) = delete;
+    HeadTracking &operator=(const HeadTracking &) = delete;
 
     // --- Member Variables (Ordered to match constructor for -Wreorder warning) ---
     int client_socket_;               // File descriptor for the client socket connection
