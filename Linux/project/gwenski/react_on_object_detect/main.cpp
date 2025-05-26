@@ -174,17 +174,14 @@ int main(void)
         // Get the latest detected label from the HeadTracking thread
         std::string detected_object_label = head_tracker->GetDetectedLabel();
 
-        // Check if an action is currently running
         bool is_action_playing = action_module->IsRunning();
 
-        // --- Action Triggering Logic ---
-        // Only start a new action if no action is currently playing AND the detected label is new
         if (!is_action_playing)
         {
             if (detected_object_label == "person" && current_action_label != "person")
             {
                 std::cout << "INFO: Detected person. Playing action (Page " << ACTION_PAGE_WAVE << ")..." << std::endl;
-              left_arm_controller.Wave(); // Example: Move arm sequence before action
+               left_arm_controller.Wave(); // Example: Move arm sequence before action
 
                 current_action_label = "person";
             }

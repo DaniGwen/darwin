@@ -25,7 +25,7 @@ namespace Robot
 
         // repetitions: The number of times the entire sequence (Pose 1 -> Pose 2) should repeat.
         // delay_ms: The delay in milliseconds between each pose movement to allow motors to reach their positions.
-        void Wave(int repetitions = 3, int delay_ms = 10000);
+        void Wave(int repetitions = 3, int delay_ms = 100000);
 
     private:
         CM730 *cm730_; // Pointer to the CM730 instance for direct motor control
