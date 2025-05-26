@@ -115,7 +115,7 @@ int main(void)
     }
 
     motion_manager->LoadINISettings(ini);
-
+    MotionStatus::m_CurrentJoints.SetEnableBodyWithoutHead(false);
     motion_manager->AddModule((MotionModule *)action_module);
     MotionManager::GetInstance()->SetEnable(true);
 
@@ -176,35 +176,35 @@ int main(void)
         if (detected_object_label == "person" && current_action_label != "person")
         {
             std::cout << "INFO: Detected person. Playing Wave" << std::endl;
-            left_arm_controller.Wave(3, 900, 5, 5);
+            left_arm_controller.Wave(3, 700, 5, 5);
 
             current_action_label = "person";
         }
         else if (detected_object_label == "dog" && current_action_label != "dog")
         {
             std::cout << "INFO: Detected dog. Playing action (Page " << ACTION_PAGE_DOG << ")..." << std::endl;
-           // run_action(ACTION_PAGE_DOG);
+            // run_action(ACTION_PAGE_DOG);
 
             current_action_label = "dog";
         }
         else if (detected_object_label == "cat" && current_action_label != "cat")
         {
             std::cout << "INFO: Detected cat. Playing action (Page " << ACTION_PAGE_CAT << ")..." << std::endl;
-            //run_action(ACTION_PAGE_CAT);
+            // run_action(ACTION_PAGE_CAT);
 
             current_action_label = "cat";
         }
         else if (detected_object_label == "sports ball" && current_action_label != "sports ball")
         {
             std::cout << "INFO: Detected sports ball. Playing action (Page " << ACTION_PAGE_SPORTS_BALL << ")..." << std::endl;
-            //run_action(ACTION_PAGE_SPORTS_BALL);
+            // run_action(ACTION_PAGE_SPORTS_BALL);
 
             current_action_label = "sports ball";
         }
         else if (detected_object_label == "bottle" && current_action_label != "bottle")
         {
             std::cout << "INFO: Detected bottle. Playing action (Page " << ACTION_PAGE_BOTTLE << ")..." << std::endl;
-            //run_action(ACTION_PAGE_BOTTLE);
+            // run_action(ACTION_PAGE_BOTTLE);
 
             current_action_label = "bottle";
         }
