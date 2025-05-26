@@ -136,7 +136,7 @@ bool HeadTracking::Initialize(minIni *ini, CM730 *cm730)
     {
         std::cerr << "WARNING: Failed to start Python script using system(). Make sure the path is correct and python3 is in PATH." << std::endl;
     }
-    usleep(2000000); // 2 second delay (adjust if needed) to allow script to start and create socket
+    usleep(1000000); // 1 second delay (adjust if needed) to allow script to start and create socket
 
     // 1. Initialize Socket Server and wait for Python connection
     client_socket_ = InitializeSocketServer();
