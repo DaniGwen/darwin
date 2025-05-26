@@ -61,19 +61,24 @@ namespace Robot
         std::cout << "INFO: Left arm movement sequence finished." << std::endl;
     }
 
-    void LeftArmController::InitializeLeftArm()
+    void LeftArmController::InitializeLeftArm(int p_gain, int d_gain)
     {
+        if (!cm730_)
+        {
+            std::cerr << "ERROR: CM730 not initialized, cannot initialize left arm." << std::endl;
+            return;
+        }
         cm730_->WriteByte(JointData::ID_L_SHOULDER_ROLL, MX28::P_TORQUE_ENABLE, 1, 0);
         cm730_->WriteByte(JointData::ID_L_SHOULDER_PITCH, MX28::P_TORQUE_ENABLE, 1, 0);
         cm730_->WriteByte(JointData::ID_L_ELBOW, MX28::P_TORQUE_ENABLE, 1, 0);
 
-        cm730_->WriteByte(JointData::ID_L_SHOULDER_ROLL, MX28::P_P_GAIN, 1, 0);
-        cm730_->WriteByte(JointData::ID_L_SHOULDER_PITCH, MX28::P_P_GAIN, 1, 0);
-        cm730_->WriteByte(JointData::ID_L_ELBOW, MX28::P_P_GAIN, 1, 0);
+        cm730_->WriteByte(JointData::ID_L_SHOULDER_ROLL, MX28::P_P_GAIN, p_gain, 0);
+        cm730_->WriteByte(JointData::ID_L_SHOULDER_PITCH, MX28::P_P_GAIN, p_gain, 0);
+        cm730_->WriteByte(JointData::ID_L_ELBOW, MX28::P_P_GAIN, p_gain, 0);
 
-         cm730_->WriteByte(JointData::ID_L_SHOULDER_ROLL, MX28::P_D_GAIN, 1, 0);
-        cm730_->WriteByte(JointData::ID_L_SHOULDER_PITCH, MX28::P_D_GAIN, 1, 0);
-        cm730_->WriteByte(JointData::ID_L_ELBOW, MX28::P_D_GAIN, 1, 0);
+        cm730_->WriteByte(JointData::ID_L_SHOULDER_ROLL, MX28::P_D_GAIN, d_gain, 0);
+        cm730_->WriteByte(JointData::ID_L_SHOULDER_PITCH, MX28::P_D_GAIN, d_gain, 0);
+        cm730_->WriteByte(JointData::ID_L_ELBOW, MX28::P_D_GAIN, d_gain, 0);
 
         std::cout << "INFO: LeftArmController initialized." << std::endl;
     }
