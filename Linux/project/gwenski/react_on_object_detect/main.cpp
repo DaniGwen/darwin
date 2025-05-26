@@ -21,9 +21,9 @@
 #include <thread>    // Required for std::this_thread::sleep_for (optional)
 
 #include "minIni.h"       // For INI file loading
-#include "HeadTracking.h" // Include the HeadTracking class header
+#include "HeadTracking.h"
+#include "LeftArmController.h"
 #include "LinuxDARwIn.h"  // Include for Motion Framework components (MotionManager, Action)
-                          // Note: Head.h is no longer directly included here as its logic is in HeadTracking.
 
 // --- Configuration ---
 #define INI_FILE_PATH "../../../../Data/config.ini"
