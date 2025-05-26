@@ -45,6 +45,23 @@ void change_current_dir()
         chdir(dirname(exepath));
 }
 
+void run_action(int action_page)
+{
+
+    HeadTracking::SetTrackingEnabled(false);
+    MotionManager::GetInstance()->SetEnable(true);
+    Action::GetInstance()->Start(action_page);
+    while (Action::GetInstance()->IsRunning())
+    {
+        if (!HeadTracking::IsTrackingEnabled())
+        {
+            MotionManager::GetInstance()->SetEnable(false);
+            HeadTracking::SetTrackingEnabled(true);
+        }
+        usleep(8 * 1000);
+    }
+}
+
 // Thread entry point function for HeadTracking
 void *HeadTrackingThread(void *arg)
 {
@@ -132,11 +149,7 @@ int main(void)
     // Play initial standby action
     std::cout << "INFO: Playing initial standby action (Page " << ACTION_PAGE_STAND << ")..." << std::endl;
 
-    action_module->Start(ACTION_PAGE_STAND);
-    // Wait for the action to complete before proceeding
-    while (action_module->IsRunning())
-        usleep(8 * 1000);
-
+    run_action(ACTION_PAGE_STAND);
 
     // --- Create and Start HeadTracking Thread ---
     pthread_t tracking_thread;
@@ -177,57 +190,43 @@ int main(void)
             if (detected_object_label == "person" && current_action_label != "person")
             {
                 std::cout << "INFO: Detected person. Playing action (Page " << ACTION_PAGE_WAVE << ")..." << std::endl;
-
-                action_module->Start(ACTION_PAGE_WAVE);
-                // Wait for action to complete before allowing new actions
-                while (action_module->IsRunning())
-                    usleep(8 * 1000);
+                run_action(ACTION_PAGE_WAVE);
 
                 current_action_label = "person";
             }
             else if (detected_object_label == "dog" && current_action_label != "dog")
             {
                 std::cout << "INFO: Detected dog. Playing action (Page " << ACTION_PAGE_DOG << ")..." << std::endl;
-                HeadTracking::SetTrackingEnabled(false);
-                action_module->Start(ACTION_PAGE_DOG);
-                while (action_module->IsRunning())
-                    usleep(8 * 1000);
-                HeadTracking::SetTrackingEnabled(true);
+                run_action(ACTION_PAGE_DOG);
 
                 current_action_label = "dog";
             }
             else if (detected_object_label == "cat" && current_action_label != "cat")
             {
                 std::cout << "INFO: Detected cat. Playing action (Page " << ACTION_PAGE_CAT << ")..." << std::endl;
-                action_module->Start(ACTION_PAGE_CAT);
-                while (action_module->IsRunning())
-                    usleep(8 * 1000);
+                run_action(ACTION_PAGE_CAT);
+            
                 current_action_label = "cat";
             }
             else if (detected_object_label == "sports ball" && current_action_label != "sports ball")
             {
                 std::cout << "INFO: Detected sports ball. Playing action (Page " << ACTION_PAGE_SPORTS_BALL << ")..." << std::endl;
-                action_module->Start(ACTION_PAGE_SPORTS_BALL);
-                while (action_module->IsRunning())
-                    usleep(8 * 1000);
+                run_action(ACTION_PAGE_SPORTS_BALL);
+              
                 current_action_label = "sports ball";
             }
             else if (detected_object_label == "bottle" && current_action_label != "bottle")
             {
                 std::cout << "INFO: Detected bottle. Playing action (Page " << ACTION_PAGE_BOTTLE << ")..." << std::endl;
-                action_module->Start(ACTION_PAGE_BOTTLE);
-                while (action_module->IsRunning())
-                    usleep(8 * 1000);
+                run_action(ACTION_PAGE_BOTTLE);
+             
                 current_action_label = "bottle";
             }
             else if (detected_object_label == "none" && current_action_label != "standby")
             {
                 // If no specific object is detected and we are not already in standby, go to standby
                 std::cout << "INFO: No target detected. Returning to standby action (Page " << ACTION_PAGE_STAND << ")..." << std::endl;
-
-                action_module->Start(ACTION_PAGE_STAND);
-                while (action_module->IsRunning())
-                    usleep(8 * 1000);
+                run_action(ACTION_PAGE_STAND);
 
                 current_action_label = "standby";
             }
