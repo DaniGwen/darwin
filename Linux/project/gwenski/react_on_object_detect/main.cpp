@@ -52,14 +52,10 @@ void run_action(int action_page)
     MotionManager::GetInstance()->SetEnable(true);
     Action::GetInstance()->Start(action_page);
     while (Action::GetInstance()->IsRunning())
-    {
-        if (!HeadTracking::IsTrackingEnabled())
-        {
-            MotionManager::GetInstance()->SetEnable(false);
-            HeadTracking::SetTrackingEnabled(true);
-        }
         usleep(8 * 1000);
-    }
+
+    MotionManager::GetInstance()->SetEnable(false);
+    HeadTracking::SetTrackingEnabled(true);
 }
 
 // Thread entry point function for HeadTracking
@@ -205,21 +201,21 @@ int main(void)
             {
                 std::cout << "INFO: Detected cat. Playing action (Page " << ACTION_PAGE_CAT << ")..." << std::endl;
                 run_action(ACTION_PAGE_CAT);
-            
+
                 current_action_label = "cat";
             }
             else if (detected_object_label == "sports ball" && current_action_label != "sports ball")
             {
                 std::cout << "INFO: Detected sports ball. Playing action (Page " << ACTION_PAGE_SPORTS_BALL << ")..." << std::endl;
                 run_action(ACTION_PAGE_SPORTS_BALL);
-              
+
                 current_action_label = "sports ball";
             }
             else if (detected_object_label == "bottle" && current_action_label != "bottle")
             {
                 std::cout << "INFO: Detected bottle. Playing action (Page " << ACTION_PAGE_BOTTLE << ")..." << std::endl;
                 run_action(ACTION_PAGE_BOTTLE);
-             
+
                 current_action_label = "bottle";
             }
             else if (detected_object_label == "none" && current_action_label != "standby")
