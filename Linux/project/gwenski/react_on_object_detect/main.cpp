@@ -45,7 +45,7 @@ void change_current_dir()
         chdir(dirname(exepath));
 }
 
-void run_action(CM730 *cm730, action_page)
+void run_action(CM730 *cm730,int action_page)
 {
     // HeadTracking::SetTrackingEnabled(false);
     MotionManager::GetInstance()->SetEnable(true);
