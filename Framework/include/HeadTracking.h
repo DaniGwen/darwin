@@ -16,6 +16,7 @@
 #include <memory>   // For std::unique_ptr
 #include <iostream> // For std::cerr, std::cout
 #include <cmath>    // For std::abs (needed for CheckLimit, PID)
+#include <mutex>  
 
 // Headers for Unix Domain Sockets
 #include <sys/socket.h>
@@ -30,6 +31,7 @@
 #include "Point.h"         // For Robot::Point2D
 #include "JointData.h"     // For JointData::ID_HEAD_PAN, ID_HEAD_TILT, MX28 constants
 #include "Kinematics.h"    // **ADDED: For Kinematics::EYE_TILT_OFFSET_ANGLE**
+
 
 // Forward declarations for Robot namespace classes if they are only used as pointers/references
 namespace Robot
@@ -79,7 +81,6 @@ public:
 private:
     // Private constructor to enforce singleton pattern
     HeadTracking();
-    ~HeadTracking();
 
     // Singleton instance
     static HeadTracking *m_UniqueInstance;
@@ -87,8 +88,8 @@ private:
     static bool m_TrackingEnabled; // New flag to control tracking
 
     // // Delete copy constructor and assignment operator
-    // HeadTracking(const HeadTracking &) = delete;
-    // HeadTracking &operator=(const HeadTracking &) = delete;
+    HeadTracking(const HeadTracking &) = delete;
+    HeadTracking &operator=(const HeadTracking &) = delete;
 
     // --- Member Variables (Ordered to match constructor for -Wreorder warning) ---
     int client_socket_;               // File descriptor for the client socket connection
