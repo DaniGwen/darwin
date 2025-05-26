@@ -112,9 +112,6 @@ int main(void)
     LinuxMotionTimer *motion_timer = new LinuxMotionTimer(motion_manager);
     motion_timer->Start();
 
-    // Enable MotionManager
-    MotionManager::GetInstance()->SetEnable(true);
-
     // --- Initialize HeadTracking ---
     HeadTracking *head_tracker = HeadTracking::GetInstance();
 
@@ -135,10 +132,12 @@ int main(void)
     // Play initial standby action
     std::cout << "INFO: Playing initial standby action (Page " << ACTION_PAGE_STAND << ")..." << std::endl;
 
+    MotionManager::GetInstance()->SetEnable(true);
     action_module->Start(ACTION_PAGE_STAND);
     // Wait for the action to complete before proceeding
     while (action_module->IsRunning())
         usleep(8 * 1000);
+    MotionManager::GetInstance()->SetEnable(false);
 
     // --- Create and Start HeadTracking Thread ---
     pthread_t tracking_thread;
@@ -229,7 +228,7 @@ int main(void)
             {
                 // If no specific object is detected and we are not already in standby, go to standby
                 std::cout << "INFO: No target detected. Returning to standby action (Page " << ACTION_PAGE_STAND << ")..." << std::endl;
-            
+
                 MotionManager::GetInstance()->SetEnable(true);
                 action_module->Start(ACTION_PAGE_STAND);
                 while (action_module->IsRunning())
