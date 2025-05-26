@@ -127,13 +127,13 @@ namespace Robot
     }
 
     // Destructor definition
-    ~HeadTracking()
+    HeadTracking::~HeadTracking()
     {
         Cleanup();
     }
 
     // Modified Initialize signature to accept CM730* directly
-    bool Initialize(minIni *ini, CM730 *cm730)
+    bool HeadTracking::Initialize(minIni *ini, CM730 *cm730)
     {
         ini_settings_ = ini;
         cm730_ = cm730;
@@ -292,7 +292,7 @@ namespace Robot
         std::cout << "INFO: HeadTracking main loop terminated." << std::endl;
     }
 
-    void Cleanup()
+    void HeadTracking::Cleanup()
     {
         std::cout << "INFO: Cleaning up HeadTracking resources..." << std::endl;
 
@@ -319,7 +319,7 @@ namespace Robot
 
     // --- Private Helper Method Implementations ---
 
-    int InitializeSocketServer()
+    int HeadTracking::InitializeSocketServer()
     {
         int server_sock;
         struct sockaddr_un server_addr;
@@ -367,7 +367,7 @@ namespace Robot
         return client_sock;
     }
 
-    bool InitializeStreamer()
+    bool HeadTracking::InitializeStreamer()
     {
         std::cout << "INFO: Initializing MJPG streamer..." << std::endl;
         streamer_ = new mjpg_streamer(Camera::WIDTH, Camera::HEIGHT);
@@ -380,7 +380,7 @@ namespace Robot
         return true;
     }
 
-    bool SendFrameData(Image *frame)
+    bool HeadTracking::SendFrameData(Image *frame)
     {
         if (!frame || !frame->m_ImageData || client_socket_ < 0)
         {
@@ -406,7 +406,7 @@ namespace Robot
         return true;
     }
 
-    std::vector<ParsedDetection> ReceiveDetectionResults()
+    std::vector<ParsedDetection> HeadTracking::ReceiveDetectionResults()
     {
         std::string detection_output;
         uint32_t result_size = 0;
@@ -441,7 +441,7 @@ namespace Robot
         return ParseDetectionOutput(detection_output);
     }
 
-    std::vector<ParsedDetection> ParseDetectionOutput(const std::string &output)
+    std::vector<ParsedDetection> HeadTracking::ParseDetectionOutput(const std::string &output)
     {
         std::vector<ParsedDetection> detections;
         if (output.empty())
@@ -470,7 +470,7 @@ namespace Robot
         return detections;
     }
 
-    void DrawBoundingBox(Image *image, const ParsedDetection &detection)
+    void HeadTracking::DrawBoundingBox(Image *image, const ParsedDetection &detection)
     {
         if (!image || !image->m_ImageData)
         {
@@ -533,7 +533,7 @@ namespace Robot
                detection.label.c_str(), detection.score, xmin, ymin, xmax, ymax);
     }
 
-    void UpdateHeadTracking(const std::vector<ParsedDetection> &detections)
+    void HeadTracking::UpdateHeadTracking(const std::vector<ParsedDetection> &detections)
     {
         bool person_found_in_frame = false;
         Point2D tracked_object_center_for_head;
@@ -621,7 +621,7 @@ namespace Robot
         }
     }
 
-    std::string ReceiveExact(int sock_fd, size_t num_bytes)
+    std::string HeadTracking::ReceiveExact(int sock_fd, size_t num_bytes)
     {
         std::string buffer(num_bytes, '\0');
         size_t total_received = 0;
@@ -645,12 +645,12 @@ namespace Robot
         return buffer;
     }
 
-    std::string GetDetectedLabel()
+    std::string HeadTracking::GetDetectedLabel()
     {
         return current_detected_label_;
     }
 
-    Point2D GetTrackedObjectCenter()
+    Point2D HeadTracking::GetTrackedObjectCenter()
     {
         return current_tracked_object_center_;
     }
@@ -660,7 +660,7 @@ namespace Robot
     // Converts an angle in degrees to a raw MX-28 motor value (0-4095)
     // Assumes 0 degrees is the center position (2048).
     // Positive angles move towards higher values, negative towards lower.
-    int Deg2Value(double angle_deg)
+    int HeadTracking::Deg2Value(double angle_deg)
     {
         // Calculate the raw value relative to the center position
         double value = MX28_CENTER_VALUE + (angle_deg * MX28_UNIT_PER_DEGREE);
@@ -673,12 +673,12 @@ namespace Robot
 
     // Converts a raw MX-28 motor value (0-4095) to an angle in degrees
     // Assumes 2048 is the center position (0 degrees).
-    double Value2Deg(int value)
+    double HeadTracking::Value2Deg(int value)
     {
         return (value - MX28_CENTER_VALUE) * MX28_DEGREE_PER_UNIT;
     }
 
-    void LoadHeadSettings(minIni *ini)
+    void HeadTracking::LoadHeadSettings(minIni *ini)
     {
         // Load P and D gains from INI. These are the values that directly control motor responsiveness.
         // If the head is jerking, these values in your config.ini are too high.
@@ -707,7 +707,7 @@ namespace Robot
         std::cout << "INFO: HeadTracking::LoadHeadSettings - Home: Pan=" << m_Pan_Home << ", Tilt=" << m_Tilt_Home << std::endl;
     }
 
-    void CheckLimit()
+    void HeadTracking::CheckLimit()
     {
         // Clamp the angles to the defined limits
         m_PanAngle = std::max(m_RightLimit, std::min(m_LeftLimit, m_PanAngle));
@@ -716,7 +716,7 @@ namespace Robot
         std::cout << "DEBUG: HeadTracking::CheckLimit - PanAngle (clamped): " << m_PanAngle << ", TiltAngle (clamped): " << m_TiltAngle << std::endl;
     }
 
-    void MoveToHome()
+    void HeadTracking::MoveToHome()
     {
         if (cm730_)
         {
@@ -727,7 +727,7 @@ namespace Robot
         std::cout << "DEBUG: HeadTracking::MoveToHome - Moving to Pan_Home: " << m_Pan_Home << ", Tilt_Home: " << m_Tilt_Home << std::endl;
     }
 
-    void MoveByAngle(double pan, double tilt)
+    void HeadTracking::MoveByAngle(double pan, double tilt)
     {
         m_PanAngle = pan;
         m_TiltAngle = tilt;
@@ -737,14 +737,14 @@ namespace Robot
                   << " (After Limit: Pan: " << m_PanAngle << ", Tilt: " << m_TiltAngle << ")" << std::endl;
     }
 
-    void MoveByAngleOffset(double pan_offset, double tilt_offset)
+    void HeadTracking::MoveByAngleOffset(double pan_offset, double tilt_offset)
     {
         // Apply offset to current angles and then move to the new absolute angles
         MoveByAngle(m_PanAngle + pan_offset, m_TiltAngle + tilt_offset);
         std::cout << "DEBUG: HeadTracking::MoveByAngleOffset - Offset Pan: " << pan_offset << ", Offset Tilt: " << tilt_offset << std::endl;
     }
 
-    void InitTracking()
+    void HeadTracking::InitTracking()
     {
         m_Pan_err = 0;
         m_Pan_err_diff = 0;
@@ -753,7 +753,7 @@ namespace Robot
         std::cout << "DEBUG: HeadTracking::InitTracking - Tracking errors reset." << std::endl;
     }
 
-    void UpdateHeadAngles(Point2D err)
+    void HeadTracking::UpdateHeadAngles(Point2D err)
     {
         // Calculate the derivative error (change in error)
         m_Pan_err_diff = err.X - m_Pan_err;
@@ -791,7 +791,7 @@ namespace Robot
         CheckLimit(); // Ensure the updated angles are within limits
     }
 
-    void ApplyHeadAngles()
+    void HeadTracking::ApplyHeadAngles()
     {
         if (!m_TrackingEnabled)
         {
@@ -837,14 +837,14 @@ namespace Robot
         }
     }
 
-    void SetTrackingEnabled(bool enable)
+    void HeadTracking::SetTrackingEnabled(bool enable)
     {
         std::lock_guard<std::mutex> lock(m_Mutex); // Protect access to m_TrackingEnabled
         m_TrackingEnabled = enable;
         std::cout << "DEBUG: HeadTracking::m_TrackingEnabled set to " << (enable ? "true" : "false") << std::endl;
     }
 
-    bool IsTrackingEnabled()
+    bool HeadTracking::IsTrackingEnabled()
     {
         std::lock_guard<std::mutex> lock(m_Mutex); // Protect access
         return m_TrackingEnabled;
