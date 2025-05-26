@@ -55,6 +55,7 @@ class HeadTracking
 public:
     // Singleton access method
     static HeadTracking *GetInstance();
+    static void DestroyInstance();
 
     // Initialization method
     // Now only takes minIni and CM730, as Head module is integrated.
