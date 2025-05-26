@@ -115,7 +115,6 @@ int main(void)
     }
 
     motion_manager->LoadINISettings(ini);
-    MotionStatus::m_CurrentJoints.SetEnableBodyWithoutHead(false);
     motion_manager->AddModule((MotionModule *)action_module);
     MotionManager::GetInstance()->SetEnable(true);
 
