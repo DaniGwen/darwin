@@ -37,30 +37,29 @@
 // Define socket path here (only once)
 const char *SOCKET_PATH = "/tmp/darwin_detector.sock";
 
+// IMPORTANT:  Python Script Configuration. Set the correct path to your Python detector script
+const char *PYTHON_SCRIPT_PATH = "/home/darwin/darwin/aiy-maker-kit/examples/custom_detect_objects.py";
+
+// --- MX-28 Motor Conversion Constants ---
+// These constants are crucial for converting between degrees and the raw motor position values (0-4095).
+// MX-28 motors have a range of 300 degrees (from -150 to +150 relative to center).
+// The full range of 4096 units maps to 360 degrees, but the usable range is 300 degrees.
+// A common mapping for MX-28: 2048 is center (0 degrees), 0 is -150 degrees, 4095 is +150 degrees.
+// So, 1 degree = (4095 - 0) / 300 degrees = 13.65 units/degree.
+// Let's use the standard 0.088 degrees per unit or 11.375 units per degree for 360 degrees range.
+// However, for the 300 degree range, it's 4096 / 300 = 13.65 units/degree.
+// The DXL SDK often uses 0.088 degrees/unit (360/4096). Let's use this for consistency if the
+// angles are relative to the motor's full 360-degree resolution.
+// Assuming 2048 is the mechanical center (0 degrees relative to motor).
+const double MX28_CENTER_VALUE = 2048.0;
+const double MX28_DEGREE_PER_UNIT = 360.0 / 4096.0; // 0.08789 degrees per unit
+const double MX28_UNIT_PER_DEGREE = 4096.0 / 360.0; // 11.3777 units per degree
+
 namespace Robot
 {
     HeadTracking *HeadTracking::m_UniqueInstance = nullptr;
     std::mutex HeadTracking::m_Mutex;
     bool HeadTracking::m_TrackingEnabled = true; // Start enabled by default
-
-    // --- Python Script Configuration ---
-    // IMPORTANT: Set the correct path to your Python detector script
-    const char *PYTHON_SCRIPT_PATH = "/home/darwin/darwin/aiy-maker-kit/examples/custom_detect_objects.py";
-
-    // --- MX-28 Motor Conversion Constants ---
-    // These constants are crucial for converting between degrees and the raw motor position values (0-4095).
-    // MX-28 motors have a range of 300 degrees (from -150 to +150 relative to center).
-    // The full range of 4096 units maps to 360 degrees, but the usable range is 300 degrees.
-    // A common mapping for MX-28: 2048 is center (0 degrees), 0 is -150 degrees, 4095 is +150 degrees.
-    // So, 1 degree = (4095 - 0) / 300 degrees = 13.65 units/degree.
-    // Let's use the standard 0.088 degrees per unit or 11.375 units per degree for 360 degrees range.
-    // However, for the 300 degree range, it's 4096 / 300 = 13.65 units/degree.
-    // The DXL SDK often uses 0.088 degrees/unit (360/4096). Let's use this for consistency if the
-    // angles are relative to the motor's full 360-degree resolution.
-    // Assuming 2048 is the mechanical center (0 degrees relative to motor).
-    const double MX28_CENTER_VALUE = 2048.0;
-    const double MX28_DEGREE_PER_UNIT = 360.0 / 4096.0; // 0.08789 degrees per unit
-    const double MX28_UNIT_PER_DEGREE = 4096.0 / 360.0; // 11.3777 units per degree
 
     // Static member initialization (singleton instance)
     HeadTracking *HeadTracking::GetInstance()
@@ -96,10 +95,6 @@ namespace Robot
           m_Pan_err_diff(0.5),
           m_Tilt_err(1.0),
           m_Tilt_err_diff(0.5),
-          // Set very conservative default P and D gains here.
-          // These will be overridden by INI settings if they exist.
-          // The INI values are the ones you need to tune.
-          // Start with very small values (e.g., 0.01 to 0.1 for P-gain, and even smaller for D-gain like 0.001 to 0.05)
           m_Pan_p_gain(0.2),   // Starting point for P-gain (adjust in INI)
           m_Pan_d_gain(0.75),  // Starting point for D-gain (adjust in INI)
           m_Tilt_p_gain(0.2),  // Starting point for P-gain (adjust in INI)
