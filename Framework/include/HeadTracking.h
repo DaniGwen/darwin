@@ -81,6 +81,7 @@ public:
 private:
     // Private constructor to enforce singleton pattern
     HeadTracking();
+    ~HeadTracking();
 
     // Singleton instance
     static HeadTracking *m_UniqueInstance;
@@ -88,8 +89,8 @@ private:
     static bool m_TrackingEnabled; // New flag to control tracking
 
     // // Delete copy constructor and assignment operator
-    HeadTracking(const HeadTracking &) = delete;
-    HeadTracking &operator=(const HeadTracking &) = delete;
+    // HeadTracking(const HeadTracking &) = delete;
+    // HeadTracking &operator=(const HeadTracking &) = delete;
 
     // --- Member Variables (Ordered to match constructor for -Wreorder warning) ---
     int client_socket_;               // File descriptor for the client socket connection

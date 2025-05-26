@@ -66,8 +66,22 @@ namespace Robot
     // Static member initialization (singleton instance)
     HeadTracking *HeadTracking::GetInstance()
     {
-        static HeadTracking instance; // Guaranteed to be created once upon first call
-        return &instance;
+        std::lock_guard<std::mutex> lock(m_Mutex); // Protect singleton instance access
+        if (m_UniqueInstance == nullptr)
+        {
+            m_UniqueInstance = new HeadTracking();
+        }
+        return m_UniqueInstance;
+    }
+
+    void HeadTracking::DestroyInstance()
+    {
+        std::lock_guard<std::mutex> lock(m_Mutex); // Protect singleton instance access
+        if (m_UniqueInstance != nullptr)
+        {
+            delete m_UniqueInstance;
+            m_UniqueInstance = nullptr;
+        }
     }
 
     // Private constructor
@@ -300,8 +314,6 @@ namespace Robot
             delete rgb_display_frame_;
             rgb_display_frame_ = nullptr;
         }
-
-        // cm730_ is not owned here, it is managed externally.
 
         std::cout << "INFO: HeadTracking cleanup complete." << std::endl;
     }
@@ -826,14 +838,14 @@ namespace Robot
         }
     }
 
-    void Robot::HeadTracking::SetTrackingEnabled(bool enable)
+    void HeadTracking::SetTrackingEnabled(bool enable)
     {
         std::lock_guard<std::mutex> lock(m_Mutex); // Protect access to m_TrackingEnabled
         m_TrackingEnabled = enable;
         std::cout << "DEBUG: HeadTracking::m_TrackingEnabled set to " << (enable ? "true" : "false") << std::endl;
     }
 
-    bool Robot::HeadTracking::IsTrackingEnabled()
+    bool HeadTracking::IsTrackingEnabled()
     {
         std::lock_guard<std::mutex> lock(m_Mutex); // Protect access
         return m_TrackingEnabled;
