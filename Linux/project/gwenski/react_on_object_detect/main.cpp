@@ -47,10 +47,17 @@ void change_current_dir()
 
 void run_action(int action_page)
 {
-
-    HeadTracking::SetTrackingEnabled(false);
+    // HeadTracking::SetTrackingEnabled(false);
     MotionManager::GetInstance()->SetEnable(true);
+
+    cm730_->WriteByte(JointData::ID_HEAD_PAN, MX28::P_TORQUE_ENABLE, 0, 0);  // Enable torque for Pan
+    cm730_->WriteByte(JointData::ID_HEAD_TILT, MX28::P_TORQUE_ENABLE, 0, 0); // Enable torque for Tilt
+
     Action::GetInstance()->Start(action_page);
+
+    cm730_->WriteByte(JointData::ID_HEAD_PAN, MX28::P_TORQUE_ENABLE, 1, 0);  // Enable torque for Pan
+    cm730_->WriteByte(JointData::ID_HEAD_TILT, MX28::P_TORQUE_ENABLE, 1, 0); // Enable torque for Tilt
+
     while (Action::GetInstance()->IsRunning())
         usleep(8 * 1000);
 
