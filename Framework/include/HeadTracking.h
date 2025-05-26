@@ -32,7 +32,9 @@
 #include "JointData.h"     // For JointData::ID_HEAD_PAN, ID_HEAD_TILT, MX28 constants
 #include "Kinematics.h"    // **ADDED: For Kinematics::EYE_TILT_OFFSET_ANGLE**
 
-// Forward declarations for Robot namespace classes if they are only used as pointers/references
+// Declare socket path using extern - the definition is in HeadTracking.cpp
+extern const char *SOCKET_PATH;
+
 namespace Robot
 {
     class MotionManager; // Still forward declare if needed by other parts of the system
@@ -45,9 +47,6 @@ namespace Robot
         float score;
         float xmin, ymin, xmax, ymax; // Normalized coordinates [0.0, 1.0]
     };
-
-    // Declare socket path using extern - the definition is in HeadTracking.cpp
-    extern const char *SOCKET_PATH;
 
     class HeadTracking
     {
