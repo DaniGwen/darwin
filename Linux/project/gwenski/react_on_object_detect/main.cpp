@@ -182,10 +182,13 @@ int main(void)
             {
                 std::cout << "INFO: Detected person. Playing action (Page " << ACTION_PAGE_WAVE << ")..." << std::endl;
                 HeadTracking::SetTrackingEnabled(false);
+                MotionManager::GetInstance()->SetEnable(true);
                 action_module->Start(ACTION_PAGE_WAVE);
                 // Wait for action to complete before allowing new actions
                 while (action_module->IsRunning())
                     usleep(8 * 1000);
+
+                MotionManager::GetInstance()->SetEnable(false);
                 HeadTracking::SetTrackingEnabled(true);
 
                 current_action_label = "person";
@@ -229,10 +232,13 @@ int main(void)
             {
                 // If no specific object is detected and we are not already in standby, go to standby
                 std::cout << "INFO: No target detected. Returning to standby action (Page " << ACTION_PAGE_STAND << ")..." << std::endl;
-                 HeadTracking::SetTrackingEnabled(false);
+                HeadTracking::SetTrackingEnabled(false);
+                MotionManager::GetInstance()->SetEnable(true);
                 action_module->Start(ACTION_PAGE_STAND);
                 while (action_module->IsRunning())
                     usleep(8 * 1000);
+
+                MotionManager::GetInstance()->SetEnable(false);
                 HeadTracking::SetTrackingEnabled(true);
 
                 current_action_label = "standby";
