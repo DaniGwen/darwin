@@ -50,14 +50,15 @@ namespace Robot
         {
             std::cout << "INFO: Repetition " << (i + 1) << "/" << repetitions << std::endl;
 
-            // Move to Pose 1
             std::cout << "INFO: Moving to Pose 1..." << std::endl;
             ApplyPose(POSE_1);
             std::this_thread::sleep_for(std::chrono::milliseconds(delay_ms)); // Wait for motors to move
 
-            // Move to Pose 2
             std::cout << "INFO: Moving to Pose 2..." << std::endl;
             ApplyPose(POSE_2);
+            std::this_thread::sleep_for(std::chrono::milliseconds(delay_ms)); // Wait for motors to move
+
+            ApplyPose(POSE_1);
             std::this_thread::sleep_for(std::chrono::milliseconds(delay_ms)); // Wait for motors to move
         }
 
@@ -94,7 +95,7 @@ namespace Robot
         cm730_->WriteByte(JointData::ID_L_SHOULDER_ROLL, MX28::P_P_GAIN, p_gain, 0);
         cm730_->WriteByte(JointData::ID_L_SHOULDER_PITCH, MX28::P_P_GAIN, p_gain, 0);
         cm730_->WriteByte(JointData::ID_L_ELBOW, MX28::P_P_GAIN, p_gain, 0);
-     
+
         std::cout << "INFO: LeftArmController initialized." << std::endl;
     }
 }
