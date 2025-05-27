@@ -118,7 +118,7 @@ namespace Robot
           current_detected_label_("none"),
           current_tracked_object_center_(0.0, 0.0),
           last_motor_command_time_(std::chrono::steady_clock::now()),
-          motor_command_interval_ms_(100)
+          motor_command_interval_ms_(50)
     {
         // Constructor is intentionally minimal.
         // initialization should be done in the Initialize() method.
@@ -182,11 +182,7 @@ namespace Robot
         cm730_->WriteByte(JointData::ID_HEAD_PAN, MX28::P_TORQUE_ENABLE, 1, 0);  // Enable torque for Pan
         cm730_->WriteByte(JointData::ID_HEAD_TILT, MX28::P_TORQUE_ENABLE, 1, 0); // Enable torque for Tilt
 
-        cm730_->WriteByte(JointData::ID_HEAD_PAN, MX28::P_P_GAIN, 5, 0);
-        cm730_->WriteByte(JointData::ID_HEAD_TILT, MX28::P_P_GAIN, 5, 0);
-
-        cm730_->WriteByte(JointData::ID_HEAD_PAN, MX28::P_D_GAIN, 5, 0);
-        cm730_->WriteByte(JointData::ID_HEAD_TILT, MX28::P_D_GAIN, 5, 0);
+        SetPIDGains();
 
         // 5. Create display frame buffer
         rgb_display_frame_ = new Image(Camera::WIDTH, Camera::HEIGHT, Image::RGB_PIXEL_SIZE);
@@ -825,6 +821,8 @@ namespace Robot
                 int pan_goal_value = Deg2Value(m_PanAngle);
                 int tilt_goal_value = Deg2Value(m_TiltAngle);
 
+                SetPIDGains();
+
                 // Write the converted values to the motor goal position registers
                 cm730_->WriteWord(JointData::ID_HEAD_PAN, MX28::P_GOAL_POSITION_L, pan_goal_value, 0);
                 cm730_->WriteWord(JointData::ID_HEAD_TILT, MX28::P_GOAL_POSITION_L, tilt_goal_value, 0);
@@ -869,5 +867,14 @@ namespace Robot
     {
         std::lock_guard<std::mutex> lock(m_Mutex);
         return motor_command_interval_ms_;
+    }
+
+    void HeadTracking::SetPIDGains()
+    {
+        cm730_->WriteByte(JointData::ID_HEAD_PAN, MX28::P_P_GAIN, 5, 0);
+        cm730_->WriteByte(JointData::ID_HEAD_TILT, MX28::P_P_GAIN, 5, 0);
+
+        cm730_->WriteByte(JointData::ID_HEAD_PAN, MX28::P_D_GAIN, 5, 0);
+        cm730_->WriteByte(JointData::ID_HEAD_TILT, MX28::P_D_GAIN, 5, 0);
     }
 }
