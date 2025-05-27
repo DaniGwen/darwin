@@ -118,7 +118,7 @@ namespace Robot
           current_detected_label_("none"),
           current_tracked_object_center_(0.0, 0.0),
           last_motor_command_time_(std::chrono::steady_clock::now()),
-          motor_command_interval_ms_(75)
+          motor_command_interval_ms_(100)
     {
         // Constructor is intentionally minimal.
         // initialization should be done in the Initialize() method.
@@ -187,9 +187,6 @@ namespace Robot
 
         cm730_->WriteByte(JointData::ID_HEAD_PAN, MX28::P_D_GAIN, 5, 0);
         cm730_->WriteByte(JointData::ID_HEAD_TILT, MX28::P_D_GAIN, 5, 0);
-
-        cm730_->WriteByte(JointData::ID_HEAD_TILT, MX28::P_MOVING_SPEED_L, 10, 0);
-        cm730_->WriteByte(JointData::ID_HEAD_PAN, MX28::P_MOVING_SPEED_L, 10, 0);
 
         // 5. Create display frame buffer
         rgb_display_frame_ = new Image(Camera::WIDTH, Camera::HEIGHT, Image::RGB_PIXEL_SIZE);
