@@ -58,7 +58,6 @@ const double MX28_UNIT_PER_DEGREE = 4096.0 / 360.0; // 11.3777 units per degree
 
 namespace Robot
 {
-    std::mutex cm730_mutex;
     HeadTracking *HeadTracking::m_UniqueInstance = nullptr;
     std::mutex HeadTracking::m_Mutex;
     bool HeadTracking::m_TrackingEnabled = true; // Start enabled by default
