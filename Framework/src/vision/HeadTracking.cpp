@@ -184,12 +184,12 @@ namespace Robot
 
         cm730_->WriteByte(JointData::ID_HEAD_PAN, MX28::P_P_GAIN, 5, 0);
         cm730_->WriteByte(JointData::ID_HEAD_TILT, MX28::P_P_GAIN, 5, 0);
-        
+
         cm730_->WriteByte(JointData::ID_HEAD_PAN, MX28::P_D_GAIN, 5, 0);
         cm730_->WriteByte(JointData::ID_HEAD_TILT, MX28::P_D_GAIN, 5, 0);
 
-        cm730_->WriteByte(JointData::ID_HEAD_TILT, MX28::P_MOVING_SPEED_L, 4, 0);
-        cm730_->WriteByte(JointData::ID_HEAD_PAN, MX28::P_MOVING_SPEED_L, 4, 0);
+        cm730_->WriteByte(JointData::ID_HEAD_TILT, MX28::P_MOVING_SPEED_L, 10, 0);
+        cm730_->WriteByte(JointData::ID_HEAD_PAN, MX28::P_MOVING_SPEED_L, 10, 0);
 
         // 5. Create display frame buffer
         rgb_display_frame_ = new Image(Camera::WIDTH, Camera::HEIGHT, Image::RGB_PIXEL_SIZE);
