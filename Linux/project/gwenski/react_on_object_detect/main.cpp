@@ -206,6 +206,11 @@ int main(void)
                  (current_time - last_action_time) >= action_cooldown)
         {
             right_arm_controller.RiseHand(3);
+            std::this_thread::sleep_for(std::chrono::milliseconds(4000));
+            right_arm_controller.GrabItem(3);
+            std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+            right_arm_controller.ToDefaultPose();
+
             current_action_label = "bottle";
             last_action_time = current_time;
         }
