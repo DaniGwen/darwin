@@ -68,7 +68,7 @@ void setPIDGains(CM730 *cm730, int p_gain)
     cm730->WriteByte(JointData::ID_R_HIP_YAW, MX28::P_P_GAIN, p_gain, 0);
 }
 
-void run_action(Cm730 *cm730, int p_gain, int action_page)
+void run_action(CM730 *cm730, int p_gain, int action_page)
 {
     setPIDGains(cm730, p_gain);
 
