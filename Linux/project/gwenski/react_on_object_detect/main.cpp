@@ -45,34 +45,11 @@ void change_current_dir()
         chdir(dirname(exepath));
 }
 
-void setPIDGains(CM730 *cm730, int p_gain)
-{
-    // Set PID gains for Head motors
-    cm730->WriteByte(JointData::ID_L_SHOULDER_ROLL, MX28::P_P_GAIN, p_gain, 0);
-    cm730->WriteByte(JointData::ID_L_SHOULDER_PITCH, MX28::P_P_GAIN, p_gain, 0);
-    cm730->WriteByte(JointData::ID_L_ELBOW, MX28::P_P_GAIN, p_gain, 0);
-    cm730->WriteByte(JointData::ID_R_SHOULDER_PITCH, MX28::P_P_GAIN, p_gain, 0);
-    cm730->WriteByte(JointData::ID_R_SHOULDER_ROLL, MX28::P_P_GAIN, p_gain, 0);
-    cm730->WriteByte(JointData::ID_R_ELBOW, MX28::P_P_GAIN, p_gain, 0);
-    cm730->WriteByte(JointData::ID_L_ANKLE_PITCH, MX28::P_P_GAIN, p_gain, 0);
-    cm730->WriteByte(JointData::ID_L_ANKLE_ROLL, MX28::P_P_GAIN, p_gain, 0);
-    cm730->WriteByte(JointData::ID_R_ANKLE_PITCH, MX28::P_P_GAIN, p_gain, 0);
-    cm730->WriteByte(JointData::ID_R_ANKLE_ROLL, MX28::P_P_GAIN, p_gain, 0);
-    cm730->WriteByte(JointData::ID_L_HIP_PITCH, MX28::P_P_GAIN, p_gain, 0);
-    cm730->WriteByte(JointData::ID_L_HIP_ROLL, MX28::P_P_GAIN, p_gain, 0);
-    cm730->WriteByte(JointData::ID_L_HIP_YAW, MX28::P_P_GAIN, p_gain, 0);
-    cm730->WriteByte(JointData::ID_L_KNEE, MX28::P_P_GAIN, p_gain, 0);
-    cm730->WriteByte(JointData::ID_R_KNEE, MX28::P_P_GAIN, p_gain, 0);
-    cm730->WriteByte(JointData::ID_R_HIP_PITCH, MX28::P_P_GAIN, p_gain, 0);
-    cm730->WriteByte(JointData::ID_R_HIP_ROLL, MX28::P_P_GAIN, p_gain, 0);
-    cm730->WriteByte(JointData::ID_R_HIP_YAW, MX28::P_P_GAIN, p_gain, 0);
-}
-
-void run_action(CM730 *cm730, int p_gain, int action_page)
+void run_action(int action_page)
 {
     HeadTracking::SetTrackingEnabled(false);
     MotionManager::GetInstance()->SetEnable(true);
-    setPIDGains(cm730, p_gain);
+
     Action::GetInstance()->Start(action_page);
     while (Action::GetInstance()->IsRunning())
         usleep(8 * 1000);
@@ -164,7 +141,7 @@ int main(void)
     // Play initial standby action
     std::cout << "INFO: Playing initial standby action (Page " << ACTION_PAGE_STAND << ")..." << std::endl;
 
-    run_action(&cm730, 5, ACTION_PAGE_STAND);
+    run_action(ACTION_PAGE_STAND);
 
     // --- Create and Start HeadTracking Thread ---
     pthread_t tracking_thread;
@@ -227,7 +204,9 @@ int main(void)
                  (current_time - last_action_time) >= action_cooldown)
         {
             std::cout << "INFO: No target detected. Returning to standby..." << std::endl;
-            run_action(&cm730, 5, ACTION_PAGE_STAND);
+            
+            left_arm_controller.ToDefaultPose();
+
             current_action_label = "standby";
             last_action_time = current_time;
         }

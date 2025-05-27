@@ -24,6 +24,7 @@ namespace Robot
         LeftArmController(CM730 *cm730);
 
         void Wave(int repetitions = 3, int delay_ms = 700, int p_gain = 4, int d_gain = 4);
+        void ToDefaultPose();
 
     private:
         CM730 *cm730_; // Pointer to the CM730 instance for direct motor control
@@ -43,9 +44,16 @@ namespace Robot
                 {JointData::ID_L_ELBOW, 2433}           // Example: Assuming ID_L_WRIST_YAW is Joint ID 6
             }};
 
+        const ArmPose DEFAULT = {
+            std::map<int, int>{
+                {JointData::ID_L_SHOULDER_PITCH, 2423}, // Default position for left shoulder pitch
+                {JointData::ID_L_SHOULDER_ROLL, 2370},  // Default position for left shoulder roll
+                {JointData::ID_L_ELBOW, 2336}           // Default position for left elbow
+            }};
+
         // Helper method to apply a single arm pose
-        void ApplyPose(const ArmPose &pose, int p_gain = 4, int d_gain = 4);
-        void SetPIDLeftArm(int p_gain, int d_gain);
+        void ApplyPose(const ArmPose &pose);
+        void SetPIDLeftArm(int p_gain = 4, int d_gain = 4);
     };
 }
 

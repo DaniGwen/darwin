@@ -13,7 +13,7 @@ namespace Robot
         }
     }
 
-    void LeftArmController::ApplyPose(const ArmPose &pose, int p_gain, int d_gain)
+    void LeftArmController::ApplyPose(const ArmPose &pose)
     {
         std::lock_guard<std::mutex> lock(cm730_mutex); // Protect CM730 access
 
@@ -22,8 +22,6 @@ namespace Robot
             std::cerr << "ERROR: CM730 not initialized, cannot apply pose." << std::endl;
             return;
         }
-
-         SetPIDLeftArm(p_gain, d_gain);
 
         std::cout << "INFO: Applying pose..." << std::endl;
         for (const auto &joint_pair : pose.joint_positions)
@@ -38,6 +36,7 @@ namespace Robot
 
     void LeftArmController::Wave(int repetitions, int delay_ms, int p_gain, int d_gain)
     {
+
         if (!cm730_)
         {
             std::cerr << "ERROR: CM730 not initialized, cannot run arm sequence." << std::endl;
@@ -46,22 +45,39 @@ namespace Robot
 
         std::cout << "INFO: Starting left arm movement sequence for " << repetitions << " repetitions." << std::endl;
 
+        SetPIDLeftArm(p_gain, d_gain);
+
         for (int i = 0; i < repetitions; ++i)
         {
             std::cout << "INFO: Repetition " << (i + 1) << "/" << repetitions << std::endl;
 
             // Move to Pose 1
             std::cout << "INFO: Moving to Pose 1..." << std::endl;
-            ApplyPose(POSE_1, p_gain, d_gain);
+            ApplyPose(POSE_1);
             std::this_thread::sleep_for(std::chrono::milliseconds(delay_ms)); // Wait for motors to move
 
             // Move to Pose 2
             std::cout << "INFO: Moving to Pose 2..." << std::endl;
-            ApplyPose(POSE_2, p_gain, d_gain);
+            ApplyPose(POSE_2);
             std::this_thread::sleep_for(std::chrono::milliseconds(delay_ms)); // Wait for motors to move
         }
 
         std::cout << "INFO: Left arm movement sequence finished." << std::endl;
+    }
+
+    void LeftArmController::ToDefaultPose()
+    {
+        if (!cm730_)
+        {
+            std::cerr << "ERROR: CM730 not initialized, cannot reset left arm to default pose." << std::endl;
+            return;
+        }
+
+        SetPIDLeftArm();
+
+        std::cout << "INFO: Resetting left arm to default pose..." << std::endl;
+        ApplyPose(DEFAULT);
+        std::this_thread::sleep_for(std::chrono::milliseconds(500));
     }
 
     void LeftArmController::SetPIDLeftArm(int p_gain, int d_gain)
@@ -71,6 +87,7 @@ namespace Robot
             std::cerr << "ERROR: CM730 not initialized, cannot initialize left arm." << std::endl;
             return;
         }
+
         cm730_->WriteByte(JointData::ID_L_SHOULDER_ROLL, MX28::P_TORQUE_ENABLE, 1, 0);
         cm730_->WriteByte(JointData::ID_L_SHOULDER_PITCH, MX28::P_TORQUE_ENABLE, 1, 0);
         cm730_->WriteByte(JointData::ID_L_ELBOW, MX28::P_TORQUE_ENABLE, 1, 0);
