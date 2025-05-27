@@ -554,10 +554,31 @@ namespace Robot
             }
         }
 
+        // If no person was found, check for a bottle
+        if (!person_found_in_frame)
+        {
+            for (const auto &det : detections)
+            {
+                if (det.label == "bottle") // Now check for bottle
+                {
+                    if (cm730_)
+                    {
+                        cm730_->WriteWord(CM730::ID_CM, CM730::P_LED_EYE_L, cm730_->MakeColor(0, 255, 0), 0); // Green for bottle
+                    }
+                    tracked_object_center_for_head.X = (det.xmin + det.xmax) / 2.0 * Camera::WIDTH;
+                    tracked_object_center_for_head.Y = (det.ymin + det.ymax) / 2.0 * Camera::HEIGHT;
+                    primary_detected_label = det.label; // Set to "bottle"
+                    break;                              // Found bottle, stop
+                }
+            }
+        }
+
         current_detected_label_ = primary_detected_label;
         current_tracked_object_center_ = tracked_object_center_for_head;
 
-        if (person_found_in_frame)
+         bool target_found_in_frame = (primary_detected_label != "none");
+
+        if (target_found_in_frame)
         {
             no_target_count_ = 0;
             Point2D P_err;
