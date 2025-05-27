@@ -1,5 +1,4 @@
 #include "LeftArmController.h"
-#include "Globals.h"
 
 namespace Robot
 {

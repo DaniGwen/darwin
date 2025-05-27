@@ -1,5 +1,4 @@
 #include "RightArmController.h"
-#include "Globals.h" // Assuming Globals.h contains cm730_mutex
 
 namespace Robot
 {
