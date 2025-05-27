@@ -17,7 +17,7 @@ namespace Robot
     public:
         LeftArmController(CM730 *cm730);
 
-        void Wave(int repetitions = 3, int delay_ms = 700, int p_gain = 4);
+        void Wave(int repetitions = 3, int delay_ms = 600, int p_gain = 3);
         void ToDefaultPose();
 
     private:

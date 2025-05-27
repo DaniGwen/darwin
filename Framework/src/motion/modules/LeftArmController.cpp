@@ -57,9 +57,6 @@ namespace Robot
             std::cout << "INFO: Moving to Pose 2..." << std::endl;
             ApplyPose(POSE_2);
             std::this_thread::sleep_for(std::chrono::milliseconds(delay_ms)); // Wait for motors to move
-
-            ApplyPose(POSE_1);
-            std::this_thread::sleep_for(std::chrono::milliseconds(delay_ms)); // Wait for motors to move
         }
 
         std::cout << "INFO: Left arm movement sequence finished." << std::endl;

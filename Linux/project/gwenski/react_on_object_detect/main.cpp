@@ -19,6 +19,8 @@
 #include <string>    // Required for std::string
 #include <chrono>    // Required for timing (optional, for loop delay)
 #include <thread>    // Required for std::this_thread::sleep_for (optional)
+#include <cctype> 
+#include "algorithm"
 
 #include "minIni.h" // For INI file loading
 #include "HeadTracking.h"
@@ -177,6 +179,7 @@ int main(void)
     {
         // Get the latest detected label from the HeadTracking thread
         std::string detected_object_label = head_tracker->GetDetectedLabel();
+        detected_object_label.erase(std::remove_if(detected_object_label.begin(), detected_object_label.end(), [](unsigned char c){ return std::isspace(c); }), detected_object_label.end());
         auto current_time = std::chrono::steady_clock::now();
 
         // Debounce person detection to avoid false triggers
@@ -203,7 +206,7 @@ int main(void)
                       << std::endl;
         }
         // ---- END DEBUG BLOCK ----
-        
+
 
         if (person_detect_count >= person_detect_threshold &&
             current_action_label != "person" &&
@@ -211,7 +214,7 @@ int main(void)
         {
             std::cout << "INFO: Detected person consistently. Playing Wave" << std::endl;
 
-            left_arm_controller.Wave(2, 550, 3);
+            left_arm_controller.Wave();
 
             current_action_label = "person";
             last_action_time = current_time;
