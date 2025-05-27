@@ -871,10 +871,10 @@ namespace Robot
 
     void HeadTracking::SetPIDGains()
     {
-        cm730_->WriteByte(JointData::ID_HEAD_PAN, MX28::P_P_GAIN, 5, 0);
-        cm730_->WriteByte(JointData::ID_HEAD_TILT, MX28::P_P_GAIN, 5, 0);
+        cm730_->WriteByte(JointData::ID_HEAD_PAN, MX28::P_P_GAIN, 6, 0);
+        cm730_->WriteByte(JointData::ID_HEAD_TILT, MX28::P_P_GAIN, 6, 0);
 
-        cm730_->WriteByte(JointData::ID_HEAD_PAN, MX28::P_D_GAIN, 5, 0);
-        cm730_->WriteByte(JointData::ID_HEAD_TILT, MX28::P_D_GAIN, 5, 0);
+        cm730_->WriteByte(JointData::ID_HEAD_PAN, MX28::P_D_GAIN, 6, 0);
+        cm730_->WriteByte(JointData::ID_HEAD_TILT, MX28::P_D_GAIN, 6, 0);
     }
 }
