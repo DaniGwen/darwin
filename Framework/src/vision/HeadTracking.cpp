@@ -109,8 +109,8 @@ namespace Robot
           no_target_count_(0),
           // These scales multiply the error *before* applying P/D gains.
           // Keep them at 1.0 unless you have a specific reason to scale the error itself.
-          pan_error_scale_(0.5),
-          tilt_error_scale_(0.5),
+          pan_error_scale_(0.8),
+          tilt_error_scale_(0.8),
           pan_deadband_deg_(0.5),
           tilt_deadband_deg_(0.5),
           black_color_(0),
