@@ -11,17 +11,17 @@
 
 #include "HeadTracking.h" // Include the corrected header first
 #include "Globals.h"
-#include <iostream>       // Explicitly include iostream for std::cout, std::cerr, std::endl
-#include <string>         // Explicitly include string
-#include <vector>         // Explicitly include vector
-#include <sstream>        // Include sstream where stringstream is used
-#include <cmath>          // For std::abs, round
-#include <cstring>        // For memcpy
-#include <cstdio>         // For printf (used in DrawBoundingBox)
-#include <unistd.h>       // For usleep
-#include <cstdlib>        // For system()
-#include <mutex>          // For std::mutex
-#include <algorithm>      // For std::max, std::min
+#include <iostream>  // Explicitly include iostream for std::cout, std::cerr, std::endl
+#include <string>    // Explicitly include string
+#include <vector>    // Explicitly include vector
+#include <sstream>   // Include sstream where stringstream is used
+#include <cmath>     // For std::abs, round
+#include <cstring>   // For memcpy
+#include <cstdio>    // For printf (used in DrawBoundingBox)
+#include <unistd.h>  // For usleep
+#include <cstdlib>   // For system()
+#include <mutex>     // For std::mutex
+#include <algorithm> // For std::max, std::min
 
 // Headers for Unix Domain Sockets
 #include <sys/socket.h>
@@ -58,7 +58,7 @@ const double MX28_UNIT_PER_DEGREE = 4096.0 / 360.0; // 11.3777 units per degree
 
 namespace Robot
 {
-
+    std::mutex cm730_mutex;
     HeadTracking *HeadTracking::m_UniqueInstance = nullptr;
     std::mutex HeadTracking::m_Mutex;
     bool HeadTracking::m_TrackingEnabled = true; // Start enabled by default
