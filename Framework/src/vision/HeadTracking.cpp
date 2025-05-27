@@ -87,7 +87,7 @@ namespace Robot
     HeadTracking::HeadTracking()
         : client_socket_(-1),
           streamer_(nullptr),
-          ini_settings_(nullptr),
+          ini_(nullptr),
           cm730_(nullptr),
           rgb_display_frame_(nullptr),
           m_PanAngle(0.0),
@@ -111,8 +111,8 @@ namespace Robot
           // Keep them at 1.0 unless you have a specific reason to scale the error itself.
           pan_error_scale_(1.0),
           tilt_error_scale_(1.0),
-          pan_deadband_deg_(0.02),
-          tilt_deadband_deg_(0.02),
+          pan_deadband_deg_(0.5),
+          tilt_deadband_deg_(0.5),
           black_color_(0),
           frame_counter_(0),
           current_detected_label_("none"),
@@ -133,7 +133,7 @@ namespace Robot
     // Modified Initialize signature to accept CM730* directly
     bool HeadTracking::Initialize(minIni *ini, CM730 *cm730)
     {
-        ini_settings_ = ini;
+        ini_ = ini;
         cm730_ = cm730;
 
         // Basic check if CM730 pointer is valid
@@ -175,8 +175,8 @@ namespace Robot
         }
 
         // 3. Load Head-specific settings from INI
-        LoadHeadSettings(ini_settings_);
-        LinuxCamera::GetInstance()->LoadINISettings(ini_settings_);
+        LoadHeadSettings(ini_);
+        LinuxCamera::GetInstance()->LoadINISettings(ini_);
 
         // Explicitly enable head joints and set initial gains
         cm730_->WriteByte(JointData::ID_HEAD_PAN, MX28::P_TORQUE_ENABLE, 1, 0);  // Enable torque for Pan
@@ -197,12 +197,12 @@ namespace Robot
         }
 
         // 6. Load HeadTracking tuning parameters from INI if available
-        if (ini_settings_)
+        if (ini_)
         {
-            pan_error_scale_ = ini_settings_->getd("HeadTracking", "PanErrorScale", pan_error_scale_);
-            tilt_error_scale_ = ini_settings_->getd("HeadTracking", "TiltErrorScale", tilt_error_scale_);
-            pan_deadband_deg_ = ini_settings_->getd("HeadTracking", "PanDeadbandDeg", pan_deadband_deg_);
-            tilt_deadband_deg_ = ini_settings_->getd("HeadTracking", "TiltDeadbandDeg", tilt_deadband_deg_);
+            pan_error_scale_ = ini_->geti("HeadTracking", "PanErrorScale", pan_error_scale_);
+            tilt_error_scale_ = ini_->geti("HeadTracking", "TiltErrorScale", tilt_error_scale_);
+            pan_deadband_deg_ = ini_->geti("HeadTracking", "PanDeadbandDeg", pan_deadband_deg_);
+            tilt_deadband_deg_ = ini_->geti("HeadTracking", "TiltDeadbandDeg", tilt_deadband_deg_);
             std::cout << "INFO: Loaded HeadTracking tuning parameters from INI." << std::endl;
         }
 
@@ -213,7 +213,7 @@ namespace Robot
     void HeadTracking::Run()
     {
         // Check if essential components are initialized before running
-        if (client_socket_ < 0 || !streamer_ || !rgb_display_frame_ || !ini_settings_ || !cm730_)
+        if (client_socket_ < 0 || !streamer_ || !rgb_display_frame_ || !ini_ || !cm730_)
         {
             std::cerr << "ERROR: HeadTracking not fully initialized. Cannot run." << std::endl;
             return;

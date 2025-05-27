@@ -95,7 +95,7 @@ namespace Robot
         // --- Member Variables (Ordered to match constructor for -Wreorder warning) ---
         int client_socket_;               // File descriptor for the client socket connection
         mjpg_streamer *streamer_;         // Pointer to the MJPG streamer instance
-        minIni *ini_settings_;            // Pointer to loaded INI settings (owned by main)
+        minIni *ini_;            // Pointer to loaded INI settings (owned by main)
         CM730 *cm730_;                    // Pointer to CM730 instance (direct motor control)
         Robot::Image *rgb_display_frame_; // Image buffer for the output frame with detections
 
