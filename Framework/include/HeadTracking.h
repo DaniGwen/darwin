@@ -68,6 +68,7 @@ namespace Robot
         // Public getters for detected label and tracked object center (needed by main.cpp)
         std::string GetDetectedLabel();
         Robot::Point2D GetTrackedObjectCenter();
+        int GetDetectionScore() const;
 
         // Static methods to control tracking state
         static void SetTrackingEnabled(bool enable);
