@@ -117,6 +117,7 @@ namespace Robot
           frame_counter_(0),
           current_detected_label_("none"),
           current_tracked_object_center_(0.0, 0.0),
+          detection_score_(0),
           last_motor_command_time_(std::chrono::steady_clock::now()),
           motor_command_interval_ms_(50)
     {
@@ -536,6 +537,7 @@ namespace Robot
         bool person_found_in_frame = false;
         Point2D tracked_object_center_for_head;
         std::string primary_detected_label = "none";
+        int detection_score = 0;
 
         for (const auto &det : detections)
         {
@@ -550,6 +552,7 @@ namespace Robot
                 tracked_object_center_for_head.Y = (det.ymin + det.ymax) / 2.0 * Camera::HEIGHT;
                 person_found_in_frame = true;
                 primary_detected_label = det.label;
+                detection_score = static_cast<int>(det.score * 100); // Convert to percentage
                 break;
             }
         }
@@ -567,16 +570,18 @@ namespace Robot
                     }
                     tracked_object_center_for_head.X = (det.xmin + det.xmax) / 2.0 * Camera::WIDTH;
                     tracked_object_center_for_head.Y = (det.ymin + det.ymax) / 2.0 * Camera::HEIGHT;
-                    primary_detected_label = det.label; // Set to "bottle"
-                    break;                              // Found bottle, stop
+                    primary_detected_label = det.label;                   // Set to "bottle"
+                    detection_score = static_cast<int>(det.score * 100); // Convert to percentage
+                    break;                                                // Found bottle, stop
                 }
             }
         }
 
         current_detected_label_ = primary_detected_label;
         current_tracked_object_center_ = tracked_object_center_for_head;
+        detection_score_ = detection_score;
 
-         bool target_found_in_frame = (primary_detected_label != "none");
+            bool target_found_in_frame = (primary_detected_label != "none");
 
         if (target_found_in_frame)
         {
@@ -672,6 +677,11 @@ namespace Robot
     Point2D HeadTracking::GetTrackedObjectCenter()
     {
         return current_tracked_object_center_;
+    }
+
+    int HeadTracking::GetDetectionScore()
+    {
+        return detection_score_;
     }
 
     // --- New methods to replace Head.cpp functionality and for angle conversion ---
