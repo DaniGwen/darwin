@@ -34,7 +34,7 @@ namespace Robot
         }
     }
 
-    void LeftArmController::Wave(int repetitions, int delay_ms, int p_gain, int d_gain)
+    void LeftArmController::Wave(int repetitions, int delay_ms, int p_gain)
     {
 
         if (!cm730_)
@@ -45,7 +45,7 @@ namespace Robot
 
         std::cout << "INFO: Starting left arm movement sequence for " << repetitions << " repetitions." << std::endl;
 
-        SetPIDLeftArm(p_gain, d_gain);
+        SetPIDLeftArm(p_gain);
 
         for (int i = 0; i < repetitions; ++i)
         {
@@ -80,7 +80,7 @@ namespace Robot
         std::this_thread::sleep_for(std::chrono::milliseconds(700));
     }
 
-    void LeftArmController::SetPIDLeftArm(int p_gain, int d_gain)
+    void LeftArmController::SetPIDLeftArm(int p_gain)
     {
         if (!cm730_)
         {
@@ -96,9 +96,9 @@ namespace Robot
         cm730_->WriteByte(JointData::ID_L_SHOULDER_PITCH, MX28::P_P_GAIN, p_gain, 0);
         cm730_->WriteByte(JointData::ID_L_ELBOW, MX28::P_P_GAIN, p_gain, 0);
 
-        cm730_->WriteByte(JointData::ID_L_SHOULDER_ROLL, MX28::P_D_GAIN, d_gain, 0);
-        cm730_->WriteByte(JointData::ID_L_SHOULDER_PITCH, MX28::P_D_GAIN, d_gain, 0);
-        cm730_->WriteByte(JointData::ID_L_ELBOW, MX28::P_D_GAIN, d_gain, 0);
+        // cm730_->WriteByte(JointData::ID_L_SHOULDER_ROLL, MX28::P_D_GAIN, d_gain, 0);
+        // cm730_->WriteByte(JointData::ID_L_SHOULDER_PITCH, MX28::P_D_GAIN, d_gain, 0);
+        // cm730_->WriteByte(JointData::ID_L_ELBOW, MX28::P_D_GAIN, d_gain, 0);
      
         std::cout << "INFO: LeftArmController initialized." << std::endl;
     }
