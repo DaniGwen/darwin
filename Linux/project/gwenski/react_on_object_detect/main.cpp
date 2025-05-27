@@ -70,11 +70,9 @@ void setPIDGains(CM730 *cm730, int p_gain)
 
 void run_action(CM730 *cm730, int p_gain, int action_page)
 {
-    setPIDGains(cm730, p_gain);
-
     HeadTracking::SetTrackingEnabled(false);
     MotionManager::GetInstance()->SetEnable(true);
-
+    setPIDGains(cm730, p_gain);
     Action::GetInstance()->Start(action_page);
     while (Action::GetInstance()->IsRunning())
         usleep(8 * 1000);
