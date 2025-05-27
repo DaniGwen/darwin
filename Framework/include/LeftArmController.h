@@ -8,6 +8,7 @@
 #include <map>         // For std::map to store joint poses
 #include <thread>      // For std::this_thread::sleep_for
 #include <chrono>      // For std::chrono::milliseconds
+#include "Globals.h"
 
 namespace Robot
 {
