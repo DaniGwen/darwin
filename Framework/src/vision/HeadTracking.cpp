@@ -10,6 +10,7 @@
  */
 
 #include "HeadTracking.h" // Include the corrected header first
+#include "Globals.h"
 #include <iostream>       // Explicitly include iostream for std::cout, std::cerr, std::endl
 #include <string>         // Explicitly include string
 #include <vector>         // Explicitly include vector
@@ -790,6 +791,8 @@ namespace Robot
 
     void HeadTracking::ApplyHeadAngles()
     {
+        std::lock_guard<std::mutex> lock(cm730_mutex); // Protect CM730 access
+
         if (cm730_)
         {
             int pan_torque_enable = 0;

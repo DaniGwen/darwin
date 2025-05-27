@@ -1,4 +1,5 @@
 #include "LeftArmController.h"
+#include "Globals.h"
 
 namespace Robot
 {
@@ -14,6 +15,8 @@ namespace Robot
 
     void LeftArmController::ApplyPose(const ArmPose &pose)
     {
+        std::lock_guard<std::mutex> lock(cm730_mutex); // Protect CM730 access
+
         if (!cm730_)
         {
             std::cerr << "ERROR: CM730 not initialized, cannot apply pose." << std::endl;
@@ -31,7 +34,7 @@ namespace Robot
         }
     }
 
-    void LeftArmController::Wave(int repetitions, int delay_ms , int p_gain, int d_gain)
+    void LeftArmController::Wave(int repetitions, int delay_ms, int p_gain, int d_gain)
     {
         InitializeLeftArm(p_gain, d_gain);
 
