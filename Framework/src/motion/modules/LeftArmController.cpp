@@ -77,7 +77,7 @@ namespace Robot
 
         std::cout << "INFO: Resetting left arm to default pose..." << std::endl;
         ApplyPose(DEFAULT);
-        std::this_thread::sleep_for(std::chrono::milliseconds(500));
+        std::this_thread::sleep_for(std::chrono::milliseconds(700));
     }
 
     void LeftArmController::SetPIDLeftArm(int p_gain, int d_gain)
@@ -96,9 +96,9 @@ namespace Robot
         cm730_->WriteByte(JointData::ID_L_SHOULDER_PITCH, MX28::P_P_GAIN, p_gain, 0);
         cm730_->WriteByte(JointData::ID_L_ELBOW, MX28::P_P_GAIN, p_gain, 0);
 
-        cm730_->WriteByte(JointData::ID_L_SHOULDER_ROLL, MX28::P_D_GAIN, 3 , 0);
-        cm730_->WriteByte(JointData::ID_L_SHOULDER_PITCH, MX28::P_D_GAIN, 3, 0);
-        cm730_->WriteByte(JointData::ID_L_ELBOW, MX28::P_D_GAIN, 3, 0);
+        cm730_->WriteByte(JointData::ID_L_SHOULDER_ROLL, MX28::P_D_GAIN, d_gain, 0);
+        cm730_->WriteByte(JointData::ID_L_SHOULDER_PITCH, MX28::P_D_GAIN, d_gain, 0);
+        cm730_->WriteByte(JointData::ID_L_ELBOW, MX28::P_D_GAIN, d_gain, 0);
      
         std::cout << "INFO: LeftArmController initialized." << std::endl;
     }

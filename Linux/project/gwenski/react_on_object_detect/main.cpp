@@ -193,7 +193,7 @@ int main(void)
         {
             std::cout << "INFO: Detected person consistently. Playing Wave" << std::endl;
 
-            left_arm_controller.Wave(3, 500, 4, 4);
+            left_arm_controller.Wave(3, 650, 4, 4);
 
             current_action_label = "person";
             last_action_time = current_time;
@@ -204,7 +204,7 @@ int main(void)
                  (current_time - last_action_time) >= action_cooldown)
         {
             std::cout << "INFO: No target detected. Returning to standby..." << std::endl;
-            
+
             left_arm_controller.ToDefaultPose();
 
             current_action_label = "standby";
