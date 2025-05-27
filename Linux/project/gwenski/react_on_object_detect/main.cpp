@@ -193,7 +193,7 @@ int main(void)
         {
             std::cout << "INFO: Detected person consistently. Playing Wave" << std::endl;
 
-            left_arm_controller.Wave(3, 650, 8, 8);
+            left_arm_controller.Wave(3, 550, 2, 2);
 
             current_action_label = "person";
             last_action_time = current_time;
