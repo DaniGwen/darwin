@@ -171,9 +171,10 @@ int main(void)
 
     std::string current_action_label = "standby"; // Keep track of the action currently playing
     auto last_action_time = std::chrono::steady_clock::now();
-    const auto action_cooldown = std::chrono::seconds(5);
+    const auto action_cooldown = std::chrono::seconds(9);
     int person_detect_count = 0;
-    const int person_detect_threshold = 10;
+    int bottle_detect_count = 0;
+    const int detect_threshold = 10;
 
     while (1)
     {
@@ -195,7 +196,16 @@ int main(void)
             person_detect_count = 0;
         }
 
-        if (person_detect_count >= person_detect_threshold &&
+        if (detected_object_label == "bottle")
+        {
+            bottle_detect_count++;
+        }
+        else
+        {
+            bottle_detect_count = 0;
+        }
+        
+        if (person_detect_count >= detect_threshold &&
             current_action_label != "person" &&
             (current_time - last_action_time) >= action_cooldown)
         {
@@ -207,7 +217,7 @@ int main(void)
             last_action_time = current_time;
             person_detect_count = 0; // Reset counter
         }
-        else if (detected_object_label == "bottle" &&
+        else if (bottle_detect_count >= detect_threshold &&
                  current_action_label != "bottle" &&
                  (current_time - last_action_time) >= action_cooldown)
         {
