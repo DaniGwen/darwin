@@ -23,6 +23,7 @@
 #include "minIni.h" // For INI file loading
 #include "HeadTracking.h"
 #include "LeftArmController.h"
+#include "RightArmController.h"
 #include "LinuxDARwIn.h" // Include for Motion Framework components (MotionManager, Action)
 
 // --- Configuration ---
@@ -121,7 +122,8 @@ int main(void)
     LinuxMotionTimer *motion_timer = new LinuxMotionTimer(motion_manager);
     motion_timer->Start();
 
-    LeftArmController left_arm_controller(&cm730); // Initialize LeftArmController
+    LeftArmController left_arm_controller(&cm730);
+    RightArmController right_arm_controller(&cm730);
     HeadTracking *head_tracker = HeadTracking::GetInstance();
 
     // Pass the INI settings and CM730 instance to HeadTracking.
@@ -198,6 +200,14 @@ int main(void)
             current_action_label = "person";
             last_action_time = current_time;
             person_detect_count = 0; // Reset counter
+        }
+        else if (detected_object_label == "bottle" &&
+                 current_action_label != "bottle" &&
+                 (current_time - last_action_time) >= action_cooldown)
+        {
+            right_arm_controller.RiseHand(3);
+            current_action_label = "bottle";
+            last_action_time = current_time;
         }
         else if (detected_object_label == "none" &&
                  current_action_label != "standby" &&
