@@ -86,7 +86,6 @@ namespace Robot
         {
             cm730_->WriteByte(joint_id, MX28::P_TORQUE_ENABLE, 1, 0);
             cm730_->WriteByte(joint_id, MX28::P_P_GAIN, p_gain, 0);
-            joint_data.SetSlope(joint_id, JointData::SLOPE_EXTRASOFT, JointData::SLOPE_EXTRASOFT);
         }
 
         std::cout << "INFO: RightArmController PID gains set for all joints." << std::endl;
