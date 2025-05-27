@@ -1,3 +1,6 @@
+#ifndef GLOBALS_H_
+#define GLOBALS_H_
+
 #include <mutex>
 #include <map>
 
@@ -11,3 +14,5 @@ namespace Robot
         std::map<int, int> joint_positions; // Map of Joint ID to Goal Position Value
     };
 }
+
+#endif
