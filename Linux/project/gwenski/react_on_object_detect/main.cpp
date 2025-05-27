@@ -199,12 +199,12 @@ int main(void)
         long long time_since_last_action_s = std::chrono::duration_cast<std::chrono::seconds>(current_time - last_action_time).count();
 
         // Optional: Print only when bottle is detected to reduce log spam
-        if (is_bottle) {
+      
             std::cout << "DEBUG_MAIN: Label: '" << detected_object_label << "', is_bottle: " << is_bottle
                       << ", current_action_label: '" << current_action_label << "', action_is_not_bottle: " << action_is_not_bottle
                       << ", cooldown_elapsed: " << cooldown_elapsed << " (Time since last: " << time_since_last_action_s << "s)"
                       << std::endl;
-        }
+        
         // ---- END DEBUG BLOCK ----
 
 
