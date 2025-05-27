@@ -11,13 +11,6 @@
 
 namespace Robot
 {
-
-    // Structure to define a single arm pose
-    struct ArmPose
-    {
-        std::map<int, int> joint_positions; // Map of Joint ID to Goal Position Value
-    };
-
     class LeftArmController
     {
     public:
@@ -53,7 +46,7 @@ namespace Robot
 
         // Helper method to apply a single arm pose
         void ApplyPose(const ArmPose &pose);
-        void SetPIDLeftArm(int p_gain = 4);
+        void SetPID(int p_gain = 4);
     };
 }
 

@@ -45,7 +45,7 @@ namespace Robot
 
         std::cout << "INFO: Starting left arm movement sequence for " << repetitions << " repetitions." << std::endl;
 
-        SetPIDLeftArm(p_gain);
+        SetPID(p_gain);
 
         for (int i = 0; i < repetitions; ++i)
         {
@@ -73,14 +73,14 @@ namespace Robot
             return;
         }
 
-        SetPIDLeftArm();
+        SetPID();
 
         std::cout << "INFO: Resetting left arm to default pose..." << std::endl;
         ApplyPose(DEFAULT);
         std::this_thread::sleep_for(std::chrono::milliseconds(700));
     }
 
-    void LeftArmController::SetPIDLeftArm(int p_gain)
+    void LeftArmController::SetPID(int p_gain)
     {
         if (!cm730_)
         {
@@ -95,10 +95,6 @@ namespace Robot
         cm730_->WriteByte(JointData::ID_L_SHOULDER_ROLL, MX28::P_P_GAIN, p_gain, 0);
         cm730_->WriteByte(JointData::ID_L_SHOULDER_PITCH, MX28::P_P_GAIN, p_gain, 0);
         cm730_->WriteByte(JointData::ID_L_ELBOW, MX28::P_P_GAIN, p_gain, 0);
-
-        // cm730_->WriteByte(JointData::ID_L_SHOULDER_ROLL, MX28::P_D_GAIN, d_gain, 0);
-        // cm730_->WriteByte(JointData::ID_L_SHOULDER_PITCH, MX28::P_D_GAIN, d_gain, 0);
-        // cm730_->WriteByte(JointData::ID_L_ELBOW, MX28::P_D_GAIN, d_gain, 0);
      
         std::cout << "INFO: LeftArmController initialized." << std::endl;
     }
