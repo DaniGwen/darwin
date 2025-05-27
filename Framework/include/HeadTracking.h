@@ -73,6 +73,9 @@ namespace Robot
         static void SetTrackingEnabled(bool enable);
         static bool IsTrackingEnabled();
 
+        void SetMotorCommandInterval(int interval_ms);
+        int GetMotorCommandInterval() const;
+
         // Explicitly declare the destructor
         ~HeadTracking();
 
@@ -137,6 +140,9 @@ namespace Robot
         // Current detected label and tracked object center (for getters)
         std::string current_detected_label_;
         Robot::Point2D current_tracked_object_center_;
+
+        std::chrono::steady_clock::time_point last_motor_command_time_;
+        int motor_command_interval_ms_; // Interval for sending motor commands (in milliseconds)
 
         // --- Private Helper Methods (implementing Head.cpp functionality) ---
 

@@ -116,7 +116,9 @@ namespace Robot
           black_color_(0),
           frame_counter_(0),
           current_detected_label_("none"),
-          current_tracked_object_center_(0.0, 0.0)
+          current_tracked_object_center_(0.0, 0.0),
+          last_motor_command_time_(std::chrono::steady_clock::now()),
+          motor_command_interval_ms_(75)
     {
         // Constructor is intentionally minimal.
         // initialization should be done in the Initialize() method.
@@ -790,6 +792,19 @@ namespace Robot
 
     void HeadTracking::ApplyHeadAngles()
     {
+        auto current_time = std::chrono::steady_clock::now();
+        auto time_since_last_command = std::chrono::duration_cast<std::chrono::milliseconds>(
+                                           current_time - last_motor_command_time_)
+                                           .count();
+
+        if (time_since_last_command < motor_command_interval_ms_)
+        {
+            return; // Not enough time has passed, skip motor command
+        }
+
+        // Update the last command time
+        last_motor_command_time_ = current_time;
+
         std::lock_guard<std::mutex> lock(cm730_mutex); // Protect CM730 access
 
         if (cm730_)
@@ -838,5 +853,18 @@ namespace Robot
     {
         std::lock_guard<std::mutex> lock(m_Mutex); // Protect access
         return m_TrackingEnabled;
+    }
+
+    void HeadTracking::SetMotorCommandInterval(int interval_ms)
+    {
+        std::lock_guard<std::mutex> lock(m_Mutex);
+        motor_command_interval_ms_ = std::max(10, std::min(500, interval_ms)); // Clamp between 10-500ms
+        std::cout << "INFO: HeadTracking motor command interval set to " << motor_command_interval_ms_ << "ms" << std::endl;
+    }
+
+    int HeadTracking::GetMotorCommandInterval() const
+    {
+        std::lock_guard<std::mutex> lock(m_Mutex);
+        return motor_command_interval_ms_;
     }
 }
