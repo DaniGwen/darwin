@@ -81,11 +81,12 @@ namespace Robot
         };
 
         std::lock_guard<std::mutex> lock(cm730_mutex); // Protect CM730 access for multiple writes
-
+        JointData joint_data;
         for (int joint_id : ids_to_configure)
         {
             cm730_->WriteByte(joint_id, MX28::P_TORQUE_ENABLE, 1, 0);
             cm730_->WriteByte(joint_id, MX28::P_P_GAIN, p_gain, 0);
+            joint_data.SetSlope(joint_id, JointData::SLOPE_EXTRASOFT, JointData::SLOPE_EXTRASOFT);
         }
 
         std::cout << "INFO: RightArmController PID gains set for all joints." << std::endl;
