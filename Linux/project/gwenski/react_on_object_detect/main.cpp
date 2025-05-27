@@ -166,60 +166,51 @@ int main(void)
     std::cout << "INFO: Main thread running, checking for detected objects to trigger actions. Press Ctrl+C to exit." << std::endl;
 
     std::string current_action_label = "standby"; // Keep track of the action currently playing
+    auto last_action_time = std::chrono::steady_clock::now();
+    const auto action_cooldown = std::chrono::seconds(5);
+    int person_detect_count = 0;
+    const int person_detect_threshold = 10;
 
     while (1)
     {
         // Get the latest detected label from the HeadTracking thread
         std::string detected_object_label = head_tracker->GetDetectedLabel();
+        auto current_time = std::chrono::steady_clock::now();
 
-        if (detected_object_label == "person" && current_action_label != "person")
+        // Debounce person detection to avoid false triggers
+        if (detected_object_label == "person")
         {
-            std::cout << "INFO: Detected person. Playing Wave" << std::endl;
-            left_arm_controller.Wave(3, 700, 5, 5);
+            person_detect_count++;
+        }
+        else
+        {
+            person_detect_count = 0;
+        }
+
+        if (person_detect_count >= person_detect_threshold &&
+            current_action_label != "person" &&
+            (current_time - last_action_time) >= action_cooldown)
+        {
+            std::cout << "INFO: Detected person consistently. Playing Wave" << std::endl;
+
+            left_arm_controller.Wave(3, 600, 5, 5);
 
             current_action_label = "person";
+            last_action_time = current_time;
+            person_detect_count = 0; // Reset counter
         }
-        else if (detected_object_label == "dog" && current_action_label != "dog")
+        else if (detected_object_label == "none" &&
+                 current_action_label != "standby" &&
+                 (current_time - last_action_time) >= action_cooldown)
         {
-            std::cout << "INFO: Detected dog. Playing action (Page " << ACTION_PAGE_DOG << ")..." << std::endl;
-            // run_action(ACTION_PAGE_DOG);
-
-            current_action_label = "dog";
-        }
-        else if (detected_object_label == "cat" && current_action_label != "cat")
-        {
-            std::cout << "INFO: Detected cat. Playing action (Page " << ACTION_PAGE_CAT << ")..." << std::endl;
-            // run_action(ACTION_PAGE_CAT);
-
-            current_action_label = "cat";
-        }
-        else if (detected_object_label == "sports ball" && current_action_label != "sports ball")
-        {
-            std::cout << "INFO: Detected sports ball. Playing action (Page " << ACTION_PAGE_SPORTS_BALL << ")..." << std::endl;
-            // run_action(ACTION_PAGE_SPORTS_BALL);
-
-            current_action_label = "sports ball";
-        }
-        else if (detected_object_label == "bottle" && current_action_label != "bottle")
-        {
-            std::cout << "INFO: Detected bottle. Playing action (Page " << ACTION_PAGE_BOTTLE << ")..." << std::endl;
-            // run_action(ACTION_PAGE_BOTTLE);
-
-            current_action_label = "bottle";
-        }
-        else if (detected_object_label == "none" && current_action_label != "standby")
-        {
-            // If no specific object is detected and we are not already in standby, go to standby
-            std::cout << "INFO: No target detected. Returning to standby action (Page " << ACTION_PAGE_STAND << ")..." << std::endl;
+            std::cout << "INFO: No target detected. Returning to standby..." << std::endl;
             run_action(ACTION_PAGE_STAND);
-
             current_action_label = "standby";
+            last_action_time = current_time;
         }
-        // If the detected label is the same as the current action label,
-        // we don't need to start the action again.
 
-        // Small delay in the main loop to avoid consuming too much CPU
-        std::this_thread::sleep_for(std::chrono::milliseconds(100)); // Check every 100ms
+        // Consistent timing - important for smooth operation
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
 
     // --- Cleanup Resources ---
