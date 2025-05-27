@@ -13,7 +13,7 @@ namespace Robot
         }
     }
 
-    void LeftArmController::ApplyPose(const ArmPose &pose)
+    void LeftArmController::ApplyPose(const ArmPose &pose, int p_gain, int d_gain)
     {
         std::lock_guard<std::mutex> lock(cm730_mutex); // Protect CM730 access
 
@@ -22,6 +22,8 @@ namespace Robot
             std::cerr << "ERROR: CM730 not initialized, cannot apply pose." << std::endl;
             return;
         }
+
+         SetPIDLeftArm(p_gain, d_gain);
 
         std::cout << "INFO: Applying pose..." << std::endl;
         for (const auto &joint_pair : pose.joint_positions)
@@ -36,8 +38,6 @@ namespace Robot
 
     void LeftArmController::Wave(int repetitions, int delay_ms, int p_gain, int d_gain)
     {
-        InitializeLeftArm(p_gain, d_gain);
-
         if (!cm730_)
         {
             std::cerr << "ERROR: CM730 not initialized, cannot run arm sequence." << std::endl;
@@ -52,19 +52,19 @@ namespace Robot
 
             // Move to Pose 1
             std::cout << "INFO: Moving to Pose 1..." << std::endl;
-            ApplyPose(POSE_1);
+            ApplyPose(POSE_1, p_gain, d_gain);
             std::this_thread::sleep_for(std::chrono::milliseconds(delay_ms)); // Wait for motors to move
 
             // Move to Pose 2
             std::cout << "INFO: Moving to Pose 2..." << std::endl;
-            ApplyPose(POSE_2);
+            ApplyPose(POSE_2, p_gain, d_gain);
             std::this_thread::sleep_for(std::chrono::milliseconds(delay_ms)); // Wait for motors to move
         }
 
         std::cout << "INFO: Left arm movement sequence finished." << std::endl;
     }
 
-    void LeftArmController::InitializeLeftArm(int p_gain, int d_gain)
+    void LeftArmController::SetPIDLeftArm(int p_gain, int d_gain)
     {
         if (!cm730_)
         {

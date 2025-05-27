@@ -44,8 +44,8 @@ namespace Robot
             }};
 
         // Helper method to apply a single arm pose
-        void ApplyPose(const ArmPose &pose);
-        void InitializeLeftArm(int p_gain, int d_gain);
+        void ApplyPose(const ArmPose &pose, int p_gain = 4, int d_gain = 4);
+        void SetPIDLeftArm(int p_gain, int d_gain);
     };
 }
 
