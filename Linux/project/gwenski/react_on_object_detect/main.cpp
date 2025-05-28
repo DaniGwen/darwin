@@ -9,6 +9,7 @@
  * managed directly by HeadTracking, NOT MotionManager or Head.cpp.
  */
 
+#include "ConsoleColors.h"
 #include <stdio.h>
 #include <unistd.h>
 #include <string.h>
@@ -186,8 +187,8 @@ int main(void)
             double distance = head_tracker->GetDetectedObjectDistance();
             if (distance > 0)
             {
-                std::cout << "INFO: Estimated distance to " << detected_object_label
-                          << ": " << distance << " meters." << std::endl;
+                std::cout << MAGENTA << "INFO: Estimated distance to " << detected_object_label
+                                                                         << ": " << distance << " meters." << RESET << std::endl;
             }
         }
 

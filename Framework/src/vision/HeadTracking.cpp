@@ -8,18 +8,7 @@
  * Description: Implementation of the HeadTracking singleton class.
  * Directly controls head motors without relying on Head.cpp.
  */
-// Define some color codes for convenience
-
-#define RESET   "\033[0m"
-#define BLACK   "\033[30m"      /* Black */
-#define RED     "\033[31m"      /* Red */
-#define GREEN   "\033[32m"      /* Green */
-#define YELLOW  "\033[33m"      /* Yellow */
-#define BLUE    "\033[34m"      /* Blue */
-#define MAGENTA "\033[35m"      /* Magenta */
-#define CYAN    "\033[36m"      /* Cyan */
-#define WHITE   "\033[37m"      /* White */
-
+#include "ConsoleColors.h"
 #include "HeadTracking.h" // Include the corrected header first
 #include "Globals.h"
 #include <iostream>  // Explicitly include iostream for std::cout, std::cerr, std::endl
@@ -613,9 +602,6 @@ namespace Robot
             }
             else if (primary_detected_label.rfind("bottle", 0) == 0)
             {
-                // Fallback for generic "bottle" if "bottle_small" or "bottle_big" are detected
-                // but not explicitly in the map (though they should be if INI is set up)
-                // Or if the detector just returns "bottle"
                 auto fallback_it = known_object_real_heights_m_.find("bottle");
                 if (fallback_it != known_object_real_heights_m_.end())
                 {
@@ -631,12 +617,6 @@ namespace Robot
                 if (object_height_in_pixels > 1) // Avoid division by zero or tiny unstable values
                 {
                     current_object_distance_m_ = (known_real_height_m * camera_focal_length_px_) / object_height_in_pixels;
-                    // For debugging:
-                    // std::cout << "DEBUG: Label: " << primary_detected_label
-                    //           << ", RealH: " << known_real_height_m
-                    //           << ", PixelH: " << object_height_in_pixels
-                    //           << ", Focal: " << camera_focal_length_px_
-                    //           << ", Distance: " << current_object_distance_m_ << " m" << std::endl;
                 }
             }
         }
