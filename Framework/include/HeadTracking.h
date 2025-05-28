@@ -17,6 +17,7 @@
 #include <iostream> // For std::cerr, std::cout
 #include <cmath>    // For std::abs (needed for CheckLimit, PID)
 #include <mutex>
+#include <map>
 
 // Headers for Unix Domain Sockets
 #include <sys/socket.h>
@@ -166,7 +167,7 @@ namespace Robot
         void UpdateHeadTracking(const std::vector<ParsedDetection> &detections);
         // Helper to receive exact number of bytes from socket
         std::string ReceiveExact(int sock_fd, size_t num_bytes);
-        
+
          void LoadDistanceEstimationSettings(minIni* ini);
 
         // New methods to replace Head.cpp functionality:
