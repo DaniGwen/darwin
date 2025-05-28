@@ -840,9 +840,9 @@ namespace Robot
         m_Tilt_err_diff = err.Y - m_Tilt_err;
         m_Tilt_err = err.Y; // Update current error
 
-        std::cout << "DEBUG: HeadTracking::UpdateHeadAngles - Input P_err.X: " << err.X << ", P_err.Y: " << err.Y << std::endl;
-        std::cout << "DEBUG: HeadTracking::UpdateHeadAngles - m_Pan_err: " << m_Pan_err << ", m_Pan_err_diff: " << m_Pan_err_diff << std::endl;
-        std::cout << "DEBUG: HeadTracking::UpdateHeadAngles - m_Tilt_err: " << m_Tilt_err << ", m_Tilt_err_diff: " << m_Tilt_err_diff << std::endl;
+        // std::cout << "DEBUG: HeadTracking::UpdateHeadAngles - Input P_err.X: " << err.X << ", P_err.Y: " << err.Y << std::endl;
+        // std::cout << "DEBUG: HeadTracking::UpdateHeadAngles - m_Pan_err: " << m_Pan_err << ", m_Pan_err_diff: " << m_Pan_err_diff << std::endl;
+        // std::cout << "DEBUG: HeadTracking::UpdateHeadAngles - m_Tilt_err: " << m_Tilt_err << ", m_Tilt_err_diff: " << m_Tilt_err_diff << std::endl;
 
         double pOffset, dOffset;
 
@@ -859,12 +859,12 @@ namespace Robot
         dOffset = m_Tilt_err_diff * m_Tilt_d_gain;
         m_TiltAngle += (pOffset + dOffset); // Update target tilt angle
 
-        std::cout << "DEBUG: HeadTracking::UpdateHeadAngles - Pan pOffset: " << m_Pan_err * m_Pan_p_gain
-                  << ", Pan dOffset: " << m_Pan_err_diff * m_Pan_d_gain
-                  << ", New PanAngle (before limit): " << m_PanAngle << std::endl;
-        std::cout << "DEBUG: HeadTracking::UpdateHeadAngles - Tilt pOffset: " << m_Tilt_err * m_Tilt_p_gain
-                  << ", Tilt dOffset: " << m_Tilt_err_diff * m_Tilt_d_gain
-                  << ", New TiltAngle (before limit): " << m_TiltAngle << std::endl;
+        // std::cout << "DEBUG: HeadTracking::UpdateHeadAngles - Pan pOffset: " << m_Pan_err * m_Pan_p_gain
+        //           << ", Pan dOffset: " << m_Pan_err_diff * m_Pan_d_gain
+        //           << ", New PanAngle (before limit): " << m_PanAngle << std::endl;
+        // std::cout << "DEBUG: HeadTracking::UpdateHeadAngles - Tilt pOffset: " << m_Tilt_err * m_Tilt_p_gain
+        //           << ", Tilt dOffset: " << m_Tilt_err_diff * m_Tilt_d_gain
+        //           << ", New TiltAngle (before limit): " << m_TiltAngle << std::endl;
 
         CheckLimit(); // Ensure the updated angles are within limits
     }
