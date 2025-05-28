@@ -17,7 +17,7 @@ namespace Robot
     public:
         RightArmController(CM730 *cm730);
 
-        void RiseHand(int p_gain = 4);
+        void HandReach(int p_gain = 4);
         void CloseGripper(int p_gain = 4);
         void OpenGripper(int p_gain = 4);
         void RotateWrist90Deg(int p_gain = 4);

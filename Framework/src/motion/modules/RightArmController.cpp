@@ -34,7 +34,7 @@ namespace Robot
         }
     }
 
-    void RightArmController::RiseHand(int p_gain)
+    void RightArmController::HandReach(int p_gain)
     {
         SetPID(p_gain);
 

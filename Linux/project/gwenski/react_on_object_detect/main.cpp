@@ -27,6 +27,7 @@
 #include "HeadTracking.h"
 #include "LeftArmController.h"
 #include "RightArmController.h"
+#include "LegsController.h"
 #include "LinuxDARwIn.h" // Include for Motion Framework components (MotionManager, Action)
 
 // --- Configuration ---
@@ -127,6 +128,7 @@ int main(void)
 
     LeftArmController left_arm_controller(&cm730);
     RightArmController right_arm_controller(&cm730);
+    LegsController legs_controller(&cm730);
     HeadTracking *head_tracker = HeadTracking::GetInstance();
 
     // Pass the INI settings and CM730 instance to HeadTracking.
@@ -181,14 +183,15 @@ int main(void)
     {
         // Get the latest detected label from the HeadTracking thread
         std::string detected_object_label = head_tracker->GetDetectedLabel();
+        double distance = 0;
 
         if (detected_object_label != "none")
         {
-            double distance = head_tracker->GetDetectedObjectDistance();
+            distance = head_tracker->GetDetectedObjectDistance();
             if (distance > 0)
             {
                 std::cout << MAGENTA << "INFO: Estimated distance to " << detected_object_label
-                                                                         << ": " << distance << " meters." << RESET << std::endl;
+                          << ": " << distance << " meters." << RESET << std::endl;
             }
         }
 
@@ -234,11 +237,22 @@ int main(void)
                  current_action_label != "bottle" &&
                  (current_time - last_action_time) >= action_cooldown)
         {
-            right_arm_controller.RiseHand(3);
-            std::this_thread::sleep_for(std::chrono::milliseconds(4000));
-            right_arm_controller.GrabItem(3);
+            if (distance > 0.5)
+            {
+                std::cout << "INFO: Detected bottle too far, skipping action." << std::endl;
+                continue;
+            }
+            
+            legs_controller.ReadyToPickUpItem();
             std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+            right_arm_controller.RotateWrist90Deg();
+            right_arm_controller.OpenGripper();
+            right_arm_controller.HandReach(3);
+            std::this_thread::sleep_for(std::chrono::milliseconds(4000));
+            right_arm_controller.CloseGripper();
+            std::this_thread::sleep_for(std::chrono::milliseconds(4000));
             right_arm_controller.ToDefaultPose();
+            legs_controller.ToDefaultPose();
 
             current_action_label = "bottle";
             last_action_time = current_time;
