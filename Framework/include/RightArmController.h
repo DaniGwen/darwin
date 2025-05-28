@@ -31,9 +31,9 @@ namespace Robot
         // Placeholder values for wrist and gripper have been added. Adjust as needed.
         const Pose POSE_REACH_HAND = {
             std::map<int, int>{
-                {JointData::ID_R_SHOULDER_PITCH, 2376},
-                {JointData::ID_R_SHOULDER_ROLL, 1749},
-                {JointData::ID_R_ELBOW, 1628},
+                {JointData::ID_R_SHOULDER_PITCH, 1721},
+                {JointData::ID_R_SHOULDER_ROLL, 1769},
+                {JointData::ID_R_ELBOW, 1470},
 
                 {JointData::ID_L_SHOULDER_PITCH, 2580},
                 {JointData::ID_L_SHOULDER_ROLL, 2334},
@@ -57,9 +57,9 @@ namespace Robot
 
         const Pose DEFAULT = {
             std::map<int, int>{
-                {JointData::ID_R_SHOULDER_PITCH, 1720},
-                {JointData::ID_R_SHOULDER_ROLL, 1825},
-                {JointData::ID_R_ELBOW, 1716}}};
+                {JointData::ID_R_SHOULDER_PITCH, 1719},
+                {JointData::ID_R_SHOULDER_ROLL, 1939},
+                {JointData::ID_R_ELBOW, 1747}}};
 
         void ApplyPose(const Pose &pose);
         void SetPID(int p_gain = 4);

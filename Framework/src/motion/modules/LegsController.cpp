@@ -55,7 +55,7 @@ namespace Robot
         SetPID(p_gain); // Set P-gain for this movement
         ApplyPose(POSE_LEGS_DEFAULT_STAND);
 
-        std::this_thread::sleep_for(std::chrono::milliseconds(1500)); // e.g., 1.5 seconds
+        std::this_thread::sleep_for(std::chrono::milliseconds(3000)); // e.g., 1.5 seconds
     }
 
     void LegsController::ReadyToPickUpItem(int p_gain)
@@ -64,7 +64,7 @@ namespace Robot
         SetPID(p_gain);
         ApplyPose(POSE_READY_TO_PICKUP_STAND);
 
-        std::this_thread::sleep_for(std::chrono::milliseconds(1500)); // e.g., 1.5 seconds
+        std::this_thread::sleep_for(std::chrono::milliseconds(3500)); // e.g., 1.5 seconds
     }
 
     void LegsController::SetPID(int p_gain)

@@ -57,8 +57,8 @@ namespace Robot
                 {JointData::ID_L_HIP_PITCH, 2840},
                 {JointData::ID_R_KNEE, 2569},
                 {JointData::ID_L_KNEE, 1494},
-                {JointData::ID_R_ANKLE_PITCH, 2119},
-                {JointData::ID_L_ANKLE_PITCH, 1960},
+                {JointData::ID_R_ANKLE_PITCH, 2195},
+                {JointData::ID_L_ANKLE_PITCH, 1865},
                 {JointData::ID_R_ANKLE_ROLL, 2120},
                 {JointData::ID_L_ANKLE_ROLL, 1978}}};
 
