@@ -31,7 +31,7 @@ namespace Robot
         // Placeholder values for wrist and gripper have been added. Adjust as needed.
         const Pose POSE_REACH_HAND = {
             std::map<int, int>{
-                {JointData::ID_R_SHOULDER_PITCH, 1680},
+                {JointData::ID_R_SHOULDER_PITCH, 3150},
                 {JointData::ID_R_SHOULDER_ROLL, 1769},
                 {JointData::ID_R_ELBOW, 1470},
 
