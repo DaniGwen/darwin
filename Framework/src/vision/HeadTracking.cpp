@@ -579,7 +579,7 @@ namespace Robot
                     }
                     tracked_object_center_for_head.X = (det.xmin + det.xmax) / 2.0 * Camera::WIDTH;
                     tracked_object_center_for_head.Y = (det.ymin + det.ymax) / 2.0 * Camera::HEIGHT;
-                    primary_detected_label = det.label;                  // Set to "bottle"
+                    primary_detected_label = det.label;                              // Set to "bottle"
                     current_detection_score_val = static_cast<int>(det.score * 100); // Convert to percentage
                     primary_detection = det;
                     break;
@@ -942,11 +942,14 @@ namespace Robot
 
     void HeadTracking::SetPIDGains()
     {
-        cm730_->WriteByte(JointData::ID_HEAD_PAN, MX28::P_P_GAIN, 6, 0);
-        cm730_->WriteByte(JointData::ID_HEAD_TILT, MX28::P_P_GAIN, 6, 0);
+        cm730_->WriteByte(JointData::ID_HEAD_PAN, MX28::P_P_GAIN, 8, 0);
+        cm730_->WriteByte(JointData::ID_HEAD_TILT, MX28::P_P_GAIN, 8, 0);
 
-        cm730_->WriteByte(JointData::ID_HEAD_PAN, MX28::P_D_GAIN, 6, 0);
-        cm730_->WriteByte(JointData::ID_HEAD_TILT, MX28::P_D_GAIN, 6, 0);
+        cm730_->WriteByte(JointData::ID_HEAD_PAN, MX28::P_D_GAIN, 8, 0);
+        cm730_->WriteByte(JointData::ID_HEAD_TILT, MX28::P_D_GAIN, 8, 0);
+
+        cm730_->WriteWord(JointData::ID_HEAD_PAN, MX28::P_MOVING_SPEED_L, 200, 0); // Value 0 means max speed. 1~1023 for controlled speed.
+        cm730_->WriteWord(JointData::ID_HEAD_TILT, MX28::P_MOVING_SPEED_L, 200, 0);
     }
 
     double HeadTracking::GetDetectedObjectDistance() const

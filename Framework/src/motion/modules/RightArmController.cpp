@@ -40,7 +40,7 @@ namespace Robot
 
         std::cout << "INFO: Moving right arm to POSE_RISE_HAND ..." << std::endl;
         ApplyPose(POSE_REACH_HAND);
-        std::this_thread::sleep_for(std::chrono::milliseconds(3000));
+        std::this_thread::sleep_for(std::chrono::milliseconds(1000));
     }
 
     void RightArmController::CloseGripper(int p_gain)
@@ -76,7 +76,7 @@ namespace Robot
 
         std::cout << "INFO: Resetting right arm to default pose..." << std::endl;
         ApplyPose(DEFAULT);
-        std::this_thread::sleep_for(std::chrono::milliseconds(2000));
+        std::this_thread::sleep_for(std::chrono::milliseconds(1000));
     }
 
     void RightArmController::SetPID(int p_gain)
