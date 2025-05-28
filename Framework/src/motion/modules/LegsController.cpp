@@ -13,7 +13,7 @@ namespace Robot
         }
         std::cout << BOLDGREEN << "INFO: LegsController initialized." << RESET << std::endl;
 
-        SetPIDGains(); // Use default PID gains initially
+        SetPID(); // Use default PID gains initially
     }
 
     LegsController::~LegsController()
@@ -49,10 +49,10 @@ namespace Robot
         }
     }
 
-    void LegsController::ToDefaultPose(int p_gain)
+    void LegsController::Stand(int p_gain)
     {
         std::cout << BOLDGREEN << "INFO: LegsController moving to default standing pose..." << RESET << std::endl;
-        SetPIDGains(p_gain); // Set P-gain for this movement
+        SetPID(p_gain); // Set P-gain for this movement
         ApplyPose(POSE_LEGS_DEFAULT_STAND);
 
         std::this_thread::sleep_for(std::chrono::milliseconds(1500)); // e.g., 1.5 seconds
@@ -61,13 +61,13 @@ namespace Robot
     void LegsController::ReadyToPickUpItem(int p_gain)
     {
         std::cout << BOLDGREEN << "INFO: LegsController moving to ReadyToPickUpItem pose..." << RESET << std::endl;
-        SetPIDGains(p_gain);
+        SetPID(p_gain);
         ApplyPose(POSE_READY_TO_PICKUP_STAND);
 
         std::this_thread::sleep_for(std::chrono::milliseconds(1500)); // e.g., 1.5 seconds
     }
 
-    void LegsController::SetPIDGains(int p_gain, int i_gain, int d_gain)
+    void LegsController::SetPID(int p_gain)
     {
         // Define all leg joint IDs that need PID configuration
         int leg_joint_ids[] = {
@@ -90,8 +90,6 @@ namespace Robot
         {
             cm730_->WriteByte(joint_id, MX28::P_TORQUE_ENABLE, 1, 0); // Ensure torque is enabled
             cm730_->WriteByte(joint_id, MX28::P_P_GAIN, p_gain, 0);
-            cm730_->WriteByte(joint_id, MX28::P_I_GAIN, i_gain, 0);
-            cm730_->WriteByte(joint_id, MX28::P_D_GAIN, d_gain, 0);
         }
 
         // std::cout << BOLDGREEN << "INFO: LegsController PID gains set (P=" << p_gain << ", I=" << i_gain << ", D=" << d_gain << ") for all leg joints." << RESET << std::endl;

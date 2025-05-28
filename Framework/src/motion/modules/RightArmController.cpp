@@ -70,7 +70,7 @@ namespace Robot
         std::this_thread::sleep_for(std::chrono::milliseconds(400));
     }
 
-    void RightArmController::ToDefaultPose()
+    void RightArmController::Default()
     {
         SetPID(3);
 

@@ -242,17 +242,16 @@ int main(void)
                 std::cout << "INFO: Detected bottle too far, skipping action." << std::endl;
                 continue;
             }
-            
+
             legs_controller.ReadyToPickUpItem();
-            std::this_thread::sleep_for(std::chrono::milliseconds(1000));
             right_arm_controller.RotateWrist90Deg();
             right_arm_controller.OpenGripper();
             right_arm_controller.HandReach(3);
-            std::this_thread::sleep_for(std::chrono::milliseconds(4000));
+            std::this_thread::sleep_for(std::chrono::milliseconds(2000));
             right_arm_controller.CloseGripper();
-            std::this_thread::sleep_for(std::chrono::milliseconds(4000));
-            right_arm_controller.ToDefaultPose();
-            legs_controller.ToDefaultPose();
+            std::this_thread::sleep_for(std::chrono::milliseconds(2000));
+            right_arm_controller.Default();
+            legs_controller.Stand();
 
             current_action_label = "bottle";
             last_action_time = current_time;

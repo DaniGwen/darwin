@@ -21,7 +21,7 @@ namespace Robot
         void CloseGripper(int p_gain = 4);
         void OpenGripper(int p_gain = 4);
         void RotateWrist90Deg(int p_gain = 4);
-        void ToDefaultPose();
+        void Default();
 
     private:
         CM730 *cm730_;
