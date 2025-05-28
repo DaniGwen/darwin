@@ -1,4 +1,5 @@
 #include "RightArmController.h"
+#include "ConsoleColors.h"
 
 namespace Robot
 {
@@ -22,14 +23,14 @@ namespace Robot
             return;
         }
 
-        std::cout << "INFO: Applying pose to right arm..." << std::endl;
+        std::cout << BLUE << "INFO: Applying pose to right arm..." << RESET << std::endl;
         for (const auto &joint_pair : pose.joint_positions)
         {
             int joint_id = joint_pair.first;
             int goal_value = joint_pair.second;
 
             cm730_->WriteWord(joint_id, MX28::P_GOAL_POSITION_L, goal_value, 0);
-            std::cout << "DEBUG: Set Joint ID " << joint_id << " to value " << goal_value << std::endl;
+            std::cout << BLUE << "DEBUG: Set Joint ID " << joint_id << " to value " << goal_value << RESET << std::endl;
         }
     }
 
