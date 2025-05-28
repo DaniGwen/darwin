@@ -39,7 +39,7 @@ namespace Robot
         SetPID(p_gain);
 
         std::cout << "INFO: Moving right arm to POSE_RISE_HAND ..." << std::endl;
-        ApplyPose(POSE_RISE_HAND);
+        ApplyPose(POSE_REACH_HAND);
         std::this_thread::sleep_for(std::chrono::milliseconds(2000));
     }
 

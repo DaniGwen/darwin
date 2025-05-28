@@ -28,13 +28,11 @@ namespace Robot
         // Define poses for the right arm including wrist and gripper
         // Assuming JointData::ID_R_WRIST = 21 and JointData::ID_R_GRIPPER = 22 are defined in JointData.h
         // Placeholder values for wrist and gripper have been added. Adjust as needed.
-        const ArmPose POSE_RISE_HAND = {
+        const ArmPose POSE_REACH_HAND = {
             std::map<int, int>{
-                {JointData::ID_R_SHOULDER_PITCH, 2633},
-                {JointData::ID_R_SHOULDER_ROLL, 2055},
-                {JointData::ID_R_ELBOW, 2287},
-                {JointData::ID_R_WRIST, 2522},
-                {JointData::ID_R_GRIPPER, 1545},
+                {JointData::ID_R_SHOULDER_PITCH, 2376},
+                {JointData::ID_R_SHOULDER_ROLL, 1749},
+                {JointData::ID_R_ELBOW, 1628},
 
                 {JointData::ID_L_SHOULDER_PITCH, 2580},
                 {JointData::ID_L_SHOULDER_ROLL, 2334},
@@ -45,9 +43,19 @@ namespace Robot
 
         const ArmPose POSE_CLOSE_GRIPPER = {
             std::map<int, int>{
-                {JointData::ID_R_WRIST, 2400},  // Example: Wrist turned other way for wave
-                {JointData::ID_R_GRIPPER, 2109} // Example: Gripper open
-            }};
+                {JointData::ID_R_GRIPPER, 2109}}};
+
+        const ArmPose POSE_OPEN_GRIPPER = {
+            std::map<int, int>{
+                {JointData::ID_R_GRIPPER, 1516}}};
+
+        const ArmPose POSE_ROTATE_WRIST_90DEG = {
+            std::map<int, int>{
+                {JointData::ID_R_WRIST, 3078}}};
+
+        const ArmPose POSE_ROTATE_WRIST_DEFAULT = {
+            std::map<int, int>{
+                {JointData::ID_R_WRIST, 2084}}};
 
         const ArmPose DEFAULT = {
             std::map<int, int>{
