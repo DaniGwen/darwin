@@ -99,6 +99,7 @@ namespace Robot
         {
             cm730_->WriteByte(joint_id, MX28::P_TORQUE_ENABLE, 1, 0);
             cm730_->WriteByte(joint_id, MX28::P_P_GAIN, p_gain, 0);
+            cm730_->WriteWord(joint_id, MX28::P_MOVING_SPEED_L, 200, 0); // Value 0 means max speed. 1~1023 for controlled speed.
         }
 
         std::cout << "INFO: RightArmController PID gains set for all joints." << std::endl;

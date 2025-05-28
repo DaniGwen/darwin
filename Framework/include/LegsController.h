@@ -63,7 +63,7 @@ namespace Robot
                 {JointData::ID_L_ANKLE_ROLL, 1978}}};
 
         void ApplyPose(const Pose &pose);
-        void SetPID(int p_gain = 11);
+        void SetPID(int p_gain = 14);
     };
 }
 
