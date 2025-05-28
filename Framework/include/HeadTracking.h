@@ -62,13 +62,12 @@ namespace Robot
         // Main tracking loop
         void Run();
 
-        // Cleanup method
         void Cleanup();
 
-        // Public getters for detected label and tracked object center (needed by main.cpp)
         std::string GetDetectedLabel();
         Robot::Point2D GetTrackedObjectCenter();
         int GetDetectionScore();
+        double GetDetectedObjectDistance() const;
 
         // Static methods to control tracking state
         static void SetTrackingEnabled(bool enable);
@@ -96,7 +95,7 @@ namespace Robot
         // --- Member Variables (Ordered to match constructor for -Wreorder warning) ---
         int client_socket_;               // File descriptor for the client socket connection
         mjpg_streamer *streamer_;         // Pointer to the MJPG streamer instance
-        minIni *ini_;            // Pointer to loaded INI settings (owned by main)
+        minIni *ini_;                     // Pointer to loaded INI settings (owned by main)
         CM730 *cm730_;                    // Pointer to CM730 instance (direct motor control)
         Robot::Image *rgb_display_frame_; // Image buffer for the output frame with detections
 
@@ -142,6 +141,9 @@ namespace Robot
         std::string current_detected_label_;
         Robot::Point2D current_tracked_object_center_;
         int detection_score_;
+        double camera_focal_length_px_;
+        std::map<std::string, double> known_object_real_heights_m_;
+        double current_object_distance_m_;
 
         std::chrono::steady_clock::time_point last_motor_command_time_;
         int motor_command_interval_ms_; // Interval for sending motor commands (in milliseconds)
@@ -164,6 +166,8 @@ namespace Robot
         void UpdateHeadTracking(const std::vector<ParsedDetection> &detections);
         // Helper to receive exact number of bytes from socket
         std::string ReceiveExact(int sock_fd, size_t num_bytes);
+        
+         void LoadDistanceEstimationSettings(minIni* ini);
 
         // New methods to replace Head.cpp functionality:
         void LoadHeadSettings(minIni *ini);              // Load head-specific settings from INI

@@ -119,7 +119,9 @@ namespace Robot
           current_tracked_object_center_(0.0, 0.0),
           detection_score_(0),
           last_motor_command_time_(std::chrono::steady_clock::now()),
-          motor_command_interval_ms_(50)
+          motor_command_interval_ms_(50),
+          camera_focal_length_px_(700.0),
+          current_object_distance_m_(-1.0)
     {
         // Constructor is intentionally minimal.
         // initialization should be done in the Initialize() method.
@@ -175,8 +177,9 @@ namespace Robot
             return false;
         }
 
-        // 3. Load Head-specific settings from INI
         LoadHeadSettings(ini_);
+        LoadDistanceEstimationSettings(ini_);
+
         LinuxCamera::GetInstance()->LoadINISettings(ini_);
 
         // Explicitly enable head joints and set initial gains
@@ -537,7 +540,11 @@ namespace Robot
         bool person_found_in_frame = false;
         Point2D tracked_object_center_for_head;
         std::string primary_detected_label = "none";
-        int detection_score = 0;
+        int current_detection_score_val = 0;
+        ParsedDetection primary_detection;
+
+        // Reset distance at the start of each update
+        current_object_distance_m_ = -1.0;
 
         for (const auto &det : detections)
         {
@@ -550,9 +557,11 @@ namespace Robot
 
                 tracked_object_center_for_head.X = (det.xmin + det.xmax) / 2.0 * Camera::WIDTH;
                 tracked_object_center_for_head.Y = (det.ymin + det.ymax) / 2.0 * Camera::HEIGHT;
+
                 person_found_in_frame = true;
                 primary_detected_label = det.label;
                 detection_score = static_cast<int>(det.score * 100); // Convert to percentage
+                primary_detection = det;
                 break;
             }
         }
@@ -570,9 +579,10 @@ namespace Robot
                     }
                     tracked_object_center_for_head.X = (det.xmin + det.xmax) / 2.0 * Camera::WIDTH;
                     tracked_object_center_for_head.Y = (det.ymin + det.ymax) / 2.0 * Camera::HEIGHT;
-                    primary_detected_label = det.label;                   // Set to "bottle"
+                    primary_detected_label = det.label;                  // Set to "bottle"
                     detection_score = static_cast<int>(det.score * 100); // Convert to percentage
-                    break;                                                // Found bottle, stop
+                    primary_detection = det;
+                    break;
                 }
             }
         }
@@ -581,14 +591,53 @@ namespace Robot
         current_tracked_object_center_ = tracked_object_center_for_head;
         detection_score_ = detection_score;
 
-            bool target_found_in_frame = (primary_detected_label != "none");
+        if (primary_detected_label != "none")
+        {
+            auto it = known_object_real_heights_m_.find(primary_detected_label);
+            double known_real_height_m = -1.0;
+
+            if (it != known_object_real_heights_m_.end())
+            {
+                known_real_height_m = it->second;
+            }
+            else if (primary_detected_label.rfind("bottle", 0) == 0)
+            {
+                // Fallback for generic "bottle" if "bottle_small" or "bottle_big" are detected
+                // but not explicitly in the map (though they should be if INI is set up)
+                // Or if the detector just returns "bottle"
+                auto fallback_it = known_object_real_heights_m_.find("bottle");
+                if (fallback_it != known_object_real_heights_m_.end())
+                {
+                    known_real_height_m = fallback_it->second;
+                }
+            }
+
+            if (known_real_height_m > 0 && camera_focal_length_px_ > 0)
+            {
+                // Use primary_detection that corresponds to primary_detected_label
+                double object_height_in_pixels = (primary_detection.ymax - primary_detection.ymin) * Camera::HEIGHT;
+
+                if (object_height_in_pixels > 1) // Avoid division by zero or tiny unstable values
+                {
+                    current_object_distance_m_ = (known_real_height_m * camera_focal_length_px_) / object_height_in_pixels;
+                    // For debugging:
+                    // std::cout << "DEBUG: Label: " << primary_detected_label
+                    //           << ", RealH: " << known_real_height_m
+                    //           << ", PixelH: " << object_height_in_pixels
+                    //           << ", Focal: " << camera_focal_length_px_
+                    //           << ", Distance: " << current_object_distance_m_ << " m" << std::endl;
+                }
+            }
+        }
+
+        bool target_found_in_frame = (primary_detected_label != "none");
 
         if (target_found_in_frame)
         {
             no_target_count_ = 0;
             Point2D P_err;
-
             Point2D pixel_offset_from_center;
+
             pixel_offset_from_center.X = tracked_object_center_for_head.X - (Camera::WIDTH / 2.0);
             pixel_offset_from_center.Y = tracked_object_center_for_head.Y - (Camera::HEIGHT / 2.0);
 
@@ -908,4 +957,30 @@ namespace Robot
         cm730_->WriteByte(JointData::ID_HEAD_PAN, MX28::P_D_GAIN, 6, 0);
         cm730_->WriteByte(JointData::ID_HEAD_TILT, MX28::P_D_GAIN, 6, 0);
     }
+
+    double HeadTracking::GetDetectedObjectDistance() const
+    {
+        return current_object_distance_m_;
+    }
+
+    void HeadTracking::LoadDistanceEstimationSettings(minIni *ini)
+    {
+        if (!ini)
+            return;
+
+        camera_focal_length_px_ = ini->getd("DistanceEstimation", "focal_length_px", 700.0); // Default if not in INI
+
+        // Load known object heights (provide defaults if not in INI)
+        known_object_real_heights_m_["person"] = ini->getd("DistanceEstimation", "person_height_m", 1.76);
+        known_object_real_heights_m_["bottle_small"] = ini->getd("DistanceEstimation", "bottle_small_height_m", 0.21);
+        known_object_real_heights_m_["bottle_big"] = ini->getd("DistanceEstimation", "bottle_big_height_m", 0.25);
+        known_object_real_heights_m_["bottle"] = ini->getd("DistanceEstimation", "bottle_default_height_m", 0.23); // For generic "bottle" label
+
+        std::cout << "INFO: HeadTracking::LoadDistanceEstimationSettings - Focal Length: " << camera_focal_length_px_ << " px" << std::endl;
+        for (const auto &pair : known_object_real_heights_m_)
+        {
+            std::cout << "INFO: HeadTracking::LoadDistanceEstimationSettings - Object: " << pair.first << ", Height: " << pair.second << " m" << std::endl;
+        }
+    }
+
 }

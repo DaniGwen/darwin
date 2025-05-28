@@ -19,7 +19,7 @@
 #include <string>    // Required for std::string
 #include <chrono>    // Required for timing (optional, for loop delay)
 #include <thread>    // Required for std::this_thread::sleep_for (optional)
-#include <cctype> 
+#include <cctype>
 #include "algorithm"
 
 #include "minIni.h" // For INI file loading
@@ -181,9 +181,21 @@ int main(void)
         // Get the latest detected label from the HeadTracking thread
         std::string detected_object_label = head_tracker->GetDetectedLabel();
 
+        if (detected_object_label != "none")
+        {
+            double distance = head_tracker->GetDetectedObjectDistance();
+            if (distance > 0)
+            {
+                std::cout << "INFO: Estimated distance to " << detected_object_label
+                          << ": " << distance << " meters." << std::endl;
+            }
+        }
+
         // Trim whitespace from the detected label
-        detected_object_label.erase(std::remove_if(detected_object_label.begin(), detected_object_label.end(), [](unsigned char c){ return std::isspace(c); }), detected_object_label.end());
-        
+        detected_object_label.erase(std::remove_if(detected_object_label.begin(), detected_object_label.end(), [](unsigned char c)
+                                                   { return std::isspace(c); }),
+                                    detected_object_label.end());
+
         auto current_time = std::chrono::steady_clock::now();
 
         // Debounce person detection to avoid false triggers
@@ -204,7 +216,7 @@ int main(void)
         {
             bottle_detect_count = 0;
         }
-        
+
         if (person_detect_count >= detect_threshold &&
             current_action_label != "person" &&
             (current_time - last_action_time) >= action_cooldown)
