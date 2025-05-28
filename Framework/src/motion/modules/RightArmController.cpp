@@ -13,7 +13,7 @@ namespace Robot
         }
     }
 
-    void RightArmController::ApplyPose(const ArmPose &pose)
+    void RightArmController::ApplyPose(const Pose &pose)
     {
         std::lock_guard<std::mutex> lock(cm730_mutex);
 
@@ -43,12 +43,30 @@ namespace Robot
         std::this_thread::sleep_for(std::chrono::milliseconds(2000));
     }
 
-    void RightArmController::GrabItem(int p_gain)
+    void RightArmController::CloseGripper(int p_gain)
     {
         SetPID(p_gain);
 
         std::cout << "INFO: Moving right arm to POSE_CLOSE_GRIPPER ..." << std::endl;
         ApplyPose(POSE_CLOSE_GRIPPER);
+        std::this_thread::sleep_for(std::chrono::milliseconds(400));
+    }
+
+    void RightArmController::OpenGripper(int p_gain)
+    {
+        SetPID(p_gain);
+
+        std::cout << "INFO: Moving right arm to POSE_OPEN_GRIPPER ..." << std::endl;
+        ApplyPose(POSE_OPEN_GRIPPER);
+        std::this_thread::sleep_for(std::chrono::milliseconds(400));
+    }
+
+     void RightArmController::RotateWrist90Deg(int p_gain)
+    {
+        SetPID(p_gain);
+
+        std::cout << "INFO: Moving right arm to POSE_ROTATE_WRIST_90DEG ..." << std::endl;
+        ApplyPose(POSE_ROTATE_WRIST_90DEG);
         std::this_thread::sleep_for(std::chrono::milliseconds(400));
     }
 
@@ -63,12 +81,6 @@ namespace Robot
 
     void RightArmController::SetPID(int p_gain)
     {
-        if (!cm730_)
-        {
-            std::cerr << "ERROR: CM730 not initialized, cannot initialize right arm." << std::endl;
-            return;
-        }
-
         int ids_to_configure[] = {
             JointData::ID_R_SHOULDER_ROLL,
             JointData::ID_R_SHOULDER_PITCH,

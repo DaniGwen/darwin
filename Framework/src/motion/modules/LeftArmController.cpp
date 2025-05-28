@@ -12,7 +12,7 @@ namespace Robot
         }
     }
 
-    void LeftArmController::ApplyPose(const ArmPose &pose)
+    void LeftArmController::ApplyPose(const Pose &pose)
     {
         std::lock_guard<std::mutex> lock(cm730_mutex); // Protect CM730 access
 
