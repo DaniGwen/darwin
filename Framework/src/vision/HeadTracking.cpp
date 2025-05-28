@@ -560,7 +560,7 @@ namespace Robot
 
                 person_found_in_frame = true;
                 primary_detected_label = det.label;
-                detection_score = static_cast<int>(det.score * 100); // Convert to percentage
+                current_detection_score_val = static_cast<int>(det.score * 100); // Convert to percentage
                 primary_detection = det;
                 break;
             }
@@ -580,7 +580,7 @@ namespace Robot
                     tracked_object_center_for_head.X = (det.xmin + det.xmax) / 2.0 * Camera::WIDTH;
                     tracked_object_center_for_head.Y = (det.ymin + det.ymax) / 2.0 * Camera::HEIGHT;
                     primary_detected_label = det.label;                  // Set to "bottle"
-                    detection_score = static_cast<int>(det.score * 100); // Convert to percentage
+                    current_detection_score_val = static_cast<int>(det.score * 100); // Convert to percentage
                     primary_detection = det;
                     break;
                 }
@@ -589,7 +589,7 @@ namespace Robot
 
         current_detected_label_ = primary_detected_label;
         current_tracked_object_center_ = tracked_object_center_for_head;
-        detection_score_ = detection_score;
+        detection_score_ = current_detection_score_val;
 
         if (primary_detected_label != "none")
         {
