@@ -17,10 +17,10 @@ namespace Robot
     public:
         RightArmController(CM730 *cm730);
 
-        void HandReach(int p_gain = 4);
-        void CloseGripper(int p_gain = 4);
-        void OpenGripper(int p_gain = 4);
-        void RotateWrist90Deg(int p_gain = 4);
+        void HandReach(int p_gain = 10);
+        void CloseGripper(int p_gain = 10);
+        void OpenGripper(int p_gain = 10);
+        void RotateWrist90Deg(int p_gain = 10);
         void Default();
 
     private:
@@ -31,7 +31,7 @@ namespace Robot
         // Placeholder values for wrist and gripper have been added. Adjust as needed.
         const Pose POSE_REACH_HAND = {
             std::map<int, int>{
-                {JointData::ID_R_SHOULDER_PITCH, 1721},
+                {JointData::ID_R_SHOULDER_PITCH, 1680},
                 {JointData::ID_R_SHOULDER_ROLL, 1769},
                 {JointData::ID_R_ELBOW, 1470},
 
@@ -62,7 +62,7 @@ namespace Robot
                 {JointData::ID_R_ELBOW, 1747}}};
 
         void ApplyPose(const Pose &pose);
-        void SetPID(int p_gain = 4);
+        void SetPID(int p_gain = 10);
     };
 }
 

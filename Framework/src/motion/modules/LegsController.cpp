@@ -90,7 +90,7 @@ namespace Robot
         {
             cm730_->WriteByte(joint_id, MX28::P_TORQUE_ENABLE, 1, 0); // Ensure torque is enabled
             cm730_->WriteByte(joint_id, MX28::P_P_GAIN, p_gain, 0);
-            cm730_->WriteWord(joint_id, MX28::P_MOVING_SPEED_L, 200, 0); // Value 0 means max speed. 1~1023 for controlled speed.
+            cm730_->WriteWord(joint_id, MX28::P_MOVING_SPEED_L, 300, 0); // Value 0 means max speed. 1~1023 for controlled speed.
         }
 
         // std::cout << BOLDGREEN << "INFO: LegsController PID gains set (P=" << p_gain << ", I=" << i_gain << ", D=" << d_gain << ") for all leg joints." << RESET << std::endl;
