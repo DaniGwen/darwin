@@ -1,4 +1,5 @@
 #include "LeftArmController.h"
+#include "ConsoleColors.h"
 
 namespace Robot
 {
@@ -28,7 +29,7 @@ namespace Robot
         }
     }
 
-    void LeftArmController::Wave(int moving_speed, int repetitions, int delay_ms, int p_gain)
+    void LeftArmController::Wave(int moving_speed, int repetitions, int p_gain)
     {
         std::cout << "INFO: Starting left arm movement sequence for " << repetitions << " repetitions." << std::endl;
 
@@ -36,18 +37,12 @@ namespace Robot
 
         for (int i = 0; i < repetitions; ++i)
         {
-            std::cout << "INFO: Repetition " << (i + 1) << "/" << repetitions << std::endl;
-
-            std::cout << "INFO: Moving to Pose 1..." << std::endl;
             ApplyPose(POSE_1);
-            std::this_thread::sleep_for(std::chrono::milliseconds(delay_ms)); // Wait for motors to move
-
-            std::cout << "INFO: Moving to Pose 2..." << std::endl;
             ApplyPose(POSE_2);
-            std::this_thread::sleep_for(std::chrono::milliseconds(delay_ms)); // Wait for motors to move
+            std::this_thread::sleep_for(std::chrono::milliseconds(500));
         }
 
-        std::cout << "INFO: Left arm movement sequence finished." << std::endl;
+        std::cout << GREEN << "INFO: Wave movement sequence finished." << RESET << std::endl;
     }
 
     void LeftArmController::ToDefaultPose()
@@ -56,7 +51,7 @@ namespace Robot
 
         std::cout << "INFO: Resetting left arm to default pose..." << std::endl;
         ApplyPose(DEFAULT);
-        std::this_thread::sleep_for(std::chrono::milliseconds(700));
+        std::this_thread::sleep_for(std::chrono::milliseconds(500));
     }
 
     void LeftArmController::SetPID(int moving_speed, int p_gain)
