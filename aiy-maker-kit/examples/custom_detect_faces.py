@@ -42,13 +42,9 @@ SOCKET_CONNECT_RETRIES = 10
 SOCKET_RETRY_DELAY_SEC = 0.8
 
 # --- Model Configuration ---
-# Use the FACE_DETECTION_MODEL from models.py
 MODEL_PATH = models.FACE_DETECTION_MODEL
-# Face detection models typically output a single class (face).
-# We don't need an extensive label file like COCO.
-# We can assign a label programmatically.
-FACE_LABEL = "face" # The label that will be sent to C++
-DETECTION_THRESHOLD = 0.5 # Confidence threshold for detections
+FACE_LABEL = "face" 
+DETECTION_THRESHOLD = 0.5 
 
 # --- Helper function to receive exact number of bytes ---
 def recvall(sock, n):
@@ -62,61 +58,60 @@ def recvall(sock, n):
     return data
 
 # --- Helper function to parse detection results from output tensors ---
-# This function might need adjustment based on the specific output signature
-# of your FACE_DETECTION_MODEL. SSD-like models usually have:
-# 0: Detection boxes (e.g., [1, num_detections, 4] -> [ymin, xmin, ymax, ymax])
-# 1: Detection classes (e.g., [1, num_detections]) - For face detection, this might always be class 0.
-# 2: Detection scores (e.g., [1, num_detections])
-# 3: Number of detections (e.g., [1])
-# It's crucial to verify this with your model (e.g., using Netron).
+# Updated based on Netron output:
+# Output 0 (boxes): tensor: float32[1,50,4] (Netron ID 6)
+# Output 1 (classes): tensor: float32[1,50] (Netron ID 7)
+# Output 2 (scores): tensor: float32[1,50] (Netron ID 8)
+# Output 3 (num_detections): tensor: float32[1] (Netron ID 9)
+# The tflite_runtime interpreter.get_output_details() usually orders these logically.
 def get_output_tensors(interpreter):
     """Returns the output tensors for detection."""
     output_details = interpreter.get_output_details()
+
+    # Expected shapes based on Netron output (batch_size=1, max_detections=50)
+    # We assume the interpreter provides these in the standard order.
+    # If not, a more complex mapping by tensor name or exact shape would be needed.
     
-    # Common output tensor indices for SSD models (verify with your face model)
-    # If your face model is different, these indices might need to change.
-    # Example: Some face models might only have boxes and scores if there's only one class.
-    
-    # Assuming a typical detection model output structure:
-    # boxes: [ymin, xmin, ymax, xmax]
-    # classes: class_id (often 0 for the primary detected class in single-class models)
-    # scores: confidence score
-    # count: number of valid detections
-    
-    # Find tensors by common names or typical order if names are not standard
-    # This is a more robust way if tensor order can vary slightly.
-    # However, for simplicity and based on custom_detect_objects.py, we'll use indexed access.
-    # You might need to inspect your specific face model's output tensor details.
+    expected_shapes = {
+        "boxes": (1, 50, 4),  # Or your model's max detections if not 50
+        "classes": (1, 50),
+        "scores": (1, 50),
+        "count": (1,)
+    }
 
     try:
-        boxes = interpreter.get_tensor(output_details[0]['index'])[0]   # Bounding boxes
-        # For face detection, class_id might not be explicitly needed if it's always 'face'
-        # but some models still output it.
-        classes = interpreter.get_tensor(output_details[1]['index'])[0] # Class IDs
-        scores = interpreter.get_tensor(output_details[2]['index'])[0]  # Scores
-        count = int(interpreter.get_tensor(output_details[3]['index'])[0]) # Number of detections
+        # Assuming the standard order of output tensors:
+        # 0: Detection boxes
+        # 1: Detection classes
+        # 2: Detection scores
+        # 3: Number of detections
+
+        boxes_tensor_index = output_details[0]['index']
+        classes_tensor_index = output_details[1]['index']
+        scores_tensor_index = output_details[2]['index']
+        count_tensor_index = output_details[3]['index']
+        
+        # Validate shapes (optional but good for robustness)
+        # if tuple(interpreter.get_tensor(boxes_tensor_index).shape) != expected_shapes["boxes"]:
+        #     print(f"Warning: Boxes tensor shape mismatch. Expected {expected_shapes['boxes']}, Got {interpreter.get_tensor(boxes_tensor_index).shape}", file=sys.stderr)
+        # Similar checks for classes, scores, count...
+
+        boxes = interpreter.get_tensor(boxes_tensor_index)[0] # Remove batch dim
+        classes = interpreter.get_tensor(classes_tensor_index)[0] # Remove batch dim
+        scores = interpreter.get_tensor(scores_tensor_index)[0] # Remove batch dim
+        count = int(interpreter.get_tensor(count_tensor_index)[0]) # Remove batch dim and convert to int
+
         return boxes, classes, scores, count
-    except IndexError:
-        print("ERROR: Output tensor indexing issue. The face detection model's output signature "
-              "might differ from the expected 4 tensors (boxes, classes, scores, count). "
-              "Please verify the model structure.", file=sys.stderr)
-        # Fallback for models that might only output boxes and scores (e.g., some optimized face detectors)
-        # This is a guess; you MUST verify your model's output.
-        try:
-            print("INFO: Attempting fallback to 2-tensor output (boxes, scores) for face model.", file=sys.stderr)
-            boxes = interpreter.get_tensor(output_details[0]['index'])[0]
-            scores = interpreter.get_tensor(output_details[1]['index'])[0]
-            # If classes and count are not present, we might have to infer count from scores
-            # or assume all returned boxes are valid above a threshold.
-            # For this example, we'll assume scores array length can determine potential detections.
-            # The filtering by DETECTION_THRESHOLD will effectively give the count.
-            # We'll assign a dummy 'classes' array if it's not present.
-            num_potential_detections = scores.shape[0]
-            classes_dummy = np.zeros(num_potential_detections, dtype=int) # Assign class 0 to all
-            return boxes, classes_dummy, scores, num_potential_detections # Return dummy classes and inferred count
-        except Exception as e:
-            print(f"ERROR: Critical failure in get_output_tensors for face model: {e}", file=sys.stderr)
-            return None, None, None, 0
+        
+    except IndexError as e:
+        print(f"ERROR: Output tensor indexing issue in get_output_tensors. Expected 4 output tensors. Error: {e}", file=sys.stderr)
+        print(f"Number of output tensors found: {len(output_details)}", file=sys.stderr)
+        for i, detail in enumerate(output_details):
+            print(f"Output tensor {i}: name={detail['name']}, shape={detail['shape']}, dtype={detail['dtype']}", file=sys.stderr)
+        return None, None, None, 0
+    except Exception as e:
+        print(f"ERROR: Critical failure in get_output_tensors: {e}", file=sys.stderr)
+        return None, None, None, 0
 
 
 # --- Modular Functions ---
@@ -144,14 +139,21 @@ def load_model(model_path):
     """Loads the TFLite model for face detection."""
     try:
         print(f"INFO: Loading face detection model from: {model_path}", file=sys.stderr)
-        interpreter = make_interpreter(model_path)
+        interpreter = make_interpreter(model_path) # This handles EdgeTPU delegate
         interpreter.allocate_tensors()
 
         input_details = interpreter.get_input_details()[0]
-        input_shape = input_details['shape']
-        model_input_height = input_shape[1]
-        model_input_width = input_shape[2]
+        # Netron: name: normalized_input_image_tensor, tensor: uint8[1,320,320,3]
+        if tuple(input_details['shape']) != (1, 320, 320, 3):
+             print(f"WARNING: Model input shape mismatch. Expected (1,320,320,3), Got {input_details['shape']}", file=sys.stderr)
+
+        model_input_height = input_details['shape'][1]
+        model_input_width = input_details['shape'][2]
         input_type = input_details['dtype']
+
+        if input_type != np.uint8:
+            print(f"WARNING: Model input type mismatch. Expected uint8, Got {input_type}", file=sys.stderr)
+
 
         print(f"INFO: Face model expects input HxW: {model_input_height}x{model_input_width}, Type: {input_type}", file=sys.stderr)
         return interpreter, model_input_width, model_input_height, input_type
@@ -189,42 +191,54 @@ def process_frame(client_socket, interpreter, model_input_width, model_input_hei
     pil_image = Image.fromarray(image_numpy_array, 'RGB')
 
     try:
-        _resample_filter = Image.Resampling.LANCZOS
+        _resample_filter = Image.Resampling.LANCZOS # Pillow 9.0.0+
     except AttributeError:
-        _resample_filter = Image.LANCZOS
+        _resample_filter = Image.LANCZOS # Fallback for older Pillow
 
+    # Resize to model's expected input (320x320 based on Netron)
     resized_image = pil_image.resize((model_input_width, model_input_height), _resample_filter)
-    input_data = np.array(resized_image)
+    input_data = np.array(resized_image) # Should be (320, 320, 3) uint8
 
-    if input_type == np.uint8:
-        pass
-    elif input_type == np.float32:
-         input_data = input_data.astype(np.float32) / 255.0
-    else:
-         print(f"WARNING: Unsupported input tensor type for face model: {input_type}", file=sys.stderr)
-         return True # Skip this frame
+    # Model expects uint8, no normalization needed if input_type is np.uint8
+    if input_type != np.uint8:
+         print(f"WARNING: Input type mismatch during processing. Expected uint8, got {input_type}. Attempting conversion or check model.", file=sys.stderr)
+         if input_type == np.float32: # Example if model expected float
+             input_data = input_data.astype(np.float32) / 255.0
+         else: # If model expects something else, this might fail or be incorrect
+             input_data = input_data.astype(input_type)
 
-    input_data = np.expand_dims(input_data, axis=0)
+
+    input_data = np.expand_dims(input_data, axis=0) # Add batch dimension -> (1, 320, 320, 3)
     interpreter.set_tensor(interpreter.get_input_details()[0]['index'], input_data)
     interpreter.invoke()
 
-    boxes, _, scores, count = get_output_tensors(interpreter) # We ignore 'classes' for face detection
-    if boxes is None: # Critical error in get_output_tensors
-        return True # Try to continue, but likely model issue
+    boxes, classes, scores, count = get_output_tensors(interpreter)
+    if boxes is None: 
+        print("ERROR: Failed to get output tensors. Skipping frame.", file=sys.stderr)
+        # Send empty result
+        size_header = struct.pack('<I', 0)
+        try:
+            client_socket.sendall(size_header)
+        except socket.error as e:
+            print(f"ERROR: Failed to send empty detection results: {e}", file=sys.stderr)
+            return False
+        return True
+
 
     detection_results_string = ""
-    # The 'count' from SSD models is the number of *potential* detections.
-    # We iterate up to this count and filter by score.
-    # For some face models, 'count' might represent actual detections above an internal threshold.
-    # It's safer to iterate through all available scores/boxes if count is very large.
-    num_to_iterate = min(count, len(scores))
-
-
-    for i in range(num_to_iterate):
+    # 'count' is the number of actual detections.
+    # The tensors for boxes, classes, scores are sized for max_detections (50 in this case).
+    # So, we only need to iterate up to 'count'.
+    for i in range(count): # Iterate up to the number of valid detections
         if scores[i] >= DETECTION_THRESHOLD:
-            # For face detection, the label is always "face"
-            label = FACE_LABEL
+            label = FACE_LABEL # For face detection, the label is always "face"
+            
+            # Boxes are [ymin, xmin, ymax, xmax]
             ymin, xmin, ymax, xmax = boxes[i]
+            
+            # Class ID from classes[i] is likely 0.0 for face, but we don't use it for the label.
+            # class_id = int(classes[i]) 
+
             detection_results_string += f"{label} {scores[i]} {xmin} {ymin} {xmax} {ymax}\n"
 
     if detection_results_string:
@@ -260,6 +274,8 @@ def main():
             if not process_frame(client_socket, interpreter, model_input_width, model_input_height, input_type):
                 print("INFO: Face detection loop terminated due to error or connection close.", file=sys.stderr)
                 break
+    except KeyboardInterrupt:
+        print("INFO: Face detection script interrupted by user (Ctrl+C).", file=sys.stderr)
     except Exception as e:
         print(f"An error occurred during face processing loop: {e}", file=sys.stderr)
     finally:
