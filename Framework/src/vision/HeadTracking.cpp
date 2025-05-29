@@ -215,13 +215,11 @@ namespace Robot
         // Check if essential components are initialized before running
         if (client_socket_ < 0 || !streamer_ || !rgb_display_frame_ || !ini_ || !cm730_)
         {
-            std::cerr << "ERROR: HeadTracking not fully initialized. Cannot run." << std::endl;
+            std::cerr << BOLDRED << "ERROR: HeadTracking not fully initialized. Cannot run." << RESET << std::endl;
             return;
         }
 
         std::cout << "INFO: Starting HeadTracking main loop..." << std::endl;
-
-        usleep(500000); // 0.5 second delay
 
         const int STATUS_CHECK_INTERVAL = 30; // Check status every 30 frames
 
