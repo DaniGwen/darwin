@@ -40,7 +40,7 @@ namespace Robot
 
         std::cout << "INFO: Moving right arm to POSE_RISE_HAND ..." << std::endl;
         ApplyPose(POSE_REACH_HAND);
-        std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+        std::this_thread::sleep_for(std::chrono::milliseconds(1200));
     }
 
     void RightArmController::CloseGripper(int moving_speed, int p_gain)
@@ -49,7 +49,7 @@ namespace Robot
 
         std::cout << "INFO: Moving right arm to POSE_CLOSE_GRIPPER ..." << std::endl;
         ApplyPose(POSE_CLOSE_GRIPPER);
-        std::this_thread::sleep_for(std::chrono::milliseconds(400));
+        std::this_thread::sleep_for(std::chrono::milliseconds(500));
     }
 
     void RightArmController::OpenGripper(int moving_speed, int p_gain)
@@ -58,7 +58,7 @@ namespace Robot
 
         std::cout << "INFO: Moving right arm to POSE_OPEN_GRIPPER ..." << std::endl;
         ApplyPose(POSE_OPEN_GRIPPER);
-        std::this_thread::sleep_for(std::chrono::milliseconds(400));
+        std::this_thread::sleep_for(std::chrono::milliseconds(500));
     }
 
     void RightArmController::RotateWrist90Deg(int moving_speed, int p_gain)
@@ -67,7 +67,7 @@ namespace Robot
 
         std::cout << "INFO: Moving right arm to POSE_ROTATE_WRIST_90DEG ..." << std::endl;
         ApplyPose(POSE_ROTATE_WRIST_90DEG);
-        std::this_thread::sleep_for(std::chrono::milliseconds(400));
+        std::this_thread::sleep_for(std::chrono::milliseconds(500));
     }
 
     void RightArmController::Default()
@@ -76,7 +76,7 @@ namespace Robot
 
         std::cout << "INFO: Resetting right arm to default pose..." << std::endl;
         ApplyPose(DEFAULT);
-        std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+        std::this_thread::sleep_for(std::chrono::milliseconds(1200));
     }
 
     void RightArmController::SetPID(int moving_speed, int p_gain)

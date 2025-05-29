@@ -17,10 +17,10 @@ namespace Robot
     public:
         RightArmController(CM730 *cm730);
 
-        void HandReach(int moving_speed = 150, int p_gain = 60);
-        void CloseGripper(int moving_speed = 200, int p_gain = 60);
-        void OpenGripper(int moving_speed = 200, int p_gain = 60);
-        void RotateWrist90Deg(int moving_speed = 200, int p_gain = 60);
+        void HandReach(int moving_speed = 100, int p_gain = 30);
+        void CloseGripper(int moving_speed = 200, int p_gain = 30);
+        void OpenGripper(int moving_speed = 200, int p_gain = 30);
+        void RotateWrist90Deg(int moving_speed = 200, int p_gain = 30);
         void Default();
 
     private:
@@ -59,7 +59,7 @@ namespace Robot
                 {JointData::ID_R_ELBOW, 1747}}};
 
         void ApplyPose(const Pose &pose);
-        void SetPID(int moving_speed = 200, int p_gain = 60); 
+        void SetPID(int moving_speed = 200, int p_gain = 30); 
     };
 }
 

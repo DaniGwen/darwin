@@ -38,8 +38,9 @@ namespace Robot
         for (int i = 0; i < repetitions; ++i)
         {
             ApplyPose(POSE_1);
+            std::this_thread::sleep_for(std::chrono::milliseconds(1000));
             ApplyPose(POSE_2);
-            std::this_thread::sleep_for(std::chrono::milliseconds(500));
+            std::this_thread::sleep_for(std::chrono::milliseconds(1000));
         }
 
         std::cout << GREEN << "INFO: Wave movement sequence finished." << RESET << std::endl;
@@ -51,7 +52,7 @@ namespace Robot
 
         std::cout << "INFO: Resetting left arm to default pose..." << std::endl;
         ApplyPose(DEFAULT);
-        std::this_thread::sleep_for(std::chrono::milliseconds(500));
+        std::this_thread::sleep_for(std::chrono::milliseconds(1500));
     }
 
     void LeftArmController::SetPID(int moving_speed, int p_gain)
