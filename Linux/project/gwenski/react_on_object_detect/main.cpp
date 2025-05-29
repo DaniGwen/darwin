@@ -67,7 +67,7 @@ void run_action(int action_page)
 void *HeadTrackingThread(void *arg)
 {
     // Cast the argument back to a HeadTracking pointer
-    HeadTracking *head_tracker = static_cast<HeadTracking *>(arg);
+    HeadTracking *head_tracker = static_cast<HeadTracking *>(arg); 
 
     if (head_tracker)
     {
@@ -82,11 +82,82 @@ void *HeadTrackingThread(void *arg)
     return NULL;
 }
 
+// --- Action Handler Functions ---
+
+void handlePersonDetected(LeftArmController &left_arm_controller,
+                          std::string &current_action_label,
+                          std::chrono::steady_clock::time_point &last_action_time,
+                          int &person_detect_count_ref, // Pass by reference to reset
+                          const std::chrono::steady_clock::time_point &current_time)
+{
+    std::cout << "INFO: Detected person consistently. Playing Wave" << std::endl;
+    left_arm_controller.Wave();
+    std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+    left_arm_controller.ToDefaultPose();
+    current_action_label = "person";
+    last_action_time = current_time;
+    person_detect_count_ref = 0; // Reset counter
+}
+
+void handleBottleDetected(LegsController &legs_controller,
+                          RightArmController &right_arm_controller,
+                          double distance,
+                          std::string &current_action_label,
+                          std::chrono::steady_clock::time_point &last_action_time,
+                          int &bottle_detect_count_ref, // Pass by reference to reset
+                          const std::chrono::steady_clock::time_point &current_time)
+{
+    if (distance > 0.5)
+    {
+        std::cout << "INFO: Detected bottle too far (" << distance << "m), skipping action." << std::endl; //
+        // Not resetting counter here, to allow for re-evaluation if distance changes quickly.
+        // Not updating action label or time, as no action was fully performed.
+        return;
+    }
+
+    std::cout << "INFO: Detected bottle. Performing pickup sequence." << std::endl;
+    legs_controller.ReadyToPickUpItem();
+    right_arm_controller.RotateWrist90Deg();
+    right_arm_controller.OpenGripper();
+    right_arm_controller.HandReach();
+    std::this_thread::sleep_for(std::chrono::milliseconds(2000));
+    right_arm_controller.CloseGripper();
+    std::this_thread::sleep_for(std::chrono::milliseconds(2000));
+    right_arm_controller.Default();
+    legs_controller.Stand();
+
+    current_action_label = "bottle";
+    last_action_time = current_time;
+    bottle_detect_count_ref = 0; // Reset counter
+}
+
+void handleGenericObjectDetected(const std::string &label, int action_page,
+                                 std::string &current_action_label,
+                                 std::chrono::steady_clock::time_point &last_action_time,
+                                 int &detect_count_ref, // Pass by reference to reset
+                                 const std::chrono::steady_clock::time_point &current_time)
+{
+    std::cout << "INFO: Detected " << label << " consistently. Playing action page " << action_page << std::endl;
+    run_action(action_page);
+    current_action_label = label;
+    last_action_time = current_time;
+    detect_count_ref = 0; // Reset counter
+}
+
+void handleNoTargetOrStandby(std::string &current_action_label,
+                             std::chrono::steady_clock::time_point &last_action_time,
+                             const std::chrono::steady_clock::time_point &current_time)
+{
+    std::cout << "INFO: No target detected. Returning to standby..." << std::endl;
+    current_action_label = "standby";
+    last_action_time = current_time;
+}
+
 int main(void)
 {
-    printf("\n===== Head tracking with Object Detection via Unix Domain Socket (Multithreaded) =====\n\n");
+    printf("\n===== Head tracking with Object Detection via Unix Domain Socket (Multithreaded) =====\n\n"); //
 
-    change_current_dir(); // Change current directory to executable's location
+    change_current_dir(); // Change current directory to executable's location //
 
     // Load INI settings
     minIni *ini = new minIni(INI_FILE_PATH);
@@ -100,8 +171,8 @@ int main(void)
 
     // --- Camera Initialization ---
     std::cout << "INFO: Initializing camera..." << std::endl;
-    LinuxCamera::GetInstance()->Initialize(0); // Initialize with device index 0
-    LinuxCamera::GetInstance()->LoadINISettings(ini);
+    LinuxCamera::GetInstance()->Initialize(0);        // Initialize with device index 0
+    LinuxCamera::GetInstance()->LoadINISettings(ini); //
     std::cout << "INFO: Camera initialized and settings loaded." << std::endl;
 
     // --- Initialize Motion Framework Components ---
@@ -109,8 +180,8 @@ int main(void)
     CM730 cm730(&linux_cm730);
 
     // Get MotionManager and Action singletons
-    MotionManager *motion_manager = MotionManager::GetInstance();
-    Action *action_module = Action::GetInstance(); // Get Action singleton
+    MotionManager *motion_manager = MotionManager::GetInstance(); //
+    Action *action_module = Action::GetInstance();                // Get Action singleton //
 
     if (motion_manager->Initialize(&cm730) == false)
     {
@@ -131,78 +202,75 @@ int main(void)
     LegsController legs_controller(&cm730);
     HeadTracking *head_tracker = HeadTracking::GetInstance();
 
-    // Pass the INI settings and CM730 instance to HeadTracking.
-    // HeadTracking will now manage the Head's motor control directly.
-    if (!head_tracker->Initialize(ini, &cm730)) // Updated call
+    if (!head_tracker->Initialize(ini, &cm730)) // Updated call //
     {
-        std::cerr << "ERROR: HeadTracking initialization failed. Exiting." << std::endl;
-        // Perform motion framework cleanup before exiting
+        std::cerr << "ERROR: HeadTracking initialization failed. Exiting." << std::endl; //
         motion_timer->Stop();
         MotionManager::GetInstance()->SetEnable(false);
-        MotionManager::GetInstance()->RemoveModule((MotionModule *)action_module); // Remove Action module
+        MotionManager::GetInstance()->RemoveModule((MotionModule *)action_module);
         delete ini;
         delete motion_timer;
         return -1;
     }
 
-    // Play initial standby action
-    std::cout << "INFO: Playing initial standby action (Page " << ACTION_PAGE_STAND << ")..." << std::endl;
-
+    std::cout << "INFO: Playing initial standby action (Page " << ACTION_PAGE_STAND << ")..." << std::endl; //
     run_action(ACTION_PAGE_STAND);
 
-    // --- Create and Start HeadTracking Thread ---
     pthread_t tracking_thread;
-    std::cout << "INFO: Creating HeadTracking thread..." << std::endl;
-    int thread_create_status = pthread_create(&tracking_thread, NULL, HeadTrackingThread, head_tracker);
+    std::cout << "INFO: Creating HeadTracking thread..." << std::endl;                                   //
+    int thread_create_status = pthread_create(&tracking_thread, NULL, HeadTrackingThread, head_tracker); //
 
     if (thread_create_status != 0)
     {
-        std::cerr << "ERROR: Failed to create HeadTracking thread: " << strerror(thread_create_status) << std::endl;
-        // Cleanup initialized resources before exiting
-        head_tracker->Cleanup(); // Cleanup HeadTracking resources (socket, streamer, frame)
-        motion_timer->Stop();
-        MotionManager::GetInstance()->SetEnable(false);
-        MotionManager::GetInstance()->RemoveModule((MotionModule *)action_module); // Remove Action module
-        delete ini;
-        delete motion_timer;
+        std::cerr << "ERROR: Failed to create HeadTracking thread: " << strerror(thread_create_status) << std::endl; //
+        head_tracker->Cleanup();                                                                                     //
+        motion_timer->Stop();                                                                                        //
+        MotionManager::GetInstance()->SetEnable(false);                                                              //
+        MotionManager::GetInstance()->RemoveModule((MotionModule *)action_module);                                   //
+        delete ini;                                                                                                  //
+        delete motion_timer;                                                                                         //
         return -1;
     }
-    std::cout << "INFO: HeadTracking thread created successfully." << std::endl;
+    std::cout << "INFO: HeadTracking thread created successfully." << std::endl; //
 
-    // --- Main Loop (for checking labels and triggering actions) ---
-    std::cout << "INFO: Main thread running, checking for detected objects to trigger actions. Press Ctrl+C to exit." << std::endl;
+    std::cout << "INFO: Main thread running, checking for detected objects to trigger actions. Press Ctrl+C to exit." << std::endl; //
 
-    std::string current_action_label = "standby"; // Keep track of the action currently playing
+    std::string current_action_label = "standby";    
     auto last_action_time = std::chrono::steady_clock::now();
-    const auto action_cooldown = std::chrono::seconds(9);
+    const auto action_cooldown = std::chrono::seconds(9);    
+
     int person_detect_count = 0;
     int bottle_detect_count = 0;
+    int dog_detect_count = 0;
+    int cat_detect_count = 0;
+    int sports_ball_detect_count = 0;
+    // Add other detection counters here if needed
+
     const int detect_threshold = 10;
 
     while (1)
     {
-        // Get the latest detected label from the HeadTracking thread
-        std::string detected_object_label = head_tracker->GetDetectedLabel();
-        double distance = 0;
+        std::string detected_object_label = head_tracker->GetDetectedLabel(); //
+        double distance = 0;                                                  //
 
         if (detected_object_label != "none")
         {
-            distance = head_tracker->GetDetectedObjectDistance();
-            if (distance > 0)
+            distance = head_tracker->GetDetectedObjectDistance(); //
+            if (distance > 0)                                     //
             {
-                std::cout << MAGENTA << "INFO: Estimated distance to " << detected_object_label
-                          << ": " << distance << " meters." << RESET << std::endl;
+                std::cout << MAGENTA << "INFO: Estimated distance to " << detected_object_label 
+                          << ": " << distance << " meters." << RESET << std::endl;              
             }
         }
 
-        // Trim whitespace from the detected label
-        detected_object_label.erase(std::remove_if(detected_object_label.begin(), detected_object_label.end(), [](unsigned char c)
-                                                   { return std::isspace(c); }),
-                                    detected_object_label.end());
+        detected_object_label.erase(std::remove_if(detected_object_label.begin(), detected_object_label.end(), [](unsigned char c) //
+                                                   { return std::isspace(c); }),                                                   //
+                                    detected_object_label.end());                                                                  //
 
-        auto current_time = std::chrono::steady_clock::now();
+        auto current_time = std::chrono::steady_clock::now();                          
+        bool can_perform_action = (current_time - last_action_time) >= action_cooldown;
 
-        // Debounce person detection to avoid false triggers
+        // Update detection counts
         if (detected_object_label == "person")
         {
             person_detect_count++;
@@ -211,7 +279,6 @@ int main(void)
         {
             person_detect_count = 0;
         }
-
         if (detected_object_label == "bottle")
         {
             bottle_detect_count++;
@@ -220,73 +287,77 @@ int main(void)
         {
             bottle_detect_count = 0;
         }
-
-        if (person_detect_count >= detect_threshold &&
-            current_action_label != "person" &&
-            (current_time - last_action_time) >= action_cooldown)
+        if (detected_object_label == "dog")
         {
-            std::cout << "INFO: Detected person consistently. Playing Wave" << std::endl;
-
-            left_arm_controller.Wave();
-
-            current_action_label = "person";
-            last_action_time = current_time;
-            person_detect_count = 0; // Reset counter
+            dog_detect_count++;
         }
-        else if (bottle_detect_count >= detect_threshold &&
-                 current_action_label != "bottle" &&
-                 (current_time - last_action_time) >= action_cooldown)
+        else
         {
-            if (distance > 0.5)
-            {
-                std::cout << "INFO: Detected bottle too far, skipping action." << std::endl;
-                continue;
-            }
-
-            legs_controller.ReadyToPickUpItem();
-            right_arm_controller.RotateWrist90Deg();
-            right_arm_controller.OpenGripper();
-            right_arm_controller.HandReach();
-            std::this_thread::sleep_for(std::chrono::milliseconds(2000));
-            right_arm_controller.CloseGripper();
-            std::this_thread::sleep_for(std::chrono::milliseconds(2000));
-            right_arm_controller.Default();
-            legs_controller.Stand();
-
-            current_action_label = "bottle";
-            last_action_time = current_time;
+            dog_detect_count = 0;
         }
-        else if (detected_object_label == "none" &&
-                 current_action_label != "standby" &&
-                 (current_time - last_action_time) >= action_cooldown)
+        if (detected_object_label == "cat")
         {
-            std::cout << "INFO: No target detected. Returning to standby..." << std::endl;
+            cat_detect_count++;
+        }
+        else
+        {
+            cat_detect_count = 0;
+        }
+        if (detected_object_label == "sports ball")
+        {
+            sports_ball_detect_count++;
+        }
+        else
+        {
+            sports_ball_detect_count = 0;
+        }
+        // Update other counters similarly
 
-            left_arm_controller.ToDefaultPose();
+        // Action logic using encapsulated methods
+        if (detected_object_label == "person" && person_detect_count >= detect_threshold && current_action_label != "person" && can_perform_action) //
+        {
+            handlePersonDetected(left_arm_controller, current_action_label, last_action_time, person_detect_count, current_time);
+        }
+        else if (detected_object_label == "bottle" && bottle_detect_count >= detect_threshold && current_action_label != "bottle" && can_perform_action) //
+        {
+            handleBottleDetected(legs_controller, right_arm_controller, distance, current_action_label, last_action_time, bottle_detect_count, current_time);
+        }
+        else if (detected_object_label == "dog" && dog_detect_count >= detect_threshold && current_action_label != "dog" && can_perform_action)
+        {
+            handleGenericObjectDetected("dog", ACTION_PAGE_DOG, current_action_label, last_action_time, dog_detect_count, current_time);
+        }
+        else if (detected_object_label == "cat" && cat_detect_count >= detect_threshold && current_action_label != "cat" && can_perform_action)
+        {
+            handleGenericObjectDetected("cat", ACTION_PAGE_CAT, current_action_label, last_action_time, cat_detect_count, current_time);
+        }
+        else if (detected_object_label == "sports ball" && sports_ball_detect_count >= detect_threshold && current_action_label != "sports ball" && can_perform_action)
+        {
+            handleGenericObjectDetected("sports ball", ACTION_PAGE_SPORTS_BALL, current_action_label, last_action_time, sports_ball__detect_count, current_time);
+        }
+        // Add other object handling "else if" blocks here, potentially using handleGenericObjectDetected
+        // or new specific handlers if their logic is complex.
 
-            current_action_label = "standby";
-            last_action_time = current_time;
+        else if (detected_object_label == "none" && current_action_label != "standby" && can_perform_action) //
+        {
+            handleNoTargetOrStandby(current_action_label, last_action_time, current_time);
         }
 
-        // Consistent timing - important for smooth operation
-        std::this_thread::sleep_for(std::chrono::milliseconds(50));
+        std::this_thread::sleep_for(std::chrono::milliseconds(50)); //
     }
 
-    // --- Cleanup Resources ---
-    std::cout << "INFO: Main loop terminated. Waiting for HeadTracking thread to join..." << std::endl;
-    pthread_join(tracking_thread, NULL);
-    std::cout << "INFO: HeadTracking thread joined." << std::endl;
+    std::cout << "INFO: Main loop terminated. Waiting for HeadTracking thread to join..." << std::endl; //
+    pthread_join(tracking_thread, NULL);                                                                //
+    std::cout << "INFO: HeadTracking thread joined." << std::endl;                                      //
 
-    // Perform explicit motion framework shutdown
-    std::cout << "INFO: Shutting down motion framework..." << std::endl;
-    motion_timer->Stop();
-    MotionManager::GetInstance()->SetEnable(false);
-    MotionManager::GetInstance()->RemoveModule((MotionModule *)action_module); // Remove Action module
+    std::cout << "INFO: Shutting down motion framework..." << std::endl;       //
+    motion_timer->Stop();                                                      //
+    MotionManager::GetInstance()->SetEnable(false);                            //
+    MotionManager::GetInstance()->RemoveModule((MotionModule *)action_module); //
 
-    delete ini;
+    delete ini;          
     delete motion_timer;
 
-    std::cout << "INFO: Main program exiting." << std::endl;
+    std::cout << "INFO: Main program exiting." << std::endl; //
 
     return 0;
 }
