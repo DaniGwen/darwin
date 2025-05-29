@@ -116,6 +116,9 @@ void handleBottleDetected(LegsController &legs_controller,
     }
 
     std::cout << "INFO: Detected bottle. Performing pickup sequence." << std::endl;
+
+    MotionManager::GetInstance()->AddModule(static_cast<MotionModule *>(Walking::GetInstance())); // Need to load the Walking module to MotionManager in order to use it in LegsController
+    std::this_thread::sleep_for(std::chrono::milliseconds(500));
     
     legs_controller.WalkForward();
     std::this_thread::sleep_for(std::chrono::milliseconds(200));
@@ -198,7 +201,6 @@ int main(void)
 
     motion_manager->LoadINISettings(ini);
     motion_manager->AddModule((MotionModule *)action_module);
-    motion_manager->AddModule(static_cast<MotionModule *>(Walking::GetInstance())); // Need to load the Walking module to MotionManager in order to use it in LegsController
 
     MotionManager::GetInstance()->SetEnable(true);
 
