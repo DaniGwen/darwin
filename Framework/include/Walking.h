@@ -29,10 +29,11 @@ namespace Robot
 			PHASE3 = 3
 		};
 
+		double m_PeriodTime;
+
 	private:
 		static Walking* m_UniqueInstance;
 
-		double m_PeriodTime;
 		double m_DSP_Ratio;
 		double m_SSP_Ratio;
 		double m_X_Swap_PeriodTime;

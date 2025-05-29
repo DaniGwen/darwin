@@ -38,7 +38,7 @@ namespace Robot
             std::cout << BOLDYELLOW << "WARNING: Walking was active. Stopping walk before applying static pose." << RESET << std::endl;
             StopWalk();
             // Give some time for the walking module to actually stop and for MotionManager to process it
-            std::this_thread::sleep_for(std::chrono::milliseconds(static_cast<long>(Walking::GetInstance()->GetPeriodTime() * 1.5)));
+            std::this_thread::sleep_for(std::chrono::milliseconds(static_cast<long>(Walking::GetInstance()->m_PeriodTime * 1.5)));
         }
 
 
