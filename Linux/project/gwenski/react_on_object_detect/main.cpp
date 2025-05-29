@@ -332,7 +332,7 @@ int main(void)
         }
         else if (detected_object_label == "sports ball" && sports_ball_detect_count >= detect_threshold && current_action_label != "sports ball" && can_perform_action)
         {
-            handleGenericObjectDetected("sports ball", ACTION_PAGE_SPORTS_BALL, current_action_label, last_action_time, sports_ball__detect_count, current_time);
+            handleGenericObjectDetected("sports ball", ACTION_PAGE_SPORTS_BALL, current_action_label, last_action_time, sports_ball_detect_count, current_time);
         }
         // Add other object handling "else if" blocks here, potentially using handleGenericObjectDetected
         // or new specific handlers if their logic is complex.
