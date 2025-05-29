@@ -12,14 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""
-A collection of TensorFlow Lite models for use with aiymakerkit examples.
-
-These files are already downloaded if you flashed the AIY Maker Kit
-system image for Raspberry Pi. Otherwise, you must download them by
-running the download_models.sh script in this directory.
-"""
-
 import os.path
 
 def path(name):

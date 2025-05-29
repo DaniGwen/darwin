@@ -38,7 +38,7 @@ import models
 # --- Socket Configuration ---
 SOCKET_PATH = "/tmp/darwin_detector.sock"
 SOCKET_CONNECT_RETRIES = 10 # Number of times to retry socket connection
-SOCKET_RETRY_DELAY_SEC = 0.5 # Delay between socket connection retries in seconds
+SOCKET_RETRY_DELAY_SEC = 0.8 # Delay between socket connection retries in seconds
 
 # --- Model Configuration ---
 # Use the model path from models.py

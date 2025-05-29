@@ -38,8 +38,8 @@
 // Define socket path here (only once)
 const char *SOCKET_PATH = "/tmp/darwin_detector.sock";
 
-// IMPORTANT:  Python Script Configuration. Set the correct path to your Python detector script
 const char *PYTHON_SCRIPT_PATH = "/home/darwin/darwin/aiy-maker-kit/examples/custom_detect_objects.py";
+// const char *PYTHON_SCRIPT_PATH = "/home/darwin/darwin/aiy-maker-kit/examples/custom_detect_faces.py";
 
 // --- MX-28 Motor Conversion Constants ---
 // These constants are crucial for converting between degrees and the raw motor position values (0-4095).
