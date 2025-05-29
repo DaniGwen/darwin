@@ -880,7 +880,7 @@ namespace Robot
             int pan_goal_value = Deg2Value(m_PanAngle);
             int tilt_goal_value = Deg2Value(m_TiltAngle);
 
-            SetMotorPIDAndSpeed();
+            // SetMotorPIDAndSpeed();
 
             // Write the converted values to the motor goal position registers
             cm730_->WriteWord(JointData::ID_HEAD_PAN, MX28::P_GOAL_POSITION_L, pan_goal_value, 0);
