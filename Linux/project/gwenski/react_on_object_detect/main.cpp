@@ -91,9 +91,11 @@ void handlePersonDetected(LeftArmController &left_arm_controller,
                           const std::chrono::steady_clock::time_point &current_time)
 {
     std::cout << "INFO: Detected person consistently. Playing Wave" << std::endl;
+    
     left_arm_controller.Wave();
-    std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+
     left_arm_controller.ToDefaultPose();
+
     current_action_label = "person";
     last_action_time = current_time;
     person_detect_count_ref = 0; // Reset counter
@@ -119,7 +121,7 @@ void handleBottleDetected(LegsController &legs_controller,
 
     MotionManager::GetInstance()->AddModule(static_cast<MotionModule *>(Walking::GetInstance())); // Need to load the Walking module to MotionManager in order to use it in LegsController
     std::this_thread::sleep_for(std::chrono::milliseconds(500));
-    
+
     legs_controller.WalkForward();
     std::this_thread::sleep_for(std::chrono::milliseconds(200));
     legs_controller.StopWalk();
