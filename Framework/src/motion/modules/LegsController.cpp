@@ -101,9 +101,9 @@ namespace Robot
     void LegsController::InitializeWalking(minIni* ini, const std::string& section)
     {
         std::cout << BOLDGREEN << "INFO: Initializing Walking module through LegsController..." << RESET << std::endl;
-        Walking::GetInstance()->Initialize(); //
+        Walking::GetInstance()->Initialize();
         if (ini) {
-            Walking::GetInstance()->LoadINISettings(ini, section); //
+            Walking::GetInstance()->LoadINISettings(ini, section);
         } else {
             std::cout << BOLDYELLOW << "WARNING: minIni object not provided to InitializeWalking. Using default walking parameters." << RESET << std::endl;
         }

@@ -31,7 +31,7 @@ namespace Robot
 
         // --- Walking Control Methods ---
         // Initializes walking parameters from an INI file
-        void InitializeWalking(minIni *ini, const std::string &section = "Walking");
+        void InitializeWalking(minIni *ini, const std::string &section = "Walking Config");
 
         // Starts walking with specified amplitudes.
         // X_AMPLITUDE: Forward(+) / Backward(-) movement.

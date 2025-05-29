@@ -67,7 +67,7 @@ void run_action(int action_page)
 void *HeadTrackingThread(void *arg)
 {
     // Cast the argument back to a HeadTracking pointer
-    HeadTracking *head_tracker = static_cast<HeadTracking *>(arg); 
+    HeadTracking *head_tracker = static_cast<HeadTracking *>(arg);
 
     if (head_tracker)
     {
@@ -116,6 +116,12 @@ void handleBottleDetected(LegsController &legs_controller,
     }
 
     std::cout << "INFO: Detected bottle. Performing pickup sequence." << std::endl;
+    
+    legs_controller.WalkForward();
+    std::this_thread::sleep_for(std::chrono::milliseconds(200));
+    legs_controller.StopWalk();
+    std::this_thread::sleep_for(std::chrono::milliseconds(200));
+
     legs_controller.ReadyToPickUpItem();
     right_arm_controller.RotateWrist90Deg();
     right_arm_controller.OpenGripper();
@@ -192,6 +198,8 @@ int main(void)
 
     motion_manager->LoadINISettings(ini);
     motion_manager->AddModule((MotionModule *)action_module);
+    motion_manager->AddModule(static_cast<MotionModule *>(Walking::GetInstance())); // Need to load the Walking module to MotionManager in order to use it in LegsController
+
     MotionManager::GetInstance()->SetEnable(true);
 
     LinuxMotionTimer *motion_timer = new LinuxMotionTimer(motion_manager);
@@ -200,6 +208,8 @@ int main(void)
     LeftArmController left_arm_controller(&cm730);
     RightArmController right_arm_controller(&cm730);
     LegsController legs_controller(&cm730);
+    legs_controller.InitializeWalking(ini); // Initialize walking parameters from INI file.
+
     HeadTracking *head_tracker = HeadTracking::GetInstance();
 
     if (!head_tracker->Initialize(ini, &cm730)) // Updated call //
@@ -235,9 +245,9 @@ int main(void)
 
     std::cout << "INFO: Main thread running, checking for detected objects to trigger actions. Press Ctrl+C to exit." << std::endl; //
 
-    std::string current_action_label = "standby";    
+    std::string current_action_label = "standby";
     auto last_action_time = std::chrono::steady_clock::now();
-    const auto action_cooldown = std::chrono::seconds(9);    
+    const auto action_cooldown = std::chrono::seconds(9);
 
     int person_detect_count = 0;
     int bottle_detect_count = 0;
@@ -258,8 +268,8 @@ int main(void)
             distance = head_tracker->GetDetectedObjectDistance(); //
             if (distance > 0)                                     //
             {
-                std::cout << MAGENTA << "INFO: Estimated distance to " << detected_object_label 
-                          << ": " << distance << " meters." << RESET << std::endl;              
+                std::cout << MAGENTA << "INFO: Estimated distance to " << detected_object_label
+                          << ": " << distance << " meters." << RESET << std::endl;
             }
         }
 
@@ -267,7 +277,7 @@ int main(void)
                                                    { return std::isspace(c); }),                                                   //
                                     detected_object_label.end());                                                                  //
 
-        auto current_time = std::chrono::steady_clock::now();                          
+        auto current_time = std::chrono::steady_clock::now();
         bool can_perform_action = (current_time - last_action_time) >= action_cooldown;
 
         // Update detection counts
@@ -354,7 +364,7 @@ int main(void)
     MotionManager::GetInstance()->SetEnable(false);                            //
     MotionManager::GetInstance()->RemoveModule((MotionModule *)action_module); //
 
-    delete ini;          
+    delete ini;
     delete motion_timer;
 
     std::cout << "INFO: Main program exiting." << std::endl; //
