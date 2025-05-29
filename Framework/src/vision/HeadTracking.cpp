@@ -935,7 +935,7 @@ namespace Robot
         {
             cm730_->WriteByte(joint_id, MX28::P_P_GAIN, 10, 0);
             cm730_->WriteByte(joint_id, MX28::P_D_GAIN, 10, 0);
-            cm730_->WriteWord(joint_id, MX28::P_MOVING_SPEED_L, 1000, 0); // Value 0 means max speed. 1~1023 for controlled speed.
+            cm730_->WriteWord(joint_id, MX28::P_MOVING_SPEED_L, 500, 0); // Value 0 means max speed. 1~1023 for controlled speed.
         }
     }
 

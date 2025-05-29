@@ -38,9 +38,9 @@ namespace Robot
         for (int i = 0; i < repetitions; ++i)
         {
             ApplyPose(POSE_1);
-            std::this_thread::sleep_for(std::chrono::milliseconds(1500));
+            std::this_thread::sleep_for(std::chrono::milliseconds(700));
             ApplyPose(POSE_2);
-            std::this_thread::sleep_for(std::chrono::milliseconds(1500));
+            std::this_thread::sleep_for(std::chrono::milliseconds(700));
         }
 
         std::cout << GREEN << "INFO: Wave movement sequence finished." << RESET << std::endl;
@@ -75,7 +75,7 @@ namespace Robot
             int error = 0;
             cm730_->WriteByte(joint_id, MX28::P_TORQUE_ENABLE, 1, &error);
             cm730_->WriteByte(joint_id, MX28::P_P_GAIN, p_gain, &error); // P-gain values from 8 ~ 128 , more P-gain means more backlash towards the goal position.
-            cm730_->WriteByte(joint_id, MX28::P_MOVING_SPEED_L, moving_speed, &error);
+            cm730_->WriteWord(joint_id, MX28::P_MOVING_SPEED_L, moving_speed, &error);
 
             if (error != CM730::SUCCESS)
             {
