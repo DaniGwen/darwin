@@ -91,7 +91,7 @@ void handlePersonDetected(LeftArmController &left_arm_controller,
                           const std::chrono::steady_clock::time_point &current_time)
 {
     std::cout << "INFO: Detected person consistently. Playing Wave" << std::endl;
-    
+
     left_arm_controller.Wave();
 
     left_arm_controller.ToDefaultPose();
@@ -356,7 +356,7 @@ int main(void)
             handleNoTargetOrStandby(current_action_label, last_action_time, current_time);
         }
 
-        std::this_thread::sleep_for(std::chrono::milliseconds(50)); //
+        std::this_thread::sleep_for(std::chrono::milliseconds(100)); //
     }
 
     std::cout << "INFO: Main loop terminated. Waiting for HeadTracking thread to join..." << std::endl; //

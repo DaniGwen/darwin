@@ -26,7 +26,7 @@ namespace Robot
         void SetPID(int moving_speed = 100, int p_gain = JointData::P_GAIN_DEFAULT); // Provide a default for p_gain if not specified
 
         // --- Standard Poses ---
-        void Stand(int moving_speed = 100, int p_gain = JointData::P_GAIN_DEFAULT);
+        void Stand(int moving_speed = 50, int p_gain = JointData::P_GAIN_DEFAULT);
         void ReadyToPickUpItem(int moving_speed = 100, int p_gain = JointData::P_GAIN_DEFAULT);
 
         // --- Walking Control Methods ---
