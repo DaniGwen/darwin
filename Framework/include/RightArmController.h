@@ -55,7 +55,7 @@ namespace Robot
         const Pose DEFAULT = {
             std::map<int, int>{
                 {JointData::ID_R_SHOULDER_PITCH, 1719},
-                {JointData::ID_R_SHOULDER_ROLL, 1939},
+                {JointData::ID_R_SHOULDER_ROLL, 2009},
                 {JointData::ID_R_ELBOW, 1747}}};
 
         void ApplyPose(const Pose &pose);
