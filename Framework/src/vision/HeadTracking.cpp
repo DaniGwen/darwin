@@ -181,7 +181,10 @@ namespace Robot
         LoadDistanceEstimationSettings(ini_);
 
         LinuxCamera::GetInstance()->LoadINISettings(ini_);
-       
+
+        cm730_->WriteByte(JointData::ID_HEAD_PAN, MX28::P_TORQUE_ENABLE, 1, 0); // Enable torque for Pan
+        cm730_->WriteByte(JointData::ID_HEAD_TILT, MX28::P_TORQUE_ENABLE, 1, 0);
+
         SetMotorPIDAndSpeed();
 
         // 5. Create display frame buffer
@@ -930,7 +933,6 @@ namespace Robot
 
         for (int joint_id : joints)
         {
-            cm730_->WriteByte(joint_id, MX28::P_TORQUE_ENABLE, 1, 0);
             cm730_->WriteByte(joint_id, MX28::P_P_GAIN, m_Pan_p_gain, 0);
             cm730_->WriteByte(joint_id, MX28::P_D_GAIN, m_Pan_d_gain, 0);
             cm730_->WriteWord(joint_id, MX28::P_MOVING_SPEED_L, 200, 0); // Value 0 means max speed. 1~1023 for controlled speed.

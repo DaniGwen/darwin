@@ -38,9 +38,9 @@ namespace Robot
         for (int i = 0; i < repetitions; ++i)
         {
             ApplyPose(POSE_1);
-            std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+            std::this_thread::sleep_for(std::chrono::milliseconds(1500));
             ApplyPose(POSE_2);
-            std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+            std::this_thread::sleep_for(std::chrono::milliseconds(1500));
         }
 
         std::cout << GREEN << "INFO: Wave movement sequence finished." << RESET << std::endl;
@@ -79,7 +79,7 @@ namespace Robot
 
             if (error != CM730::SUCCESS)
             {
-                std::cerr << "ERROR: Failed to disable torque for Joint ID " << joint_id << std::endl;
+                std::cerr << "ERROR: Failed to enable torque for Joint ID " << joint_id << std::endl;
                 return;
             }
         }
