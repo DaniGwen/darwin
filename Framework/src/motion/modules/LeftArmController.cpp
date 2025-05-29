@@ -17,7 +17,7 @@ namespace Robot
         std::lock_guard<std::mutex> lock(cm730_mutex); // Protect CM730 access
 
         std::cout << "INFO: Applying pose..." << std::endl;
-        
+
         for (const auto &joint_pair : pose.joint_positions)
         {
             int joint_id = joint_pair.first;

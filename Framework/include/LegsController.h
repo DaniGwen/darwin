@@ -26,8 +26,8 @@ namespace Robot
         LegsController(CM730 *cm730);
         ~LegsController();
 
-        void Stand(int moving_speed = 200, int p_gain = 25);
-        void ReadyToPickUpItem(int moving_speed = 300, int p_gain = 25);
+        void Stand(int moving_speed = 200, int p_gain = 100);
+        void ReadyToPickUpItem(int moving_speed = 200, int p_gain = 100);
 
     private:
         CM730 *cm730_; // Pointer to the CM730 board interface
@@ -63,7 +63,7 @@ namespace Robot
                 {JointData::ID_L_ANKLE_ROLL, 1978}}};
 
         void ApplyPose(const Pose &pose);
-        void SetPID(int moving_speed = 300, int p_gain = 25);
+        void SetPID(int moving_speed = 200, int p_gain = 100);
     };
 }
 

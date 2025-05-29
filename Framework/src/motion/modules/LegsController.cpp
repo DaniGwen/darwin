@@ -49,19 +49,19 @@ namespace Robot
         }
     }
 
-    void LegsController::Stand(int p_gain)
+    void LegsController::Stand(int moving_speed,int p_gain)
     {
         std::cout << BOLDGREEN << "INFO: LegsController moving to default standing pose..." << RESET << std::endl;
-        SetPID(p_gain); // Set P-gain for this movement
+        SetPID(moving_speed, p_gain); // Set P-gain for this movement
         ApplyPose(POSE_LEGS_DEFAULT_STAND);
 
         std::this_thread::sleep_for(std::chrono::milliseconds(3000)); // e.g., 1.5 seconds
     }
 
-    void LegsController::ReadyToPickUpItem(int p_gain)
+    void LegsController::ReadyToPickUpItem(int moving_speed, int p_gain)
     {
         std::cout << BOLDGREEN << "INFO: LegsController moving to ReadyToPickUpItem pose..." << RESET << std::endl;
-        SetPID(p_gain);
+        SetPID(moving_speed, p_gain);
         ApplyPose(POSE_READY_TO_PICKUP_STAND);
 
         std::this_thread::sleep_for(std::chrono::milliseconds(1000));
@@ -88,8 +88,8 @@ namespace Robot
 
         for (int joint_id : leg_joint_ids)
         {
-            cm730_->WriteByte(joint_id, MX28::P_TORQUE_ENABLE, 1, 0); // Ensure torque is enabled
-            cm730_->WriteByte(joint_id, MX28::P_P_GAIN, p_gain, 0); // P-gain values from 8 ~ 128 , more P-gain means more backlash towards the goal position.
+            cm730_->WriteByte(joint_id, MX28::P_TORQUE_ENABLE, 1, 0);             // Ensure torque is enabled
+            cm730_->WriteByte(joint_id, MX28::P_P_GAIN, p_gain, 0);               // P-gain values from 8 ~ 128 , more P-gain means more backlash towards the goal position.
             cm730_->WriteWord(joint_id, MX28::P_MOVING_SPEED_L, moving_speed, 0); // Value 0 means max speed. 1~1023 for controlled speed.
         }
 

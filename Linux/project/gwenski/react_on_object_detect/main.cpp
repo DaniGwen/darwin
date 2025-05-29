@@ -246,7 +246,7 @@ int main(void)
             legs_controller.ReadyToPickUpItem();
             right_arm_controller.RotateWrist90Deg();
             right_arm_controller.OpenGripper();
-            right_arm_controller.HandReach(7);
+            right_arm_controller.HandReach();
             std::this_thread::sleep_for(std::chrono::milliseconds(2000));
             right_arm_controller.CloseGripper();
             std::this_thread::sleep_for(std::chrono::milliseconds(2000));

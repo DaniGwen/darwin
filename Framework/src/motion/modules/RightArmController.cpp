@@ -34,36 +34,36 @@ namespace Robot
         }
     }
 
-    void RightArmController::HandReach(int p_gain)
+    void RightArmController::HandReach(int moving_speed, int p_gain)
     {
-        SetPID(p_gain);
+        SetPID(moving_speed, p_gain);
 
         std::cout << "INFO: Moving right arm to POSE_RISE_HAND ..." << std::endl;
         ApplyPose(POSE_REACH_HAND);
         std::this_thread::sleep_for(std::chrono::milliseconds(1000));
     }
 
-    void RightArmController::CloseGripper(int p_gain)
+    void RightArmController::CloseGripper(int moving_speed, int p_gain)
     {
-        SetPID(p_gain);
+        SetPID(moving_speed, p_gain);
 
         std::cout << "INFO: Moving right arm to POSE_CLOSE_GRIPPER ..." << std::endl;
         ApplyPose(POSE_CLOSE_GRIPPER);
         std::this_thread::sleep_for(std::chrono::milliseconds(400));
     }
 
-    void RightArmController::OpenGripper(int p_gain)
+    void RightArmController::OpenGripper(int moving_speed, int p_gain)
     {
-        SetPID(p_gain);
+        SetPID(moving_speed, p_gain);
 
         std::cout << "INFO: Moving right arm to POSE_OPEN_GRIPPER ..." << std::endl;
         ApplyPose(POSE_OPEN_GRIPPER);
         std::this_thread::sleep_for(std::chrono::milliseconds(400));
     }
 
-     void RightArmController::RotateWrist90Deg(int p_gain)
+    void RightArmController::RotateWrist90Deg(int moving_speed, int p_gain)
     {
-        SetPID(p_gain);
+        SetPID(moving_speed, p_gain);
 
         std::cout << "INFO: Moving right arm to POSE_ROTATE_WRIST_90DEG ..." << std::endl;
         ApplyPose(POSE_ROTATE_WRIST_90DEG);
@@ -72,14 +72,14 @@ namespace Robot
 
     void RightArmController::Default()
     {
-        SetPID(3);
+        SetPID(200, 60);
 
         std::cout << "INFO: Resetting right arm to default pose..." << std::endl;
         ApplyPose(DEFAULT);
         std::this_thread::sleep_for(std::chrono::milliseconds(1000));
     }
 
-    void RightArmController::SetPID(int p_gain)
+    void RightArmController::SetPID(int moving_speed, int p_gain)
     {
         int ids_to_configure[] = {
             JointData::ID_R_SHOULDER_ROLL,
@@ -94,12 +94,13 @@ namespace Robot
         };
 
         std::lock_guard<std::mutex> lock(cm730_mutex); // Protect CM730 access for multiple writes
+
         JointData joint_data;
         for (int joint_id : ids_to_configure)
         {
             cm730_->WriteByte(joint_id, MX28::P_TORQUE_ENABLE, 1, 0);
-            cm730_->WriteByte(joint_id, MX28::P_P_GAIN, p_gain, 0); // P-gain values from 8 ~ 128 , more P-gain means more backlash towards the goal position.
-            cm730_->WriteWord(joint_id, MX28::P_MOVING_SPEED_L, 300, 0); // Value 0 means max speed. 1~1023 for controlled speed.
+            cm730_->WriteByte(joint_id, MX28::P_P_GAIN, p_gain, 0);               // P-gain values from 8 ~ 128 , more P-gain means more backlash towards the goal position.
+            cm730_->WriteWord(joint_id, MX28::P_MOVING_SPEED_L, moving_speed, 0); // Value 0 means max speed. 1~1023 for controlled speed.
         }
 
         std::cout << "INFO: RightArmController PID gains set for all joints." << std::endl;
