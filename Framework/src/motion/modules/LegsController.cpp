@@ -67,8 +67,8 @@ namespace Robot
         for (int joint_id : leg_joint_ids)
         {
             cm730_->WriteByte(joint_id, MX28::P_TORQUE_ENABLE, 1, 0);
-            cm730_->WriteByte(joint_id, MX28::P_P_GAIN, p_gain, 0); //
-            cm730_->WriteWord(joint_id, MX28::P_MOVING_SPEED_L, moving_speed, 0); //
+            cm730_->WriteByte(joint_id, MX28::P_P_GAIN, p_gain, 0);
+            cm730_->WriteWord(joint_id, MX28::P_MOVING_SPEED_L, moving_speed, 0);
         }
          // std::cout << BOLDGREEN << "INFO: LegsController PID gains set (P=" << p_gain << ") and speed (" << moving_speed << ") for all leg joints." << RESET << std::endl;
     }

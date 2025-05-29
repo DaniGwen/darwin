@@ -17,7 +17,7 @@ namespace Robot
     public:
         LeftArmController(CM730 *cm730);
 
-        void Wave(int moving_speed = 100, int repetitions = 3, int p_gain = 8);
+        void Wave(int moving_speed = 150, int repetitions = 3, int p_gain = 15);
         void ToDefaultPose();
 
     private:
@@ -47,7 +47,7 @@ namespace Robot
 
         // Helper method to apply a single arm pose
         void ApplyPose(const Pose &pose);
-        void SetPID(int moving_speed = 100, int p_gain = 8);
+        void SetPID(int moving_speed = 150, int p_gain = 15);
     };
 }
 
