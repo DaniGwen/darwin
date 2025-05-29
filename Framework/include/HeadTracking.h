@@ -181,7 +181,7 @@ namespace Robot
         void ApplyHeadAngles();                          // Apply calculated angles to motors (replaces Head::Process())
         double Value2Deg(int value);
         int Deg2Value(double angle);
-        void SetPIDGains();
+        void SetMotorPIDAndSpeed();
     };
 }
 

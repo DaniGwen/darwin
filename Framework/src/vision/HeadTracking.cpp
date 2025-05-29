@@ -181,12 +181,8 @@ namespace Robot
         LoadDistanceEstimationSettings(ini_);
 
         LinuxCamera::GetInstance()->LoadINISettings(ini_);
-
-        // Explicitly enable head joints and set initial gains
-        cm730_->WriteByte(JointData::ID_HEAD_PAN, MX28::P_TORQUE_ENABLE, 1, 0);  // Enable torque for Pan
-        cm730_->WriteByte(JointData::ID_HEAD_TILT, MX28::P_TORQUE_ENABLE, 1, 0); // Enable torque for Tilt
-
-        SetPIDGains();
+       
+        SetMotorPIDAndSpeed();
 
         // 5. Create display frame buffer
         rgb_display_frame_ = new Image(Camera::WIDTH, Camera::HEIGHT, Image::RGB_PIXEL_SIZE);
@@ -879,34 +875,20 @@ namespace Robot
 
         if (cm730_)
         {
-            int pan_torque_enable = 0;
-            int tilt_torque_enable = 0;
+            // Convert the calculated angles (in degrees) to MX-28 motor values (0-4095)
+            int pan_goal_value = Deg2Value(m_PanAngle);
+            int tilt_goal_value = Deg2Value(m_TiltAngle);
 
-            // Read current torque status
-            cm730_->ReadByte(JointData::ID_HEAD_PAN, MX28::P_TORQUE_ENABLE, &pan_torque_enable, 0);
-            cm730_->ReadByte(JointData::ID_HEAD_TILT, MX28::P_TORQUE_ENABLE, &tilt_torque_enable, 0);
+            SetMotorPIDAndSpeed();
 
-            if (pan_torque_enable == 1 && tilt_torque_enable == 1)
-            {
-                // Convert the calculated angles (in degrees) to MX-28 motor values (0-4095)
-                int pan_goal_value = Deg2Value(m_PanAngle);
-                int tilt_goal_value = Deg2Value(m_TiltAngle);
+            // Write the converted values to the motor goal position registers
+            cm730_->WriteWord(JointData::ID_HEAD_PAN, MX28::P_GOAL_POSITION_L, pan_goal_value, 0);
+            cm730_->WriteWord(JointData::ID_HEAD_TILT, MX28::P_GOAL_POSITION_L, tilt_goal_value, 0);
 
-                SetPIDGains();
-
-                // Write the converted values to the motor goal position registers
-                cm730_->WriteWord(JointData::ID_HEAD_PAN, MX28::P_GOAL_POSITION_L, pan_goal_value, 0);
-                cm730_->WriteWord(JointData::ID_HEAD_TILT, MX28::P_GOAL_POSITION_L, tilt_goal_value, 0);
-
-                std::cout
-                    << "DEBUG: HeadTracking::ApplyHeadAngles - Setting Pan Deg: " << m_PanAngle
-                    << " (Value: " << pan_goal_value << "), Tilt Deg: " << m_TiltAngle
-                    << " (Value: " << tilt_goal_value << ")" << std::endl;
-            }
-            else
-            {
-                std::cout << "DEBUG: HeadTracking::ApplyHeadAngles - Head joints are not enabled, skipping angle setting." << std::endl;
-            }
+            std::cout
+                << "DEBUG: HeadTracking::ApplyHeadAngles - Setting Pan Deg: " << m_PanAngle
+                << " (Value: " << pan_goal_value << "), Tilt Deg: " << m_TiltAngle
+                << " (Value: " << tilt_goal_value << ")" << std::endl;
         }
         else
         {
@@ -940,16 +922,19 @@ namespace Robot
         return motor_command_interval_ms_;
     }
 
-    void HeadTracking::SetPIDGains()
+    void HeadTracking::SetMotorPIDAndSpeed()
     {
-        cm730_->WriteByte(JointData::ID_HEAD_PAN, MX28::P_P_GAIN, 8, 0);
-        cm730_->WriteByte(JointData::ID_HEAD_TILT, MX28::P_P_GAIN, 8, 0);
+        int joints[] = {
+            JointData::ID_HEAD_PAN,
+            JointData::ID_HEAD_TILT};
 
-        cm730_->WriteByte(JointData::ID_HEAD_PAN, MX28::P_D_GAIN, 8, 0);
-        cm730_->WriteByte(JointData::ID_HEAD_TILT, MX28::P_D_GAIN, 8, 0);
-
-        cm730_->WriteWord(JointData::ID_HEAD_PAN, MX28::P_MOVING_SPEED_L, 200, 0); // Value 0 means max speed. 1~1023 for controlled speed.
-        cm730_->WriteWord(JointData::ID_HEAD_TILT, MX28::P_MOVING_SPEED_L, 200, 0);
+        for (int joint_id : joints)
+        {
+            cm730_->WriteByte(joint_id, MX28::P_TORQUE_ENABLE, 1, 0);
+            cm730_->WriteByte(joint_id, MX28::P_P_GAIN, m_Pan_p_gain, 0);
+            cm730_->WriteByte(joint_id, MX28::P_D_GAIN, m_Pan_d_gain, 0);
+            cm730_->WriteWord(joint_id, MX28::P_MOVING_SPEED_L, 200, 0); // Value 0 means max speed. 1~1023 for controlled speed.
+        }
     }
 
     double HeadTracking::GetDetectedObjectDistance() const
