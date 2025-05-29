@@ -4,7 +4,7 @@
 
 #include "CM730.h"
 #include "JointData.h" // Assuming JointData definition is here or accessible
-#include "Pose.h"      // Assuming Pose definition is here
+#include "Globals.h"      // Assuming Pose definition is here
 #include <mutex>
 #include <iostream>
 #include <thread>          // For std::this_thread::sleep_for
