@@ -122,7 +122,7 @@ void handleBottleDetected(LegsController &legs_controller,
     MotionManager::GetInstance()->AddModule(static_cast<MotionModule *>(Walking::GetInstance())); // Need to load the Walking module to MotionManager in order to use it in LegsController
     std::this_thread::sleep_for(std::chrono::milliseconds(500));
 
-    legs_controller.WalkForward();
+    legs_controller.WalkForward(20);
     std::this_thread::sleep_for(std::chrono::milliseconds(200));
     legs_controller.StopWalk();
     std::this_thread::sleep_for(std::chrono::milliseconds(200));
@@ -356,7 +356,7 @@ int main(void)
             handleNoTargetOrStandby(current_action_label, last_action_time, current_time);
         }
 
-        std::this_thread::sleep_for(std::chrono::milliseconds(100)); //
+        std::this_thread::sleep_for(std::chrono::milliseconds(150)); //
     }
 
     std::cout << "INFO: Main loop terminated. Waiting for HeadTracking thread to join..." << std::endl; //
