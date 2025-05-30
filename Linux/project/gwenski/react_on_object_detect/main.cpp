@@ -119,6 +119,7 @@ void handleBottleDetected(LegsController &legs_controller,
 
     std::cout << "INFO: Detected bottle. Performing pickup sequence." << std::endl;
 
+    // legs_controller.InitializeWalking(ini); // Initialize walking parameters from INI file.
     // MotionManager::GetInstance()->AddModule(static_cast<MotionModule *>(Walking::GetInstance())); // Need to load the Walking module to MotionManager in order to use it in LegsController
     // std::this_thread::sleep_for(std::chrono::milliseconds(500));
     // MotionManager::GetInstance()->SetEnable(true); // Enable MotionManager to allow walking
@@ -215,7 +216,6 @@ int main(void)
     LeftArmController left_arm_controller(&cm730);
     RightArmController right_arm_controller(&cm730);
     LegsController legs_controller(&cm730);
-    legs_controller.InitializeWalking(ini); // Initialize walking parameters from INI file.
 
     HeadTracking *head_tracker = HeadTracking::GetInstance();
 
