@@ -3,6 +3,7 @@
 #include "MX28.h"
 #include "Walking.h" // Include the Walking header
 #include "minIni.h"  // For minIni
+#include <vector>
 
 namespace Robot
 {
@@ -34,34 +35,55 @@ namespace Robot
         }
 
         // Ensure walking is stopped before applying a static pose to avoid conflicts
-        if (IsWalking()) {
+        if (IsWalking())
+        {
             std::cout << BOLDYELLOW << "WARNING: Walking was active. Stopping walk before applying static pose." << RESET << std::endl;
             StopWalk();
             // Give some time for the walking module to actually stop and for MotionManager to process it
             std::this_thread::sleep_for(std::chrono::milliseconds(static_cast<long>(Walking::GetInstance()->m_PeriodTime * 1.5)));
         }
 
-
         std::lock_guard<std::mutex> lock(cm730_mutex);
 
-        std::cout << BOLDCYAN << "INFO: LegsController applying pose..." << RESET << std::endl;
+        // Step 1: Prepare the data packet for SyncWrite
+        // The vector will store sets of [ID, LowByte, HighByte] for each motor.
+        std::vector<int> params;
+        params.reserve(pose.joint_positions.size() * 3); // Pre-allocate memory for efficiency
+
         for (const auto &joint_pair : pose.joint_positions)
         {
             int joint_id = joint_pair.first;
             int goal_value = joint_pair.second;
-            cm730_->WriteWord(joint_id, MX28::P_GOAL_POSITION_L, goal_value, 0);
+
+            // Add the parameters for this joint to the list
+            params.push_back(joint_id);
+            params.push_back(CM730::GetLowByte(goal_value));
+            params.push_back(CM730::GetHighByte(goal_value));
+        }
+
+        // Step 2: Send the single SyncWrite command
+        if (!params.empty())
+        {
+            std::cout << BOLDCYAN << "INFO: LegsController applying pose with SyncWrite..." << RESET << std::endl;
+
+            // SyncWrite(start_address, data_length, number_of_motors, data_pointer)
+            // start_address: The address of the register to write (Goal Position).
+            // data_length: The number of bytes to write per motor (2 for a Word).
+            // number_of_motors: The number of motors we are commanding.
+            // data_pointer: A pointer to the start of our parameter vector.
+            cm730_->SyncWrite(MX28::P_GOAL_POSITION_L, 2, params.size() / 3, params.data());
         }
     }
 
     void LegsController::SetPID(int moving_speed, int p_gain)
     {
-        if (!cm730_) return;
+        if (!cm730_)
+            return;
         int leg_joint_ids[] = {
             JointData::ID_R_HIP_YAW, JointData::ID_R_HIP_ROLL, JointData::ID_R_HIP_PITCH,
             JointData::ID_R_KNEE, JointData::ID_R_ANKLE_PITCH, JointData::ID_R_ANKLE_ROLL,
             JointData::ID_L_HIP_YAW, JointData::ID_L_HIP_ROLL, JointData::ID_L_HIP_PITCH,
-            JointData::ID_L_KNEE, JointData::ID_L_ANKLE_PITCH, JointData::ID_L_ANKLE_ROLL
-        };
+            JointData::ID_L_KNEE, JointData::ID_L_ANKLE_PITCH, JointData::ID_L_ANKLE_ROLL};
 
         std::lock_guard<std::mutex> lock(cm730_mutex);
         for (int joint_id : leg_joint_ids)
@@ -70,18 +92,18 @@ namespace Robot
             cm730_->WriteByte(joint_id, MX28::P_P_GAIN, p_gain, 0);
             cm730_->WriteWord(joint_id, MX28::P_MOVING_SPEED_L, moving_speed, 0);
         }
-         // std::cout << BOLDGREEN << "INFO: LegsController PID gains set (P=" << p_gain << ") and speed (" << moving_speed << ") for all leg joints." << RESET << std::endl;
+        // std::cout << BOLDGREEN << "INFO: LegsController PID gains set (P=" << p_gain << ") and speed (" << moving_speed << ") for all leg joints." << RESET << std::endl;
     }
 
     void LegsController::Stand(int moving_speed, int p_gain)
     {
         std::cout << BOLDGREEN << "INFO: LegsController moving to default standing pose..." << RESET << std::endl;
-        StopWalk(); // Ensure walking is stopped
+        StopWalk();                                                  // Ensure walking is stopped
         std::this_thread::sleep_for(std::chrono::milliseconds(100)); // Small delay
 
         SetPID(moving_speed, p_gain);
         ApplyPose(POSE_LEGS_DEFAULT_STAND);
-       
+
         std::this_thread::sleep_for(std::chrono::milliseconds(1000));
     }
 
@@ -93,18 +115,21 @@ namespace Robot
 
         SetPID(moving_speed, p_gain);
         ApplyPose(POSE_READY_TO_PICKUP_STAND);
-        std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+        std::this_thread::sleep_for(std::chrono::milliseconds(1500));
     }
 
     // --- Walking Control Method Implementations ---
 
-    void LegsController::InitializeWalking(minIni* ini, const std::string& section)
+    void LegsController::InitializeWalking(minIni *ini, const std::string &section)
     {
         std::cout << BOLDGREEN << "INFO: Initializing Walking module through LegsController..." << RESET << std::endl;
         Walking::GetInstance()->Initialize();
-        if (ini) {
+        if (ini)
+        {
             Walking::GetInstance()->LoadINISettings(ini, section);
-        } else {
+        }
+        else
+        {
             std::cout << BOLDYELLOW << "WARNING: minIni object not provided to InitializeWalking. Using default walking parameters." << RESET << std::endl;
         }
         // Walking parameters are set, but walking doesn't start until StartWalking() or specific walk methods are called.
@@ -113,7 +138,7 @@ namespace Robot
     void LegsController::StartWalking(double x_amplitude, double y_amplitude, double a_amplitude)
     {
         std::cout << BOLDGREEN << "INFO: LegsController commanding StartWalk. X=" << x_amplitude << ", Y=" << y_amplitude << ", A=" << a_amplitude << RESET << std::endl;
-        Walking* walking = Walking::GetInstance();
+        Walking *walking = Walking::GetInstance();
         walking->X_MOVE_AMPLITUDE = x_amplitude;
         walking->Y_MOVE_AMPLITUDE = y_amplitude;
         walking->A_MOVE_AMPLITUDE = a_amplitude;
@@ -139,20 +164,21 @@ namespace Robot
     {
         StartWalking(0.0, 0.0, a_amplitude); // Negative a_amplitude for right turn
     }
-    
-    void LegsController::StrafeLeft(double y_amplitude) {
+
+    void LegsController::StrafeLeft(double y_amplitude)
+    {
         StartWalking(0.0, y_amplitude, 0.0); // Positive y_amplitude for Y-axis (strafe left)
     }
 
-    void LegsController::StrafeRight(double y_amplitude) {
+    void LegsController::StrafeRight(double y_amplitude)
+    {
         StartWalking(0.0, y_amplitude, 0.0); // Negative y_amplitude for Y-axis (strafe right)
     }
-
 
     void LegsController::StopWalk()
     {
         std::cout << BOLDGREEN << "INFO: LegsController commanding StopWalk." << RESET << std::endl;
-        Walking* walking = Walking::GetInstance();
+        Walking *walking = Walking::GetInstance();
         // Setting amplitudes to 0 directly is more immediate if Stop() has a delay in processing.
         // walking->X_MOVE_AMPLITUDE = 0;
         // walking->Y_MOVE_AMPLITUDE = 0;
