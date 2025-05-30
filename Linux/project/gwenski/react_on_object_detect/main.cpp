@@ -107,7 +107,8 @@ void handleBottleDetected(LegsController &legs_controller,
                           std::string &current_action_label,
                           std::chrono::steady_clock::time_point &last_action_time,
                           int &bottle_detect_count_ref, // Pass by reference to reset
-                          const std::chrono::steady_clock::time_point &current_time)
+                          const std::chrono::steady_clock::time_point &current_time,
+                          minIni *ini)
 {
     if (distance > 0.5)
     {
@@ -337,7 +338,7 @@ int main(void)
         }
         else if (detected_object_label == "bottle" && bottle_detect_count >= detect_threshold && current_action_label != "bottle" && can_perform_action) //
         {
-            handleBottleDetected(legs_controller, right_arm_controller, distance, current_action_label, last_action_time, bottle_detect_count, current_time);
+            handleBottleDetected(legs_controller, right_arm_controller, distance, current_action_label, last_action_time, bottle_detect_count, current_time, ini);
         }
         else if (detected_object_label == "dog" && dog_detect_count >= detect_threshold && current_action_label != "dog" && can_perform_action)
         {
