@@ -43,35 +43,54 @@ namespace Robot
             std::this_thread::sleep_for(std::chrono::milliseconds(static_cast<long>(Walking::GetInstance()->m_PeriodTime * 1.5)));
         }
 
+        const int DEFAULT_P_GAIN = 32;
+        const int DEFAULT_I_GAIN = 0;
+        const int DEFAULT_D_GAIN = 0;
+        const int RESERVED_BYTE = 0;
+
+        // The data length per motor is 6 bytes (D, I, P, Reserved, Pos_L, Pos_H)
+        const int DATA_LENGTH_PER_MOTOR = 6;
+
         std::lock_guard<std::mutex> lock(cm730_mutex);
 
-        // Step 1: Prepare the data packet for SyncWrite
-        // The vector will store sets of [ID, LowByte, HighByte] for each motor.
+        // Step 1: Prepare the full data packet exactly like MotionManager
         std::vector<int> params;
-        params.reserve(pose.joint_positions.size() * 3); // Pre-allocate memory for efficiency
+        // Each motor needs 1 byte for ID + DATA_LENGTH_PER_MOTOR bytes for data
+        params.reserve(pose.joint_positions.size() * (1 + DATA_LENGTH_PER_MOTOR));
 
         for (const auto &joint_pair : pose.joint_positions)
         {
             int joint_id = joint_pair.first;
             int goal_value = joint_pair.second;
 
-            // Add the parameters for this joint to the list
             params.push_back(joint_id);
+            params.push_back(DEFAULT_D_GAIN);
+            params.push_back(DEFAULT_I_GAIN);
+            params.push_back(DEFAULT_P_GAIN);
+            params.push_back(RESERVED_BYTE);
             params.push_back(CM730::GetLowByte(goal_value));
             params.push_back(CM730::GetHighByte(goal_value));
         }
 
-        // Step 2: Send the single SyncWrite command
+        // Step 2: Send the single SyncWrite command with the correct parameters
         if (!params.empty())
         {
-            std::cout << BOLDCYAN << "INFO: LegsController applying pose with SyncWrite..." << RESET << std::endl;
+            std::cout << BOLDCYAN << "INFO: LegsController applying pose with CORRECT SyncWrite packet..." << RESET << std::endl;
 
-            // SyncWrite(start_address, data_length, number_of_motors, data_pointer)
-            // start_address: The address of the register to write (Goal Position).
-            // data_length: The number of bytes to write per motor (2 for a Word).
-            // number_of_motors: The number of motors we are commanding.
-            // data_pointer: A pointer to the start of our parameter vector.
-            cm730_->SyncWrite(MX28::P_GOAL_POSITION_L, 2, params.size() / 3, params.data());
+            int num_joints = params.size() / (1 + DATA_LENGTH_PER_MOTOR);
+
+            // The starting address is P_D_GAIN, and the length is 6 bytes
+            int result = cm730_->SyncWrite(MX28::P_D_GAIN, DATA_LENGTH_PER_MOTOR, num_joints, params.data());
+
+            if (result != cm730_->SUCCESS)
+            {
+                // Handle the error case
+                std::cerr << BOLDRED << "ERROR: SyncWrite failed with communication status: " << result << RESET << std::endl;
+            }
+            else
+            {
+                std::cout << BOLDGREEN << "INFO: Pose applied successfully." << RESET << std::endl;
+            }
         }
     }
 
