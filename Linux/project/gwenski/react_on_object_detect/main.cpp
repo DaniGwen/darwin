@@ -124,11 +124,11 @@ void handleBottleDetected(LegsController &legs_controller,
     MotionManager::GetInstance()->SetEnable(true); // Enable MotionManager to allow walking
 
     legs_controller.WalkForward();
-    std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+    std::this_thread::sleep_for(std::chrono::milliseconds(500));
     legs_controller.StopWalk();
-    std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+    std::this_thread::sleep_for(std::chrono::milliseconds(500));
 
-     MotionManager::GetInstance()->SetEnable(false);
+    MotionManager::GetInstance()->RemoveModule(static_cast<MotionModule *>(Walking::GetInstance()));
 
     legs_controller.ReadyToPickUpItem();
     right_arm_controller.RotateWrist90Deg();
