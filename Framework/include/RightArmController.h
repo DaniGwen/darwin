@@ -56,7 +56,7 @@ namespace Robot
 
         const Pose POSE_POSITION_HAND_AWAY = {
             std::map<int, int>{
-                {JointData::ID_R_SHOULDER_ROLL, 2025}}};
+                {JointData::ID_R_SHOULDER_ROLL, 2035}}};
 
         const Pose POSE_HOLD_ITEM = {
             std::map<int, int>{
