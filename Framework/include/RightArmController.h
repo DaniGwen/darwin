@@ -21,6 +21,8 @@ namespace Robot
         void CloseGripper(int moving_speed = 200, int p_gain = 30);
         void OpenGripper(int moving_speed = 200, int p_gain = 30);
         void RotateWrist90Deg(int moving_speed = 200, int p_gain = 30);
+        void PositionHandAway(int moving_speed = 100, int p_gain = 30);
+        void HoldItem(int moving_speed = 100, int p_gain = 30);
         void Default();
 
     private:
@@ -52,10 +54,22 @@ namespace Robot
             std::map<int, int>{
                 {JointData::ID_R_WRIST, 2084}}};
 
+        const Pose POSE_POSITION_HAND_AWAY = {
+            std::map<int, int>{
+                {JointData::ID_R_SHOULDER_ROLL, 2025}}};
+
+        const Pose POSE_HOLD_ITEM = {
+            std::map<int, int>{
+                {JointData::ID_R_SHOULDER_PITCH, 1962},
+                {JointData::ID_R_SHOULDER_ROLL, 1965},
+                {JointData::ID_R_ELBOW, 2379},
+                {JointData::ID_R_WRIST, 3333},
+                {JointData::ID_R_GRIPPER, 2109}}};
+
         const Pose DEFAULT = {
             std::map<int, int>{
                 {JointData::ID_R_SHOULDER_PITCH, 1719},
-                {JointData::ID_R_SHOULDER_ROLL, 2009},
+                {JointData::ID_R_SHOULDER_ROLL, 2025},
                 {JointData::ID_R_ELBOW, 1747}}};
 
         void ApplyPose(const Pose &pose, int speed = 200);

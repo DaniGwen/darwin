@@ -108,6 +108,24 @@ namespace Robot
         std::this_thread::sleep_for(std::chrono::milliseconds(500));
     }
 
+    void RightArmController::PositionHandAway(int moving_speed, int p_gain)
+    {
+        SetPID(p_gain);
+
+        std::cout << "INFO: Moving right arm to POSE_ROTATE_WRIST_90DEG ..." << std::endl;
+        ApplyPose(POSE_POSITION_HAND_AWAY, moving_speed);
+        std::this_thread::sleep_for(std::chrono::milliseconds(400));
+    }
+
+    void RightArmController::HoldItem(int moving_speed, int p_gain)
+    {
+        SetPID(p_gain);
+
+        std::cout << "INFO: Moving right arm to POSE_ROTATE_WRIST_90DEG ..." << std::endl;
+        ApplyPose(POSE_HOLD_ITEM, moving_speed);
+        std::this_thread::sleep_for(std::chrono::milliseconds(400));
+    }
+
     void RightArmController::Default()
     {
         SetPID();

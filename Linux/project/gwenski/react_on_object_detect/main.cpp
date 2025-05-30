@@ -129,18 +129,21 @@ void handleBottleDetected(LegsController &legs_controller,
     legs_controller.StopWalk();
     std::this_thread::sleep_for(std::chrono::milliseconds(500));
 
-    MotionManager::GetInstance()->RemoveModule(static_cast<MotionModule *>(Walking::GetInstance()));
     MotionManager::GetInstance()->SetEnable(false); // Enable MotionManager to allow walking
 
     legs_controller.ReadyToPickUpItem();
+    right_arm_controller.PositionHandAway();
     right_arm_controller.RotateWrist90Deg();
     right_arm_controller.OpenGripper();
     right_arm_controller.HandReach();
     std::this_thread::sleep_for(std::chrono::milliseconds(2000));
     right_arm_controller.CloseGripper();
-    std::this_thread::sleep_for(std::chrono::milliseconds(2000));
-    right_arm_controller.Default();
+    std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+    right_arm_controller.HoldItem();
+    std::this_thread::sleep_for(std::chrono::milliseconds(4000));
+    right_arm_controller.OpenGripper();
     legs_controller.Stand();
+    right_arm_controller.Default();
 
     current_action_label = "bottle";
     last_action_time = current_time;
