@@ -119,16 +119,16 @@ void handleBottleDetected(LegsController &legs_controller,
 
     std::cout << "INFO: Detected bottle. Performing pickup sequence." << std::endl;
 
-    MotionManager::GetInstance()->AddModule(static_cast<MotionModule *>(Walking::GetInstance())); // Need to load the Walking module to MotionManager in order to use it in LegsController
-    std::this_thread::sleep_for(std::chrono::milliseconds(500));
-    MotionManager::GetInstance()->SetEnable(true); // Enable MotionManager to allow walking
+    // MotionManager::GetInstance()->AddModule(static_cast<MotionModule *>(Walking::GetInstance())); // Need to load the Walking module to MotionManager in order to use it in LegsController
+    // std::this_thread::sleep_for(std::chrono::milliseconds(500));
+    // MotionManager::GetInstance()->SetEnable(true); // Enable MotionManager to allow walking
 
-    legs_controller.WalkForward();
-    std::this_thread::sleep_for(std::chrono::milliseconds(500));
-    legs_controller.StopWalk();
-    std::this_thread::sleep_for(std::chrono::milliseconds(500));
+    // legs_controller.WalkForward();
+    // std::this_thread::sleep_for(std::chrono::milliseconds(500));
+    // legs_controller.StopWalk();
+    // std::this_thread::sleep_for(std::chrono::milliseconds(500));
 
-    MotionManager::GetInstance()->RemoveModule(static_cast<MotionModule *>(Walking::GetInstance()));
+    // MotionManager::GetInstance()->RemoveModule(static_cast<MotionModule *>(Walking::GetInstance()));
 
     legs_controller.ReadyToPickUpItem();
     right_arm_controller.RotateWrist90Deg();
