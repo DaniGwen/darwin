@@ -43,53 +43,37 @@ namespace Robot
             std::this_thread::sleep_for(std::chrono::milliseconds(static_cast<long>(Walking::GetInstance()->m_PeriodTime * 1.5)));
         }
 
-        const int DEFAULT_P_GAIN = 32;
-        const int DEFAULT_I_GAIN = 0;
-        const int DEFAULT_D_GAIN = 0;
-        const int RESERVED_BYTE = 0;
-
-        // The data length per motor is 6 bytes (D, I, P, Reserved, Pos_L, Pos_H)
-        const int DATA_LENGTH_PER_MOTOR = 6;
+        const int MOVING_SPEED = 100;  // Set a moderate speed for the movement (0-1023)
+        const int DATA_CHUNK_SIZE = 5; // 1 for ID + 4 for data (PosL, PosH, SpeedL, SpeedH)
 
         std::lock_guard<std::mutex> lock(cm730_mutex);
 
-        // Step 1: Prepare the full data packet exactly like MotionManager
         std::vector<int> params;
-        // Each motor needs 1 byte for ID + DATA_LENGTH_PER_MOTOR bytes for data
-        params.reserve(pose.joint_positions.size() * (1 + DATA_LENGTH_PER_MOTOR));
+        params.reserve(pose.joint_positions.size() * DATA_CHUNK_SIZE);
 
         for (const auto &joint_pair : pose.joint_positions)
         {
-            int joint_id = joint_pair.first;
-            int goal_value = joint_pair.second;
-
-            params.push_back(joint_id);
-            params.push_back(DEFAULT_D_GAIN);
-            params.push_back(DEFAULT_I_GAIN);
-            params.push_back(DEFAULT_P_GAIN);
-            params.push_back(RESERVED_BYTE);
-            params.push_back(CM730::GetLowByte(goal_value));
-            params.push_back(CM730::GetHighByte(goal_value));
+            params.push_back(joint_pair.first);                      // ID
+            params.push_back(CM730::GetLowByte(joint_pair.second));  // Goal Position Low
+            params.push_back(CM730::GetHighByte(joint_pair.second)); // Goal Position High
+            params.push_back(CM730::GetLowByte(MOVING_SPEED));       // Moving Speed Low
+            params.push_back(CM730::GetHighByte(MOVING_SPEED));      // Moving Speed High
         }
 
-        // Step 2: Send the single SyncWrite command with the correct parameters
         if (!params.empty())
         {
-            std::cout << BOLDCYAN << "INFO: LegsController applying pose with CORRECT SyncWrite packet..." << RESET << std::endl;
+            std::cout << BOLDCYAN << "INFO: Applying simple pose via SyncWrite..." << RESET << std::endl;
 
-            int num_joints = params.size() / (1 + DATA_LENGTH_PER_MOTOR);
+            // Start Address: Goal Position. Length of chunk: 5.
+            int result = cm730_->SyncWrite(MX28::P_GOAL_POSITION_L, DATA_CHUNK_SIZE, params.size() / DATA_CHUNK_SIZE, params.data());
 
-            // The starting address is P_D_GAIN, and the length is 6 bytes
-            int result = cm730_->SyncWrite(MX28::P_D_GAIN, DATA_LENGTH_PER_MOTOR, num_joints, params.data());
-
-            if (result != cm730_->SUCCESS)
+            if (result == cm730_->SUCCESS)
             {
-                // Handle the error case
-                std::cerr << BOLDRED << "ERROR: SyncWrite failed with communication status: " << result << RESET << std::endl;
+                std::cout << BOLDGREEN << "INFO: Pose applied successfully." << RESET << std::endl;
             }
             else
             {
-                std::cout << BOLDGREEN << "INFO: Pose applied successfully." << RESET << std::endl;
+                std::cerr << BOLDRED << "ERROR: SyncWrite failed with code: " << result << RESET << std::endl;
             }
         }
     }
