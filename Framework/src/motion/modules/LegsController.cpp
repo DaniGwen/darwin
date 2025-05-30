@@ -156,6 +156,7 @@ namespace Robot
     {
         std::cout << BOLDGREEN << "INFO: LegsController commanding StartWalk. X=" << x_amplitude << ", Y=" << y_amplitude << ", A=" << a_amplitude << RESET << std::endl;
         Walking *walking = Walking::GetInstance();
+        walking->m_PeriodTime = 50;
         walking->X_MOVE_AMPLITUDE = x_amplitude;
         walking->Y_MOVE_AMPLITUDE = y_amplitude;
         walking->A_MOVE_AMPLITUDE = a_amplitude;
