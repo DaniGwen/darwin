@@ -28,8 +28,8 @@ namespace Robot
 
         const Pose POSE_REACH_HAND = {
             std::map<int, int>{
-                {JointData::ID_R_SHOULDER_PITCH, 2610},
-                {JointData::ID_R_SHOULDER_ROLL, 2010},
+                {JointData::ID_R_SHOULDER_PITCH, 2650},
+                {JointData::ID_R_SHOULDER_ROLL, 2025},
                 {JointData::ID_R_ELBOW, 1470},
 
                 {JointData::ID_L_SHOULDER_PITCH, 2580},
