@@ -26,7 +26,7 @@ namespace Robot
         std::cout << BOLDGREEN << "INFO: LegsController destroyed." << RESET << std::endl;
     }
 
-    void LegsController::ApplyPose(const Pose &pose)
+    void LegsController::ApplyPose(const Pose &pose, int speed)
     {
         if (!cm730_)
         {
@@ -34,7 +34,6 @@ namespace Robot
             return;
         }
 
-        // Ensure walking is stopped before applying a static pose to avoid conflicts
         if (IsWalking())
         {
             std::cout << BOLDYELLOW << "WARNING: Walking was active. Stopping walk before applying static pose." << RESET << std::endl;
@@ -43,8 +42,15 @@ namespace Robot
             std::this_thread::sleep_for(std::chrono::milliseconds(static_cast<long>(Walking::GetInstance()->m_PeriodTime * 1.5)));
         }
 
-        const int MOVING_SPEED = 100;  // Set a moderate speed for the movement (0-1023)
-        const int DATA_CHUNK_SIZE = 5; // 1 for ID + 4 for data (PosL, PosH, SpeedL, SpeedH)
+        // Define PID gains and Moving Speed for this combined command
+        const int DEFAULT_P_GAIN = 32;
+        const int DEFAULT_I_GAIN = 0;
+        const int DEFAULT_D_GAIN = 0;
+        const int RESERVED_BYTE = 0;
+        const int MOVING_SPEED = speed; // between (0-1023)
+
+        // Total items per motor in the params array: ID + D + I + P + Res + PosL + PosH + SpeedL + SpeedH
+        const int DATA_CHUNK_SIZE = 9;
 
         std::lock_guard<std::mutex> lock(cm730_mutex);
 
@@ -53,35 +59,45 @@ namespace Robot
 
         for (const auto &joint_pair : pose.joint_positions)
         {
-            params.push_back(joint_pair.first);                      // ID
-            params.push_back(CM730::GetLowByte(joint_pair.second));  // Goal Position Low
-            params.push_back(CM730::GetHighByte(joint_pair.second)); // Goal Position High
-            params.push_back(CM730::GetLowByte(MOVING_SPEED));       // Moving Speed Low
-            params.push_back(CM730::GetHighByte(MOVING_SPEED));      // Moving Speed High
+            int joint_id = joint_pair.first;
+            int goal_value = joint_pair.second;
+
+            params.push_back(joint_id);                         // Item 1: ID
+            params.push_back(DEFAULT_D_GAIN);                   // Item 2: D Gain
+            params.push_back(DEFAULT_I_GAIN);                   // Item 3: I Gain
+            params.push_back(DEFAULT_P_GAIN);                   // Item 4: P Gain
+            params.push_back(RESERVED_BYTE);                    // Item 5: Reserved
+            params.push_back(CM730::GetLowByte(goal_value));    // Item 6: Goal Position Low
+            params.push_back(CM730::GetHighByte(goal_value));   // Item 7: Goal Position High
+            params.push_back(CM730::GetLowByte(MOVING_SPEED));  // Item 8: Moving Speed Low
+            params.push_back(CM730::GetHighByte(MOVING_SPEED)); // Item 9: Moving Speed High
         }
 
         if (!params.empty())
         {
-            std::cout << BOLDCYAN << "INFO: Applying simple pose via SyncWrite..." << RESET << std::endl;
+            std::cout << BOLDCYAN << "INFO: Applying combined PID, Pose, and Speed via SyncWrite..." << RESET << std::endl;
 
-            // Start Address: Goal Position. Length of chunk: 5.
-            int result = cm730_->SyncWrite(MX28::P_GOAL_POSITION_L, DATA_CHUNK_SIZE, params.size() / DATA_CHUNK_SIZE, params.data());
+            int num_joints = params.size() / DATA_CHUNK_SIZE;
+
+            // Start Address: D Gain. Length of chunk (incl. ID for your SyncWrite wrapper): 9.
+            int result = cm730_->SyncWrite(MX28::P_D_GAIN, DATA_CHUNK_SIZE, num_joints, params.data());
 
             if (result == cm730_->SUCCESS)
             {
-                std::cout << BOLDGREEN << "INFO: Pose applied successfully." << RESET << std::endl;
+                std::cout << BOLDGREEN << "INFO: Combined pose applied successfully." << RESET << std::endl;
             }
             else
             {
-                std::cerr << BOLDRED << "ERROR: SyncWrite failed with code: " << result << RESET << std::endl;
+                std::cerr << BOLDRED << "ERROR: Combined SyncWrite failed with code: " << result << RESET << std::endl;
             }
         }
     }
 
-    void LegsController::SetPID(int moving_speed, int p_gain)
+    void LegsController::SetPID(int p_gain)
     {
         if (!cm730_)
             return;
+
         int leg_joint_ids[] = {
             JointData::ID_R_HIP_YAW, JointData::ID_R_HIP_ROLL, JointData::ID_R_HIP_PITCH,
             JointData::ID_R_KNEE, JointData::ID_R_ANKLE_PITCH, JointData::ID_R_ANKLE_ROLL,
@@ -93,7 +109,6 @@ namespace Robot
         {
             cm730_->WriteByte(joint_id, MX28::P_TORQUE_ENABLE, 1, 0);
             cm730_->WriteByte(joint_id, MX28::P_P_GAIN, p_gain, 0);
-            cm730_->WriteWord(joint_id, MX28::P_MOVING_SPEED_L, moving_speed, 0);
         }
         // std::cout << BOLDGREEN << "INFO: LegsController PID gains set (P=" << p_gain << ") and speed (" << moving_speed << ") for all leg joints." << RESET << std::endl;
     }
@@ -104,8 +119,8 @@ namespace Robot
         StopWalk();                                                  // Ensure walking is stopped
         std::this_thread::sleep_for(std::chrono::milliseconds(100)); // Small delay
 
-        SetPID(moving_speed, p_gain);
-        ApplyPose(POSE_LEGS_DEFAULT_STAND);
+        SetPID(p_gain);
+        ApplyPose(POSE_LEGS_DEFAULT_STAND, moving_speed);
 
         std::this_thread::sleep_for(std::chrono::milliseconds(1000));
     }
@@ -116,13 +131,12 @@ namespace Robot
         StopWalk(); // Ensure walking is stopped
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
-        SetPID(moving_speed, p_gain);
-        ApplyPose(POSE_READY_TO_PICKUP_STAND);
+        SetPID(p_gain);
+        ApplyPose(POSE_READY_TO_PICKUP_STAND, moving_speed);
         std::this_thread::sleep_for(std::chrono::milliseconds(1500));
     }
 
     // --- Walking Control Method Implementations ---
-
     void LegsController::InitializeWalking(minIni *ini, const std::string &section)
     {
         std::cout << BOLDGREEN << "INFO: Initializing Walking module through LegsController..." << RESET << std::endl;
@@ -198,7 +212,7 @@ namespace Robot
 
     bool LegsController::IsWalking()
     {
-        return Walking::GetInstance()->IsRunning(); //
+        return Walking::GetInstance()->IsRunning();
     }
 
 } // namespace Robot

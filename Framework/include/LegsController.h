@@ -22,8 +22,8 @@ namespace Robot
         LegsController(CM730 *cm730);
         virtual ~LegsController();
 
-        void ApplyPose(const Pose &pose);
-        void SetPID(int moving_speed = 100, int p_gain = JointData::P_GAIN_DEFAULT); // Provide a default for p_gain if not specified
+        void ApplyPose(const Pose &pose, int speed = 100);
+        void SetPID(int p_gain = JointData::P_GAIN_DEFAULT);
 
         // --- Standard Poses ---
         void Stand(int moving_speed = 50, int p_gain = JointData::P_GAIN_DEFAULT);

@@ -13,7 +13,7 @@ namespace Robot
         }
     }
 
-    void LeftArmController::ApplyPose(const Pose &pose)
+    void LeftArmController::ApplyPose(const Pose &pose, int speed)
     {
         std::lock_guard<std::mutex> lock(cm730_mutex); // Protect CM730 access
 
@@ -33,13 +33,13 @@ namespace Robot
     {
         std::cout << "INFO: Starting left arm movement sequence for " << repetitions << " repetitions." << std::endl;
 
-        SetPID(moving_speed, p_gain);
+        SetPID(p_gain);
 
         for (int i = 0; i < repetitions; ++i)
         {
-            ApplyPose(POSE_1);
+            ApplyPose(POSE_1, moving_speed);
             std::this_thread::sleep_for(std::chrono::milliseconds(700));
-            ApplyPose(POSE_2);
+            ApplyPose(POSE_2, moving_speed);
             std::this_thread::sleep_for(std::chrono::milliseconds(700));
         }
 
@@ -55,7 +55,7 @@ namespace Robot
         std::this_thread::sleep_for(std::chrono::milliseconds(1500));
     }
 
-    void LeftArmController::SetPID(int moving_speed, int p_gain)
+    void LeftArmController::SetPID(int p_gain)
     {
         if (!cm730_)
         {
@@ -75,7 +75,6 @@ namespace Robot
             int error = 0;
             cm730_->WriteByte(joint_id, MX28::P_TORQUE_ENABLE, 1, &error);
             cm730_->WriteByte(joint_id, MX28::P_P_GAIN, p_gain, &error); // P-gain values from 8 ~ 128 , more P-gain means more backlash towards the goal position.
-            cm730_->WriteWord(joint_id, MX28::P_MOVING_SPEED_L, moving_speed, &error);
 
             if (error != CM730::SUCCESS)
             {

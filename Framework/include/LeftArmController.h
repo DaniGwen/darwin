@@ -46,8 +46,8 @@ namespace Robot
             }};
 
         // Helper method to apply a single arm pose
-        void ApplyPose(const Pose &pose);
-        void SetPID(int moving_speed = 150, int p_gain = 15);
+        void ApplyPose(const Pose &pose, int speed = 100);
+        void SetPID(int p_gain = 15);
     };
 }
 
