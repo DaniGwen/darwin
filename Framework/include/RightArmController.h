@@ -58,8 +58,8 @@ namespace Robot
                 {JointData::ID_R_SHOULDER_ROLL, 2009},
                 {JointData::ID_R_ELBOW, 1747}}};
 
-        void ApplyPose(const Pose &pose);
-        void SetPID(int moving_speed = 200, int p_gain = 30); 
+        void ApplyPose(const Pose &pose, int speed = 200);
+        void SetPID(int p_gain = 30);
     };
 }
 
