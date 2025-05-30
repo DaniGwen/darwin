@@ -45,33 +45,26 @@ namespace Robot
 
         std::lock_guard<std::mutex> lock(cm730_mutex);
 
-        // Step 1: Prepare the data packet for SyncWrite
-        // The vector will store sets of [ID, LowByte, HighByte] for each motor.
+        // Step 1: Prepare the data packet with [ID, Value] pairs.
         std::vector<int> params;
-        params.reserve(pose.joint_positions.size() * 3); // Pre-allocate memory for efficiency
+        params.reserve(pose.joint_positions.size() * 2); // Reserve for ID and Value
 
         for (const auto &joint_pair : pose.joint_positions)
         {
-            int joint_id = joint_pair.first;
-            int goal_value = joint_pair.second;
-
-            // Add the parameters for this joint to the list
-            params.push_back(joint_id);
-            params.push_back(CM730::GetLowByte(goal_value));
-            params.push_back(CM730::GetHighByte(goal_value));
+            params.push_back(joint_pair.first);  // The Joint ID
+            params.push_back(joint_pair.second); // The full integer goal_value
         }
 
-        // Step 2: Send the single SyncWrite command
-        if (!params.empty())
-        {
-            std::cout << BOLDCYAN << "INFO: LegsController applying pose with SyncWrite..." << RESET << std::endl;
+        // Step 2: Call SyncWrite with the new packet format
+        std::cout << BOLDCYAN << "INFO: LegsController applying pose with SyncWrite (" << params.size() / 2 << " joints)..." << RESET << std::endl;
 
-            // SyncWrite(start_address, data_length, number_of_motors, data_pointer)
-            // start_address: The address of the register to write (Goal Position).
-            // data_length: The number of bytes to write per motor (2 for a Word).
-            // number_of_motors: The number of motors we are commanding.
-            // data_pointer: A pointer to the start of our parameter vector.
-            cm730_->SyncWrite(MX28::P_GOAL_POSITION_L, 2, params.size() / 3, params.data());
+        // The data length per motor is still 2 bytes (for a Word)
+        int result = cm730_->SyncWrite(MX28::P_GOAL_POSITION_L, 2, params.size() / 2, params.data());
+
+        // Step 3 (for debugging): Check the return value
+        if (result != cm730_->SUCCESS)
+        { // Assuming COMM_SUCCESS is the success value
+            std::cerr << BOLDRED << "ERROR: SyncWrite failed with communication status: " << result << RESET << std::endl;
         }
     }
 
