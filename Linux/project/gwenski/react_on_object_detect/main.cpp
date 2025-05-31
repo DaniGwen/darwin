@@ -202,10 +202,6 @@ void handleBottleInteraction(BottleTaskState &state,
         {
             std::cout << GREEN << "INFO: Performing pickup sequence." << RESET << std::endl;
 
-            // Must disable MotionManager to free the motors for manual actions
-            setEnableMotionManagerAndWalking(false);
-            MotionManager::GetInstance()->SetEnable(true);
-
             // legs_controller.ReadyToPickUpItem();
             // right_arm_controller.PositionHandAway();
             // right_arm_controller.RotateWrist90Deg();
@@ -213,9 +209,9 @@ void handleBottleInteraction(BottleTaskState &state,
             // right_arm_controller.HandReach();
             // std::this_thread::sleep_for(std::chrono::milliseconds(2000));
 
-            Action::GetInstance()->Start(ACTION_PAGE_READY_TO_PICKUP);
-            while (Action::GetInstance()->IsRunning())
-                usleep(8 * 1000);
+            run_action(ACTION_PAGE_READY_TO_PICKUP);
+
+            setEnableMotionManagerAndWalking(false);
 
             right_arm_controller.CloseGripper();
             std::this_thread::sleep_for(std::chrono::milliseconds(1000));
@@ -225,12 +221,8 @@ void handleBottleInteraction(BottleTaskState &state,
             // right_arm_controller.Default();
             // legs_controller.Stand();
 
-            Action::GetInstance()->Start(ACTION_PAGE_STAND);
-            while (Action::GetInstance()->IsRunning())
-                usleep(8 * 1000);
-
-            MotionManager::GetInstance()->AddModule(static_cast<MotionModule *>(Walking::GetInstance()));
-            MotionManager::GetInstance()->SetEnable(true);
+            setEnableMotionManagerAndWalking(true);
+            run_action(ACTION_PAGE_STAND);
 
             current_action_label = "bottle_pickup_complete";
             last_action_time = current_time;
