@@ -41,7 +41,8 @@
 #define ACTION_PAGE_CAT 12
 #define ACTION_PAGE_SPORTS_BALL 13
 #define ACTION_PAGE_BOTTLE 14
-#define ACTION_PAGE_STAND 1 // Example standby/initial pose action
+#define ACTION_PAGE_STAND 1
+#define ACTION_PAGE_READY_TO_PICKUP 32
 
 enum class BottleTaskState
 {
@@ -188,23 +189,32 @@ void handleBottleInteraction(BottleTaskState &state,
         {
             std::cout << GREEN << "INFO: Performing pickup sequence." << RESET << std::endl;
 
-             // Must disable MotionManager to free the motors for manual actions
+            // Must disable MotionManager to free the motors for manual actions
             MotionManager::GetInstance()->RemoveModule(static_cast<MotionModule *>(Walking::GetInstance()));
             MotionManager::GetInstance()->SetEnable(false);
 
-            legs_controller.ReadyToPickUpItem();
-            right_arm_controller.PositionHandAway();
-            right_arm_controller.RotateWrist90Deg();
-            right_arm_controller.OpenGripper();
-            right_arm_controller.HandReach();
-            std::this_thread::sleep_for(std::chrono::milliseconds(2000));
+            // legs_controller.ReadyToPickUpItem();
+            // right_arm_controller.PositionHandAway();
+            // right_arm_controller.RotateWrist90Deg();
+            // right_arm_controller.OpenGripper();
+            // right_arm_controller.HandReach();
+            // std::this_thread::sleep_for(std::chrono::milliseconds(2000));
+
+            Action::GetInstance()->Start(ACTION_PAGE_READY_TO_PICKUP);
+            while (Action::GetInstance()->IsRunning())
+                usleep(8 * 1000);
+
             right_arm_controller.CloseGripper();
             std::this_thread::sleep_for(std::chrono::milliseconds(1000));
             right_arm_controller.HoldItem();
             std::this_thread::sleep_for(std::chrono::milliseconds(4000));
             right_arm_controller.OpenGripper();
-            right_arm_controller.Default();
-            legs_controller.Stand();
+            // right_arm_controller.Default();
+            // legs_controller.Stand();
+
+            Action::GetInstance()->Start(ACTION_PAGE_STAND);
+            while (Action::GetInstance()->IsRunning())
+                usleep(8 * 1000);
 
             MotionManager::GetInstance()->AddModule(static_cast<MotionModule *>(Walking::GetInstance()));
             MotionManager::GetInstance()->SetEnable(true);
