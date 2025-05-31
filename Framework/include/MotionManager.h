@@ -16,6 +16,7 @@
 #include "MotionModule.h"
 #include "CM730.h"
 #include "minIni.h"
+#include <map>
 
 #define OFFSET_SECTION "Offset"
 #define INVALID_VALUE -1024.0
