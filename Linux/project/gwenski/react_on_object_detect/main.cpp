@@ -146,13 +146,12 @@ void handleBottleInteraction(BottleTaskState &state,
         case BottleTaskState::WALKING_TO_BOTTLE:
         {
             // This threshold is critical and must be tuned carefully!
-            const double PICKUP_DISTANCE_THRESHOLD = 0.25; // in meters
+            const double PICKUP_DISTANCE_THRESHOLD = 0.20; // in meters
 
             if (!is_bottle_detected)
             {
                 std::cout << "INFO: Lost sight of bottle, stopping walk." << std::endl;
                 Walking::GetInstance()->Stop();
-                MotionManager::GetInstance()->SetEnable(false); // Enable motion for walking
 
                 follower.Process(Point2D(-1.0, -1.0)); // Tell follower no target
                 state = BottleTaskState::IDLE;
@@ -164,7 +163,6 @@ void handleBottleInteraction(BottleTaskState &state,
             {
                 std::cout << "INFO: Reached bottle (" << distance << "m). Stopping walk and preparing for pickup." << std::endl;
                 Walking::GetInstance()->Stop();
-                MotionManager::GetInstance()->SetEnable(false); // Disable motion manager
 
                 // IMPORTANT: Wait for the robot to become fully stationary
                 while (Walking::GetInstance()->IsRunning())
@@ -212,6 +210,7 @@ void handleBottleInteraction(BottleTaskState &state,
 
         case BottleTaskState::DONE:
             MotionManager::GetInstance()->RemoveModule(static_cast<MotionModule *>(Walking::GetInstance()));
+            MotionManager::GetInstance()->SetEnable(false);
             return;
         }
     }
