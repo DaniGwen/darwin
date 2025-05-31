@@ -120,98 +120,100 @@ void handleBottleInteraction(BottleTaskState &state,
 
     // Enable walking here because it interfires with Action class, must be disabled after usage
     MotionManager::GetInstance()->AddModule(static_cast<MotionModule *>(Walking::GetInstance()));
-    Walking::GetInstance()->m_Joint.SetEnableBodyWithoutHead(true, true);
 
-    // Get distance and detection status from the head tracker
-    double distance = head_tracker->GetDetectedObjectDistance();
-    bool is_bottle_detected = (head_tracker->GetDetectedLabel() == "bottle" && distance > 0);
-
-    // --- State Machine for Bottle Interaction ---
-    switch (state)
+    while (true)
     {
-    case BottleTaskState::IDLE:
-        if (is_bottle_detected)
+        // Get distance and detection status from the head tracker
+        double distance = head_tracker->GetDetectedObjectDistance();
+        bool is_bottle_detected = (head_tracker->GetDetectedLabel() == "bottle" && distance > 0);
+
+        // --- State Machine for Bottle Interaction ---
+        switch (state)
         {
-            std::cout << "INFO: New bottle detected. Starting approach." << std::endl;
-            state = BottleTaskState::WALKING_TO_BOTTLE;
-            MotionManager::GetInstance()->SetEnable(true); // Enable motion for walking
-        }
-        break;
-
-    case BottleTaskState::WALKING_TO_BOTTLE:
-    {
-        // This threshold is critical and must be tuned carefully!
-        const double PICKUP_DISTANCE_THRESHOLD = 0.25; // in meters
-
-        if (!is_bottle_detected)
-        {
-            std::cout << "INFO: Lost sight of bottle, stopping walk." << std::endl;
-            Walking::GetInstance()->Stop();
-            follower.Process(Point2D(-1.0, -1.0)); // Tell follower no target
-            state = BottleTaskState::IDLE;
-            break;
-        }
-
-        // Check if we are close enough to pick up the bottle
-        if (distance <= PICKUP_DISTANCE_THRESHOLD)
-        {
-            std::cout << "INFO: Reached bottle (" << distance << "m). Stopping walk and preparing for pickup." << std::endl;
-            Walking::GetInstance()->Stop();
-
-            // IMPORTANT: Wait for the robot to become fully stationary
-            while (Walking::GetInstance()->IsRunning())
+        case BottleTaskState::IDLE:
+            if (is_bottle_detected)
             {
-                std::this_thread::sleep_for(std::chrono::milliseconds(10));
+                std::cout << "INFO: New bottle detected. Starting approach." << std::endl;
+                state = BottleTaskState::WALKING_TO_BOTTLE;
+                MotionManager::GetInstance()->SetEnable(true); // Enable motion for walking
             }
-            std::cout << "INFO: Walk stopped. Transitioning to PICKING_UP state." << std::endl;
-            state = BottleTaskState::PICKING_UP;
-            break; // Exit and let the next loop iteration handle the PICKING_UP state
-        }
+            break;
 
-        // If we are still too far, continue walking
-        Point2D object_angular_error = head_tracker->GetLastDetectedObjectAngularError();
-        if (object_angular_error.X != -1.0)
+        case BottleTaskState::WALKING_TO_BOTTLE:
         {
-            // This tells the Walking module how to adjust its steps
-            follower.Process(object_angular_error);
-        }
-    }
-    break;
+            // This threshold is critical and must be tuned carefully!
+            const double PICKUP_DISTANCE_THRESHOLD = 0.25; // in meters
 
-    case BottleTaskState::PICKING_UP:
-    {
-        std::cout << "INFO: Performing pickup sequence." << std::endl;
+            if (!is_bottle_detected)
+            {
+                std::cout << "INFO: Lost sight of bottle, stopping walk." << std::endl;
+                Walking::GetInstance()->Stop();
+                follower.Process(Point2D(-1.0, -1.0)); // Tell follower no target
+                state = BottleTaskState::IDLE;
+                break;
+            }
 
-        legs_controller.ReadyToPickUpItem();
-        right_arm_controller.PositionHandAway();
-        right_arm_controller.RotateWrist90Deg();
-        right_arm_controller.OpenGripper();
-        right_arm_controller.HandReach();
-        std::this_thread::sleep_for(std::chrono::milliseconds(2000));
-        right_arm_controller.CloseGripper();
-        std::this_thread::sleep_for(std::chrono::milliseconds(1000));
-        right_arm_controller.HoldItem();
-        std::this_thread::sleep_for(std::chrono::milliseconds(4000));
-        right_arm_controller.OpenGripper();
-        right_arm_controller.Default();
-        legs_controller.Stand();
+            // Check if we are close enough to pick up the bottle
+            if (distance <= PICKUP_DISTANCE_THRESHOLD)
+            {
+                std::cout << "INFO: Reached bottle (" << distance << "m). Stopping walk and preparing for pickup." << std::endl;
+                Walking::GetInstance()->Stop();
 
-        current_action_label = "bottle_pickup_complete";
-        last_action_time = current_time;
-        state = BottleTaskState::DONE;
-    }
-    break;
+                // IMPORTANT: Wait for the robot to become fully stationary
+                while (Walking::GetInstance()->IsRunning())
+                {
+                    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+                }
+                std::cout << "INFO: Walk stopped. Transitioning to PICKING_UP state." << std::endl;
+                state = BottleTaskState::PICKING_UP;
+                break; // Exit and let the next loop iteration handle the PICKING_UP state
+            }
 
-    case BottleTaskState::DONE:
-        MotionManager::GetInstance()->RemoveModule(static_cast<MotionModule *>(Walking::GetInstance()));
-
-        // The task is complete. The main loop can now decide what to do next,
-        // such as resetting to IDLE to look for another bottle.
-        if (MotionManager::GetInstance()->GetEnable() == true)
-        {
-            MotionManager::GetInstance()->SetEnable(false); // Disable motion manager
+            // If we are still too far, continue walking
+            Point2D object_angular_error = head_tracker->GetLastDetectedObjectAngularError();
+            if (object_angular_error.X != -1.0)
+            {
+                // This tells the Walking module how to adjust its steps
+                follower.Process(object_angular_error);
+            }
         }
         break;
+
+        case BottleTaskState::PICKING_UP:
+        {
+            std::cout << "INFO: Performing pickup sequence." << std::endl;
+
+            legs_controller.ReadyToPickUpItem();
+            right_arm_controller.PositionHandAway();
+            right_arm_controller.RotateWrist90Deg();
+            right_arm_controller.OpenGripper();
+            right_arm_controller.HandReach();
+            std::this_thread::sleep_for(std::chrono::milliseconds(2000));
+            right_arm_controller.CloseGripper();
+            std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+            right_arm_controller.HoldItem();
+            std::this_thread::sleep_for(std::chrono::milliseconds(4000));
+            right_arm_controller.OpenGripper();
+            right_arm_controller.Default();
+            legs_controller.Stand();
+
+            current_action_label = "bottle_pickup_complete";
+            last_action_time = current_time;
+            state = BottleTaskState::DONE;
+        }
+        break;
+
+        case BottleTaskState::DONE:
+            MotionManager::GetInstance()->RemoveModule(static_cast<MotionModule *>(Walking::GetInstance()));
+
+            // The task is complete. The main loop can now decide what to do next,
+            // such as resetting to IDLE to look for another bottle.
+            if (MotionManager::GetInstance()->GetEnable() == true)
+            {
+                MotionManager::GetInstance()->SetEnable(false); // Disable motion manager
+            }
+            return;
+        }
     }
 }
 
