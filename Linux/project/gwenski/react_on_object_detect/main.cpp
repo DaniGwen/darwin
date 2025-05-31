@@ -43,8 +43,6 @@
 #define ACTION_PAGE_BOTTLE 14
 #define ACTION_PAGE_STAND 1 // Example standby/initial pose action
 
-BottleTaskState current_bottle_task_state = BottleTaskState::IDLE;
-
 enum class BottleTaskState
 {
     IDLE,              // Doing nothing, or searching
@@ -113,12 +111,13 @@ void handlePersonDetected(LeftArmController &left_arm_controller,
 void handleBottleInteraction(BottleTaskState &state,
                              LegsController &legs_controller,
                              RightArmController &right_arm_controller,
-                             BallFollower &follower,
                              HeadTracking *head_tracker,
                              std::string &current_action_label,
                              std::chrono::steady_clock::time_point &last_action_time,
                              const std::chrono::steady_clock::time_point &current_time)
 {
+    BallFollower follower = BallFollower();
+
     // Get distance and detection status from the head tracker
     double distance = head_tracker->GetDetectedObjectDistance();
     bool is_bottle_detected = (head_tracker->GetDetectedLabel() == "bottle" && distance > 0);
@@ -232,6 +231,8 @@ void handleNoTargetOrStandby(std::string &current_action_label,
     last_action_time = current_time;
 }
 
+BottleTaskState current_bottle_task_state = BottleTaskState::IDLE;
+
 int main(void)
 {
     printf("\n===== Head tracking with Object Detection via Unix Domain Socket (Multithreaded) =====\n\n"); //
@@ -273,7 +274,7 @@ int main(void)
     motion_manager->AddModule((MotionModule *)action_module);
     motion_manager->AddModule(static_cast<MotionModule *>(Walking::GetInstance()));
 
-    BallFollower *follower = BallFollower::GetInstance();
+    Walking::GetInstance()->m_Joint.SetEnableBodyWithoutHead(true, true);
 
     MotionManager::GetInstance()->SetEnable(true);
 
@@ -334,8 +335,8 @@ int main(void)
 
     while (1)
     {
-        std::string detected_object_label = head_tracker->GetDetectedLabel(); //
-        double distance = 0;                                                  //
+        std::string detected_object_label = head_tracker->GetDetectedLabel();
+        double distance = 0;
 
         if (detected_object_label != "none")
         {
@@ -348,8 +349,8 @@ int main(void)
         }
 
         detected_object_label.erase(std::remove_if(detected_object_label.begin(), detected_object_label.end(), [](unsigned char c) //
-                                                   { return std::isspace(c); }),                                                   //
-                                    detected_object_label.end());                                                                  //
+                                                   { return std::isspace(c); }),
+                                    detected_object_label.end());
 
         auto current_time = std::chrono::steady_clock::now();
         bool can_perform_action = (current_time - last_action_time) >= action_cooldown;
@@ -407,7 +408,6 @@ int main(void)
             handleBottleInteraction(current_bottle_task_state,
                                     legs_controller,
                                     right_arm_controller,
-                                    follower,
                                     head_tracker,
                                     current_action_label,
                                     last_action_time,
