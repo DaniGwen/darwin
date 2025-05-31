@@ -103,6 +103,8 @@ void handlePersonDetected(LeftArmController &left_arm_controller,
 
 void handleBottleDetected(LegsController &legs_controller,
                           RightArmController &right_arm_controller,
+                          BallFollower &follower,
+                          HeadTracking *head_tracker,
                           double distance,
                           std::string &current_action_label,
                           std::chrono::steady_clock::time_point &last_action_time,
@@ -120,14 +122,22 @@ void handleBottleDetected(LegsController &legs_controller,
 
     std::cout << "INFO: Detected bottle. Performing pickup sequence." << std::endl;
 
-    legs_controller.InitializeWalking(ini);                                                       // Initialize walking parameters from INI file.
-    MotionManager::GetInstance()->AddModule(static_cast<MotionModule *>(Walking::GetInstance())); // Need to load the Walking module to MotionManager in order to use it in LegsController
-    MotionManager::GetInstance()->SetEnable(true);                                                // Enable MotionManager to allow walking
+    MotionManager::GetInstance()->SetEnable(true); // Enable MotionManager to allow walking
+    Point2D object_angular_error = head_tracker->GetLastDetectedObjectAngularError();
 
-    legs_controller.TurnLeft();
-    std::this_thread::sleep_for(std::chrono::milliseconds(450));
-    legs_controller.StopWalk();
-    std::this_thread::sleep_for(std::chrono::milliseconds(500));
+    if (object_angular_error.X != -1.0)
+    {
+        follower.Process(object_angular_error);
+    }
+    else
+    {
+        // No bottle, or invalid position from HeadTracking
+        if (Walking::GetInstance()->IsRunning())
+        {
+            printf("No bottle in sight or lost, stopping walk.\n");
+        }
+        follower->Process(Point2D(-1.0, -1.0)); // Tell follower no target
+    }
 
     MotionManager::GetInstance()->SetEnable(false); // Enable MotionManager to allow walking
 
@@ -211,6 +221,9 @@ int main(void)
 
     motion_manager->LoadINISettings(ini);
     motion_manager->AddModule((MotionModule *)action_module);
+    motion_manager->AddModule(static_cast<MotionModule *>(Walking::GetInstance()));
+
+    BallFollower *follower = BallFollower::GetInstance();
 
     MotionManager::GetInstance()->SetEnable(true);
 
@@ -341,7 +354,7 @@ int main(void)
         }
         else if (detected_object_label == "bottle" && bottle_detect_count >= detect_threshold && current_action_label != "bottle" && can_perform_action) //
         {
-            handleBottleDetected(legs_controller, right_arm_controller, distance, current_action_label, last_action_time, bottle_detect_count, current_time, ini);
+            handleBottleDetected(legs_controller, right_arm_controller, follower, distance, current_action_label, last_action_time, bottle_detect_count, current_time, ini);
         }
         else if (detected_object_label == "dog" && dog_detect_count >= detect_threshold && current_action_label != "dog" && can_perform_action)
         {

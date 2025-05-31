@@ -121,7 +121,8 @@ namespace Robot
           last_motor_command_time_(std::chrono::steady_clock::now()),
           motor_command_interval_ms_(100),
           camera_focal_length_px_(700.0),
-          current_object_distance_m_(-1.0)
+          current_object_distance_m_(-1.0,
+                                     m_last_object_angular_error(-1.0, -1.0))
     {
         // Constructor is intentionally minimal.
         // initialization should be done in the Initialize() method.
@@ -659,6 +660,18 @@ namespace Robot
                 P_err.Y *= tilt_error_scale_;
             }
 
+            std::lock_guard<std::mutex> lock(m_data_access_mutex);
+            if (target_found_in_frame && primary_detected_label == "bottle")
+            {                                            // Only update if a bottle is the primary target
+                m_last_object_angular_error.X = P_err.X; // This P_err should be the angular error in degrees
+                m_last_object_angular_error.Y = P_err.Y;
+            }
+            else
+            {
+                m_last_object_angular_error.X = -1.0; // Indicate no valid target
+                m_last_object_angular_error.Y = -1.0;
+            }
+
             UpdateHeadAngles(P_err);
             std::cout << "DEBUG: Head Moving: P_err.X=" << P_err.X << ", P_err.Y=" << P_err.Y << std::endl;
         }
@@ -708,6 +721,7 @@ namespace Robot
 
     std::string HeadTracking::GetDetectedLabel()
     {
+        std::lock_guard<std::mutex> lock(m_data_access_mutex);
         return current_detected_label_;
     }
 
@@ -960,6 +974,12 @@ namespace Robot
         {
             std::cout << "INFO: HeadTracking::LoadDistanceEstimationSettings - Object: " << pair.first << ", Height: " << pair.second << " m" << std::endl;
         }
+    }
+
+    Point2D HeadTracking::GetLastDetectedObjectAngularError()
+    {
+        std::lock_guard<std::mutex> lock(m_data_access_mutex);
+        return m_last_object_angular_error;
     }
 
 }

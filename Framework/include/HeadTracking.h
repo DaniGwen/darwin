@@ -60,6 +60,8 @@ namespace Robot
         // Now only takes minIni and CM730, as Head module is integrated.
         bool Initialize(minIni *ini, CM730 *cm730);
 
+        Point2D GetLastDetectedObjectAngularError(); // Used with BallFoller 
+
         // Main tracking loop
         void Run();
 
@@ -148,6 +150,8 @@ namespace Robot
 
         std::chrono::steady_clock::time_point last_motor_command_time_;
         int motor_command_interval_ms_; // Interval for sending motor commands (in milliseconds)
+        mutable std::mutex m_data_access_mutex;
+        Point2D m_last_object_angular_error; // Stores Pan and Tilt error in degrees
 
         // --- Private Helper Methods (implementing Head.cpp functionality) ---
 
@@ -168,7 +172,7 @@ namespace Robot
         // Helper to receive exact number of bytes from socket
         std::string ReceiveExact(int sock_fd, size_t num_bytes);
 
-         void LoadDistanceEstimationSettings(minIni* ini);
+        void LoadDistanceEstimationSettings(minIni *ini);
 
         // New methods to replace Head.cpp functionality:
         void LoadHeadSettings(minIni *ini);              // Load head-specific settings from INI
