@@ -117,7 +117,7 @@ namespace Robot
           current_tracked_object_center_(0.0, 0.0),
           detection_score_(0),
           last_motor_command_time_(std::chrono::steady_clock::now()),
-          motor_command_interval_ms_(100),
+          motor_command_interval_ms_(60),
           camera_focal_length_px_(700.0),
           current_object_distance_m_(-1.0),
           m_last_object_angular_error(-1.0, -1.0)
@@ -945,7 +945,7 @@ namespace Robot
         {
             cm730_->WriteByte(joint_id, MX28::P_P_GAIN, 10, 0);
             cm730_->WriteByte(joint_id, MX28::P_D_GAIN, 10, 0);
-            cm730_->WriteWord(joint_id, MX28::P_MOVING_SPEED_L, 300, 0); // Value 0 means max speed. 1~1023 for controlled speed.
+            cm730_->WriteWord(joint_id, MX28::P_MOVING_SPEED_L, 200, 0); // Value 0 means max speed. 1~1023 for controlled speed.
         }
     }
 
