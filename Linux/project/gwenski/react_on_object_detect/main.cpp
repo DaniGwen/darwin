@@ -118,10 +118,6 @@ void handleBottleInteraction(BottleTaskState &state,
 {
     BallFollower follower = BallFollower();
 
-    // IMPORTANT! Enable walking here because it interfires with Action class, must be disabled after usage
-    MotionManager::GetInstance()->AddModule(static_cast<MotionModule *>(Walking::GetInstance()));
-    Walking::GetInstance()->m_Joint.SetEnableBodyWithoutHead(true, true);
-
     while (true)
     {
         // Get distance and detection status from the head tracker
@@ -143,6 +139,11 @@ void handleBottleInteraction(BottleTaskState &state,
         {
             // This threshold is critical and must be tuned carefully!
             const double PICKUP_DISTANCE_THRESHOLD = 0.25; // in meters
+
+            // IMPORTANT! Enable walking here because it interfires with Action class, must be disabled after usage
+            MotionManager::GetInstance()->AddModule(static_cast<MotionModule *>(Walking::GetInstance()));
+            MotionManager::GetInstance()->SetEnable(true);
+            Walking::GetInstance()->m_Joint.SetEnableBodyWithoutHead(true, true);
 
             if (!is_bottle_detected)
             {
