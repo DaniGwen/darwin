@@ -72,18 +72,18 @@ namespace Robot
 
         const Pose POSE_READY_TO_PICKUP_STAND = {
             std::map<int, int>{
-                {JointData::ID_R_HIP_YAW, 2095},
-                {JointData::ID_L_HIP_YAW, 1790},
-                {JointData::ID_R_HIP_ROLL, 2015},
-                {JointData::ID_L_HIP_ROLL, 2039},
-                {JointData::ID_R_HIP_PITCH, 1708},
-                {JointData::ID_L_HIP_PITCH, 2610},
-                {JointData::ID_R_KNEE, 2727},
-                {JointData::ID_L_KNEE, 1254},
-                {JointData::ID_R_ANKLE_PITCH, 2514},
-                {JointData::ID_L_ANKLE_PITCH, 1706},
-                {JointData::ID_R_ANKLE_ROLL, 2094},
-                {JointData::ID_L_ANKLE_ROLL, 2027}}};
+                {JointData::ID_R_HIP_YAW, 2401},
+                {JointData::ID_L_HIP_YAW, 2077},
+                {JointData::ID_R_HIP_ROLL, 2055},
+                {JointData::ID_L_HIP_ROLL, 1981},
+                {JointData::ID_R_HIP_PITCH, 1569},
+                {JointData::ID_L_HIP_PITCH, 2682},
+                {JointData::ID_R_KNEE, 2836},
+                {JointData::ID_L_KNEE, 1224},
+                {JointData::ID_R_ANKLE_PITCH, 2467},
+                {JointData::ID_L_ANKLE_PITCH, 1747},
+                {JointData::ID_R_ANKLE_ROLL, 2170},
+                {JointData::ID_L_ANKLE_ROLL, 2001}}};
     };
 
 } // namespace Robot
