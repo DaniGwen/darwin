@@ -120,6 +120,7 @@ void handleBottleInteraction(BottleTaskState &state,
 
     // Enable walking here because it interfires with Action class, must be disabled after usage
     MotionManager::GetInstance()->AddModule(static_cast<MotionModule *>(Walking::GetInstance()));
+    Walking::GetInstance()->m_Joint.SetEnableBodyWithoutHead(true, true);
 
     while (true)
     {
@@ -181,6 +182,9 @@ void handleBottleInteraction(BottleTaskState &state,
 
         case BottleTaskState::PICKING_UP:
         {
+            MotionManager::GetInstance()->RemoveModule(static_cast<MotionModule *>(Walking::GetInstance()));
+            MotionManager::GetInstance()->SetEnable(false); // Disable motion manager
+
             std::cout << "INFO: Performing pickup sequence." << std::endl;
 
             legs_controller.ReadyToPickUpItem();
