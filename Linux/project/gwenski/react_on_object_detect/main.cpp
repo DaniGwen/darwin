@@ -191,7 +191,8 @@ void handleBottleInteraction(BottleTaskState &state,
             MotionManager::GetInstance()->SetEnable(false);
 
             std::cout << GREEN << "INFO: Performing pickup sequence." << RESET << std::endl;
-
+            legs_controller.TurnLeft(30);
+            std::this_thread::sleep_for(std::chrono::milliseconds(600));
             legs_controller.ReadyToPickUpItem();
             right_arm_controller.PositionHandAway();
             right_arm_controller.RotateWrist90Deg();
@@ -295,6 +296,7 @@ int main(void)
     LeftArmController left_arm_controller(&cm730);
     RightArmController right_arm_controller(&cm730);
     LegsController legs_controller(&cm730);
+    legs_controller.InitializeWalking(ini);
 
     HeadTracking *head_tracker = HeadTracking::GetInstance();
 
