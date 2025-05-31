@@ -333,7 +333,7 @@ int main(void)
     int sports_ball_detect_count = 0;
     // Add other detection counters here if needed
 
-    const int detect_threshold = 10;
+    const int detect_threshold = 6;
 
     while (1)
     {
