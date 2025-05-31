@@ -22,11 +22,11 @@ namespace Robot
         LegsController(CM730 *cm730);
         virtual ~LegsController();
 
-        void ApplyPose(const Pose &pose, int speed = 100);
+        void ApplyPose(const Pose &pose, int speed = 100, int p_gain = JointData::P_GAIN_DEFAULT);
         void SetPID(int p_gain = JointData::P_GAIN_DEFAULT);
 
         // --- Standard Poses ---
-        void Stand(int moving_speed = 100, int p_gain = 40);
+        void Stand(int moving_speed = 100, int p_gain = 50);
         void ReadyToPickUpItem(int moving_speed = 100, int p_gain = 40);
 
         // --- Walking Control Methods ---
@@ -72,18 +72,18 @@ namespace Robot
 
         const Pose POSE_READY_TO_PICKUP_STAND = {
             std::map<int, int>{
-                {JointData::ID_R_HIP_YAW, 2101},
-                {JointData::ID_L_HIP_YAW, 1914},
-                {JointData::ID_R_HIP_ROLL, 2012},
-                {JointData::ID_L_HIP_ROLL, 2045},
-                {JointData::ID_R_HIP_PITCH, 1398},
-                {JointData::ID_L_HIP_PITCH, 2665},
-                {JointData::ID_R_KNEE, 2628},
-                {JointData::ID_L_KNEE, 1421},
-                {JointData::ID_R_ANKLE_PITCH, 2222},
-                {JointData::ID_L_ANKLE_PITCH, 1830},
-                {JointData::ID_R_ANKLE_ROLL, 2069},
-                {JointData::ID_L_ANKLE_ROLL, 2003}}};
+                {JointData::ID_R_HIP_YAW, 2095},
+                {JointData::ID_L_HIP_YAW, 1790},
+                {JointData::ID_R_HIP_ROLL, 2015},
+                {JointData::ID_L_HIP_ROLL, 2039},
+                {JointData::ID_R_HIP_PITCH, 1708},
+                {JointData::ID_L_HIP_PITCH, 2610},
+                {JointData::ID_R_KNEE, 2727},
+                {JointData::ID_L_KNEE, 1254},
+                {JointData::ID_R_ANKLE_PITCH, 2514},
+                {JointData::ID_L_ANKLE_PITCH, 1706},
+                {JointData::ID_R_ANKLE_ROLL, 2094},
+                {JointData::ID_L_ANKLE_ROLL, 2027}}};
     };
 
 } // namespace Robot

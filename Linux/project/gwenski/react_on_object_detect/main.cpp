@@ -187,8 +187,6 @@ void handleBottleInteraction(BottleTaskState &state,
         case BottleTaskState::PICKING_UP:
         {
             std::cout << GREEN << "INFO: Performing pickup sequence." << RESET << std::endl;
-            legs_controller.TurnLeft(30);
-            std::this_thread::sleep_for(std::chrono::milliseconds(600));
 
              // Must disable MotionManager to free the motors for manual actions
             MotionManager::GetInstance()->RemoveModule(static_cast<MotionModule *>(Walking::GetInstance()));

@@ -26,7 +26,7 @@ namespace Robot
         std::cout << BOLDGREEN << "INFO: LegsController destroyed." << RESET << std::endl;
     }
 
-    void LegsController::ApplyPose(const Pose &pose, int speed)
+    void LegsController::ApplyPose(const Pose &pose, int speed, int p_gain)
     {
         if (!cm730_)
         {
@@ -43,7 +43,7 @@ namespace Robot
         }
 
         // Define PID gains and Moving Speed for this combined command
-        const int DEFAULT_P_GAIN = 32;
+        int DEFAULT_P_GAIN = p_gain;
         const int DEFAULT_I_GAIN = 0;
         const int DEFAULT_D_GAIN = 0;
         const int RESERVED_BYTE = 0;
@@ -120,7 +120,7 @@ namespace Robot
         std::this_thread::sleep_for(std::chrono::milliseconds(100)); // Small delay
 
         SetPID(p_gain);
-        ApplyPose(POSE_LEGS_DEFAULT_STAND, moving_speed);
+        ApplyPose(POSE_LEGS_DEFAULT_STAND, moving_speed, p_gain);
 
         std::this_thread::sleep_for(std::chrono::milliseconds(1000));
     }
@@ -132,7 +132,7 @@ namespace Robot
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
         SetPID(p_gain);
-        ApplyPose(POSE_READY_TO_PICKUP_STAND, moving_speed);
+        ApplyPose(POSE_READY_TO_PICKUP_STAND, moving_speed, p_gain);
         std::this_thread::sleep_for(std::chrono::milliseconds(1500));
     }
 
