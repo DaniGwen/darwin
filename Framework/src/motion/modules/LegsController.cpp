@@ -122,7 +122,7 @@ namespace Robot
         SetPID(p_gain);
         ApplyPose(POSE_LEGS_DEFAULT_STAND, moving_speed, p_gain);
 
-        std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+        std::this_thread::sleep_for(std::chrono::milliseconds(1200));
     }
 
     void LegsController::ReadyToPickUpItem(int moving_speed, int p_gain)
