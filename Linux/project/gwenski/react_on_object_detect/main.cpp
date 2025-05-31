@@ -118,6 +118,10 @@ void handleBottleInteraction(BottleTaskState &state,
 {
     BallFollower follower = BallFollower();
 
+    // Enable walking here because it interfires with Action class, must be disabled after usage
+    MotionManager::GetInstance()->AddModule(static_cast<MotionModule *>(Walking::GetInstance()));
+    Walking::GetInstance()->m_Joint.SetEnableBodyWithoutHead(true, true);
+
     // Get distance and detection status from the head tracker
     double distance = head_tracker->GetDetectedObjectDistance();
     bool is_bottle_detected = (head_tracker->GetDetectedLabel() == "bottle" && distance > 0);
@@ -199,6 +203,8 @@ void handleBottleInteraction(BottleTaskState &state,
     break;
 
     case BottleTaskState::DONE:
+        MotionManager::GetInstance()->RemoveModule(static_cast<MotionModule *>(Walking::GetInstance()));
+
         // The task is complete. The main loop can now decide what to do next,
         // such as resetting to IDLE to look for another bottle.
         if (MotionManager::GetInstance()->GetEnable() == true)
@@ -272,9 +278,6 @@ int main(void)
 
     motion_manager->LoadINISettings(ini);
     motion_manager->AddModule((MotionModule *)action_module);
-    motion_manager->AddModule(static_cast<MotionModule *>(Walking::GetInstance()));
-
-    Walking::GetInstance()->m_Joint.SetEnableBodyWithoutHead(true, true);
 
     MotionManager::GetInstance()->SetEnable(true);
 
