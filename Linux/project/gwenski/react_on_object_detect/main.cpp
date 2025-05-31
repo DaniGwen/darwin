@@ -128,6 +128,8 @@ void handleBottleInteraction(BottleTaskState &state,
     {
         // Get distance and detection status from the head tracker
         double distance = head_tracker->GetDetectedObjectDistance();
+        std::cout << CYAN << "INFO: Detected object distance: " << distance << "m" << RESET << std::endl;
+
         bool is_bottle_detected = (head_tracker->GetDetectedLabel() == "bottle" && distance > 0);
 
         // --- State Machine for Bottle Interaction ---
@@ -136,7 +138,7 @@ void handleBottleInteraction(BottleTaskState &state,
         case BottleTaskState::IDLE:
             if (is_bottle_detected)
             {
-                std::cout << "INFO: New bottle detected. Starting approach." << std::endl;
+                std::cout << GREEN << "INFO: New bottle detected. Starting approach." << RESET << std::endl;
                 state = BottleTaskState::WALKING_TO_BOTTLE;
             }
             break;
@@ -180,13 +182,6 @@ void handleBottleInteraction(BottleTaskState &state,
             {
                 // This tells the Walking module how to adjust its steps
                 follower.Process(object_angular_error);
-
-                // START WALKING if not already started
-                if (!Walking::GetInstance()->IsRunning())
-                {
-                    Walking::GetInstance()->Start();
-                    std::cout << "INFO: Starting to walk towards the bottle." << std::endl;
-                }
             }
         }
         break;
