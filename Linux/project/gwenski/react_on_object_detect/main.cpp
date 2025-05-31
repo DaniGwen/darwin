@@ -146,7 +146,7 @@ void handleBottleInteraction(BottleTaskState &state,
         case BottleTaskState::WALKING_TO_BOTTLE:
         {
             // This threshold is critical and must be tuned carefully!
-            const double PICKUP_DISTANCE_THRESHOLD = 0.20; // in meters
+            const double PICKUP_DISTANCE_THRESHOLD = 0.27; // in meters
 
             if (!is_bottle_detected)
             {
@@ -171,7 +171,7 @@ void handleBottleInteraction(BottleTaskState &state,
                 }
                 std::cout << "INFO: Walk stopped. Transitioning to PICKING_UP state." << std::endl;
                 state = BottleTaskState::PICKING_UP;
-                break; // Exit and let the next loop iteration handle the PICKING_UP state
+                break;
             }
 
             // If we are still too far, continue walking
