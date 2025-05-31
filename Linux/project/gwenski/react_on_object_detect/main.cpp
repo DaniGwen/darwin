@@ -209,8 +209,8 @@ void handleBottleInteraction(BottleTaskState &state,
             // right_arm_controller.HandReach();
             // std::this_thread::sleep_for(std::chrono::milliseconds(2000));
 
+            MotionManager::GetInstance()->RemoveModule(static_cast<MotionModule *>(Walking::GetInstance()));
             run_action(ACTION_PAGE_READY_TO_PICKUP);
-
             setEnableMotionManagerAndWalking(false);
 
             right_arm_controller.CloseGripper();
@@ -221,8 +221,8 @@ void handleBottleInteraction(BottleTaskState &state,
             // right_arm_controller.Default();
             // legs_controller.Stand();
 
-            setEnableMotionManagerAndWalking(true);
             run_action(ACTION_PAGE_STAND);
+            setEnableMotionManagerAndWalking(true);
 
             current_action_label = "bottle_pickup_complete";
             last_action_time = current_time;
