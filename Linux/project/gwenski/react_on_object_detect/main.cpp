@@ -146,7 +146,7 @@ void handleBottleInteraction(BottleTaskState &state,
         case BottleTaskState::WALKING_TO_BOTTLE:
         {
             // This threshold is critical and must be tuned carefully!
-            const double PICKUP_DISTANCE_THRESHOLD = 0.30; // in meters
+            const double PICKUP_DISTANCE_THRESHOLD = 0.27; // in meters
 
             if (!is_bottle_detected)
             {
