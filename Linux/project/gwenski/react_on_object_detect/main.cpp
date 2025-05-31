@@ -52,6 +52,20 @@ enum class BottleTaskState
     DONE               // Task completed successfully
 };
 
+void setEnableMotionManagerAndWalking(bool enable)
+{
+    if (enable)
+    {
+        MotionManager::GetInstance()->AddModule(static_cast<MotionModule *>(Walking::GetInstance()));
+        MotionManager::GetInstance()->SetEnable(true);
+    }
+    else
+    {
+        MotionManager::GetInstance()->RemoveModule(static_cast<MotionModule *>(Walking::GetInstance()));
+        MotionManager::GetInstance()->SetEnable(false);
+    }
+}
+
 void change_current_dir()
 {
     char exepath[1024] = {0};
@@ -120,8 +134,7 @@ void handleBottleInteraction(BottleTaskState &state,
     BallFollower follower = BallFollower();
 
     // IMPORTANT! Enable walking here because it interfires with Action class, must be disabled after usage
-    MotionManager::GetInstance()->AddModule(static_cast<MotionModule *>(Walking::GetInstance()));
-    MotionManager::GetInstance()->SetEnable(true);
+    setEnableMotionManagerAndWalking(true);
     MotionManager::GetInstance()->SetJointEnableState(JointData::ID_HEAD_TILT, false);
     MotionManager::GetInstance()->SetJointEnableState(JointData::ID_HEAD_PAN, false);
 
@@ -190,8 +203,8 @@ void handleBottleInteraction(BottleTaskState &state,
             std::cout << GREEN << "INFO: Performing pickup sequence." << RESET << std::endl;
 
             // Must disable MotionManager to free the motors for manual actions
-            MotionManager::GetInstance()->RemoveModule(static_cast<MotionModule *>(Walking::GetInstance()));
-            MotionManager::GetInstance()->SetEnable(false);
+            setEnableMotionManagerAndWalking(false);
+            MotionManager::GetInstance()->SetEnable(true);
 
             // legs_controller.ReadyToPickUpItem();
             // right_arm_controller.PositionHandAway();
