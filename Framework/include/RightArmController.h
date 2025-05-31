@@ -60,10 +60,10 @@ namespace Robot
 
         const Pose POSE_HOLD_ITEM = {
             std::map<int, int>{
-                {JointData::ID_R_SHOULDER_PITCH, 1962},
-                {JointData::ID_R_SHOULDER_ROLL, 1965},
-                {JointData::ID_R_ELBOW, 2379},
-                {JointData::ID_R_WRIST, 3333},
+                {JointData::ID_R_SHOULDER_PITCH, 1921},
+                {JointData::ID_R_SHOULDER_ROLL, 2023},
+                {JointData::ID_R_ELBOW, 2652},
+                {JointData::ID_R_WRIST, 3100},
                 {JointData::ID_R_GRIPPER, 2109}}};
 
         const Pose DEFAULT = {
