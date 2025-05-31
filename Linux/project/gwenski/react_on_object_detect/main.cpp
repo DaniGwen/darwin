@@ -118,7 +118,7 @@ void handleBottleInteraction(BottleTaskState &state,
 {
     BallFollower follower = BallFollower();
 
-    // Enable walking here because it interfires with Action class, must be disabled after usage
+    // IMPORTANT! Enable walking here because it interfires with Action class, must be disabled after usage
     MotionManager::GetInstance()->AddModule(static_cast<MotionModule *>(Walking::GetInstance()));
     Walking::GetInstance()->m_Joint.SetEnableBodyWithoutHead(true, true);
 
