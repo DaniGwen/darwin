@@ -117,9 +117,12 @@ void handleBottleInteraction(BottleTaskState &state,
                              const std::chrono::steady_clock::time_point &current_time)
 {
     BallFollower follower = BallFollower();
-    
+
     // IMPORTANT! Enable walking here because it interfires with Action class, must be disabled after usage
     MotionManager::GetInstance()->AddModule(static_cast<MotionModule *>(Walking::GetInstance()));
+    MotionManager::GetInstance()->SetEnable(true);
+    MotionManager::GetInstance()->SetJointEnableState(JointData::ID_HEAD_TILT, false);
+    MotionManager::GetInstance()->SetJointEnableState(JointData::ID_HEAD_PAN, false);
 
     while (true)
     {
@@ -143,14 +146,10 @@ void handleBottleInteraction(BottleTaskState &state,
             // This threshold is critical and must be tuned carefully!
             const double PICKUP_DISTANCE_THRESHOLD = 0.25; // in meters
 
-            Walking::GetInstance()->m_Joint.SetEnableBodyWithoutHead(true, true);
-            MotionManager::GetInstance()->SetEnable(true);
-
             if (!is_bottle_detected)
             {
                 std::cout << "INFO: Lost sight of bottle, stopping walk." << std::endl;
                 Walking::GetInstance()->Stop();
-                MotionManager::GetInstance()->RemoveModule(static_cast<MotionModule *>(Walking::GetInstance()));
                 MotionManager::GetInstance()->SetEnable(false); // Enable motion for walking
 
                 follower.Process(Point2D(-1.0, -1.0)); // Tell follower no target
@@ -163,7 +162,6 @@ void handleBottleInteraction(BottleTaskState &state,
             {
                 std::cout << "INFO: Reached bottle (" << distance << "m). Stopping walk and preparing for pickup." << std::endl;
                 Walking::GetInstance()->Stop();
-                MotionManager::GetInstance()->RemoveModule(static_cast<MotionModule *>(Walking::GetInstance()));
                 MotionManager::GetInstance()->SetEnable(false); // Disable motion manager
 
                 // IMPORTANT: Wait for the robot to become fully stationary
@@ -211,6 +209,7 @@ void handleBottleInteraction(BottleTaskState &state,
         break;
 
         case BottleTaskState::DONE:
+            MotionManager::GetInstance()->RemoveModule(static_cast<MotionModule *>(Walking::GetInstance()));
             return;
         }
     }

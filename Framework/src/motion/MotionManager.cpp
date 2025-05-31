@@ -288,7 +288,7 @@ void MotionManager::Process()
         int joint_num = 0;
         for(int id=JointData::ID_R_SHOULDER_PITCH; id<JointData::NUMBER_OF_JOINTS; id++)
         {
-            if(MotionStatus::m_CurrentJoints.GetEnable(id) == true)
+            if(MotionStatus::m_CurrentJoints.GetEnable(id) == true && this->IsJointEnabled(id) == true)
             {
                 param[n++] = id;
 #ifdef MX28_1024
