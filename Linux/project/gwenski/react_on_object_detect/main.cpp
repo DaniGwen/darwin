@@ -180,6 +180,13 @@ void handleBottleInteraction(BottleTaskState &state,
             {
                 // This tells the Walking module how to adjust its steps
                 follower.Process(object_angular_error);
+
+                // START WALKING if not already started
+                if (!Walking::GetInstance()->IsRunning())
+                {
+                    Walking::GetInstance()->Start();
+                    std::cout << "INFO: Starting to walk towards the bottle." << std::endl;
+                }
             }
         }
         break;
