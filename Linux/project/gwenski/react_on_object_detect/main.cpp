@@ -187,7 +187,7 @@ void handleBottleInteraction(BottleTaskState &state,
         case BottleTaskState::PICKING_UP:
         {
             // Must disable MotionManager to free the motors for manual actions
-            MotionManager::GetInstance()->RemoveModule(static_cast<MotionModule *>(Walking::GetInstance()));
+            //MotionManager::GetInstance()->RemoveModule(static_cast<MotionModule *>(Walking::GetInstance()));
             MotionManager::GetInstance()->SetEnable(false);
 
             std::cout << GREEN << "INFO: Performing pickup sequence." << RESET << std::endl;
