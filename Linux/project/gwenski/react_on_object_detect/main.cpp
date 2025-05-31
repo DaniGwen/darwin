@@ -43,6 +43,16 @@
 #define ACTION_PAGE_BOTTLE 14
 #define ACTION_PAGE_STAND 1 // Example standby/initial pose action
 
+BottleTaskState current_bottle_task_state = BottleTaskState::IDLE;
+
+enum class BottleTaskState
+{
+    IDLE,              // Doing nothing, or searching
+    WALKING_TO_BOTTLE, // Actively walking towards the bottle
+    PICKING_UP,        // Close enough, performing the pickup motion
+    DONE               // Task completed successfully
+};
+
 void change_current_dir()
 {
     char exepath[1024] = {0};
@@ -93,7 +103,6 @@ void handlePersonDetected(LeftArmController &left_arm_controller,
     std::cout << "INFO: Detected person consistently. Playing Wave" << std::endl;
 
     left_arm_controller.Wave();
-
     left_arm_controller.ToDefaultPose();
 
     current_action_label = "person";
@@ -101,63 +110,104 @@ void handlePersonDetected(LeftArmController &left_arm_controller,
     person_detect_count_ref = 0; // Reset counter
 }
 
-void handleBottleDetected(LegsController &legs_controller,
-                          RightArmController &right_arm_controller,
-                          BallFollower &follower,
-                          HeadTracking *head_tracker,
-                          double distance,
-                          std::string &current_action_label,
-                          std::chrono::steady_clock::time_point &last_action_time,
-                          int &bottle_detect_count_ref, // Pass by reference to reset
-                          const std::chrono::steady_clock::time_point &current_time,
-                          minIni *ini)
+void handleBottleInteraction(BottleTaskState &state,
+                             LegsController &legs_controller,
+                             RightArmController &right_arm_controller,
+                             BallFollower &follower,
+                             HeadTracking *head_tracker,
+                             std::string &current_action_label,
+                             std::chrono::steady_clock::time_point &last_action_time,
+                             const std::chrono::steady_clock::time_point &current_time)
 {
-    if (distance > 0.5)
-    {
-        std::cout << "INFO: Detected bottle too far (" << distance << "m), skipping action." << std::endl; //
-        // Not resetting counter here, to allow for re-evaluation if distance changes quickly.
-        // Not updating action label or time, as no action was fully performed.
-        return;
-    }
+    // Get distance and detection status from the head tracker
+    double distance = head_tracker->GetDetectedObjectDistance();
+    bool is_bottle_detected = (head_tracker->GetDetectedLabel() == "bottle" && distance > 0);
 
-    std::cout << "INFO: Detected bottle. Performing pickup sequence." << std::endl;
-
-    MotionManager::GetInstance()->SetEnable(true); // Enable MotionManager to allow walking
-    Point2D object_angular_error = head_tracker->GetLastDetectedObjectAngularError();
-
-    if (object_angular_error.X != -1.0)
+    // --- State Machine for Bottle Interaction ---
+    switch (state)
     {
-        follower.Process(object_angular_error);
-    }
-    else
-    {
-        // No bottle, or invalid position from HeadTracking
-        if (Walking::GetInstance()->IsRunning())
+    case BottleTaskState::IDLE:
+        if (is_bottle_detected)
         {
-            printf("No bottle in sight or lost, stopping walk.\n");
+            std::cout << "INFO: New bottle detected. Starting approach." << std::endl;
+            state = BottleTaskState::WALKING_TO_BOTTLE;
+            MotionManager::GetInstance()->SetEnable(true); // Enable motion for walking
         }
-        follower->Process(Point2D(-1.0, -1.0)); // Tell follower no target
+        break;
+
+    case BottleTaskState::WALKING_TO_BOTTLE:
+    {
+        // This threshold is critical and must be tuned carefully!
+        const double PICKUP_DISTANCE_THRESHOLD = 0.25; // in meters
+
+        if (!is_bottle_detected)
+        {
+            std::cout << "INFO: Lost sight of bottle, stopping walk." << std::endl;
+            Walking::GetInstance()->Stop();
+            follower.Process(Point2D(-1.0, -1.0)); // Tell follower no target
+            state = BottleTaskState::IDLE;
+            break;
+        }
+
+        // Check if we are close enough to pick up the bottle
+        if (distance <= PICKUP_DISTANCE_THRESHOLD)
+        {
+            std::cout << "INFO: Reached bottle (" << distance << "m). Stopping walk and preparing for pickup." << std::endl;
+            Walking::GetInstance()->Stop();
+
+            // IMPORTANT: Wait for the robot to become fully stationary
+            while (Walking::GetInstance()->IsRunning())
+            {
+                std::this_thread::sleep_for(std::chrono::milliseconds(10));
+            }
+            std::cout << "INFO: Walk stopped. Transitioning to PICKING_UP state." << std::endl;
+            state = BottleTaskState::PICKING_UP;
+            break; // Exit and let the next loop iteration handle the PICKING_UP state
+        }
+
+        // If we are still too far, continue walking
+        Point2D object_angular_error = head_tracker->GetLastDetectedObjectAngularError();
+        if (object_angular_error.X != -1.0)
+        {
+            // This tells the Walking module how to adjust its steps
+            follower.Process(object_angular_error);
+        }
     }
+    break;
 
-    MotionManager::GetInstance()->SetEnable(false); // Enable MotionManager to allow walking
+    case BottleTaskState::PICKING_UP:
+    {
+        std::cout << "INFO: Performing pickup sequence." << std::endl;
 
-    legs_controller.ReadyToPickUpItem();
-    right_arm_controller.PositionHandAway();
-    right_arm_controller.RotateWrist90Deg();
-    right_arm_controller.OpenGripper();
-    right_arm_controller.HandReach();
-    std::this_thread::sleep_for(std::chrono::milliseconds(2000));
-    right_arm_controller.CloseGripper();
-    std::this_thread::sleep_for(std::chrono::milliseconds(1000));
-    right_arm_controller.HoldItem();
-    std::this_thread::sleep_for(std::chrono::milliseconds(4000));
-    right_arm_controller.OpenGripper();
-    right_arm_controller.Default();
-    legs_controller.Stand();
+        legs_controller.ReadyToPickUpItem();
+        right_arm_controller.PositionHandAway();
+        right_arm_controller.RotateWrist90Deg();
+        right_arm_controller.OpenGripper();
+        right_arm_controller.HandReach();
+        std::this_thread::sleep_for(std::chrono::milliseconds(2000));
+        right_arm_controller.CloseGripper();
+        std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+        right_arm_controller.HoldItem();
+        std::this_thread::sleep_for(std::chrono::milliseconds(4000));
+        right_arm_controller.OpenGripper();
+        right_arm_controller.Default();
+        legs_controller.Stand();
 
-    current_action_label = "bottle";
-    last_action_time = current_time;
-    bottle_detect_count_ref = 0; // Reset counter
+        current_action_label = "bottle_pickup_complete";
+        last_action_time = current_time;
+        state = BottleTaskState::DONE;
+    }
+    break;
+
+    case BottleTaskState::DONE:
+        // The task is complete. The main loop can now decide what to do next,
+        // such as resetting to IDLE to look for another bottle.
+        if (MotionManager::GetInstance()->GetEnable() == true)
+        {
+            MotionManager::GetInstance()->SetEnable(false); // Disable motion manager
+        }
+        break;
+    }
 }
 
 void handleGenericObjectDetected(const std::string &label, int action_page,
@@ -348,13 +398,27 @@ int main(void)
         // Update other counters similarly
 
         // Action logic using encapsulated methods
-        if (detected_object_label == "person" && person_detect_count >= detect_threshold && current_action_label != "person" && can_perform_action) //
+        if (detected_object_label == "person" && person_detect_count >= detect_threshold && current_action_label != "person" && can_perform_action)
         {
             handlePersonDetected(left_arm_controller, current_action_label, last_action_time, person_detect_count, current_time);
         }
-        else if (detected_object_label == "bottle" && bottle_detect_count >= detect_threshold && current_action_label != "bottle" && can_perform_action) //
+        else if (detected_object_label == "bottle" && bottle_detect_count >= detect_threshold && current_action_label != "bottle" && can_perform_action)
         {
-            handleBottleDetected(legs_controller, right_arm_controller, follower, distance, current_action_label, last_action_time, bottle_detect_count, current_time, ini);
+            handleBottleInteraction(current_bottle_task_state,
+                                    legs_controller,
+                                    right_arm_controller,
+                                    follower,
+                                    head_tracker,
+                                    current_action_label,
+                                    last_action_time,
+                                    current_time);
+
+            if (current_bottle_task_state == BottleTaskState::DONE)
+            {
+                std::cout << "Task complete! Resetting to IDLE in 5 seconds." << std::endl;
+                std::this_thread::sleep_for(std::chrono::seconds(5));
+                current_bottle_task_state = BottleTaskState::IDLE;
+            }
         }
         else if (detected_object_label == "dog" && dog_detect_count >= detect_threshold && current_action_label != "dog" && can_perform_action)
         {
