@@ -78,7 +78,7 @@ void run_action(int action_page)
     MotionManager::GetInstance()->SetEnable(true);
 
     Action::GetInstance()->Start(action_page);
-    Action::GetInstance()->ReleaseHeadControl();  // Release head control to allow HeadTracking to manage it
+    Action::GetInstance()->ReleaseHeadControl(); // Release head control to allow HeadTracking to manage it
     while (Action::GetInstance()->IsRunning())
         usleep(8 * 1000);
 
@@ -189,11 +189,7 @@ void handleBottleInteraction(BottleTaskState &state,
 
             // If we are still too far, continue walking
             Point2D object_angular_error = head_tracker->GetLastDetectedObjectAngularError();
-            if (object_angular_error.X != -1.0)
-            {
-                // This tells the Walking module how to adjust its steps
-                follower.Process(object_angular_error);
-            }
+            follower.Process(object_angular_error);
         }
         break;
 
@@ -462,12 +458,12 @@ int main(void)
     }
 
     std::cout << "INFO: Main loop terminated. Waiting for HeadTracking thread to join..." << std::endl;
-    pthread_join(tracking_thread, NULL);                                                               
-    std::cout << "INFO: HeadTracking thread joined." << std::endl;                                     
+    pthread_join(tracking_thread, NULL);
+    std::cout << "INFO: HeadTracking thread joined." << std::endl;
 
-    std::cout << "INFO: Shutting down motion framework..." << std::endl;      
-    motion_timer->Stop();                                                   
-    MotionManager::GetInstance()->SetEnable(false);                           
+    std::cout << "INFO: Shutting down motion framework..." << std::endl;
+    motion_timer->Stop();
+    MotionManager::GetInstance()->SetEnable(false);
     MotionManager::GetInstance()->RemoveModule((MotionModule *)action_module);
 
     delete ini;
