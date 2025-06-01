@@ -37,6 +37,7 @@
 
 // Define action page numbers for different detected objects
 #define ACTION_PAGE_WAVE 7
+#define ACTION_PAGE_WAVE2 8
 #define ACTION_PAGE_DOG 11
 #define ACTION_PAGE_CAT 12
 #define ACTION_PAGE_SPORTS_BALL 13
@@ -119,7 +120,16 @@ void handlePersonDetected(LeftArmController &left_arm_controller,
 {
     std::cout << "INFO: Detected person consistently. Playing Wave" << std::endl;
 
-    run_action(ACTION_PAGE_WAVE);
+    int random = rand() % 2; // Randomly choose between two wave actions
+    if (random == 0)
+    {
+        run_action(ACTION_PAGE_WAVE);
+    }
+    else
+    {
+        run_action(ACTION_PAGE_WAVE2);
+    }
+
     std::chrono::milliseconds wave_duration(1000);
     run_action(ACTION_PAGE_STAND);
 
@@ -208,7 +218,7 @@ void handleBottleInteraction(BottleTaskState &state,
             setEnableMotionManagerAndWalking(false);
 
             right_arm_controller.OpenGripper();
-            //right_arm_controller.CenterHandInView();
+            // right_arm_controller.CenterHandInView();
 
             run_action(ACTION_PAGE_PICKUP_ITEM);
             std::this_thread::sleep_for(std::chrono::milliseconds(4000));
@@ -260,7 +270,7 @@ BottleTaskState current_bottle_task_state = BottleTaskState::IDLE;
 int main(void)
 {
     printf("\n===== Head tracking with Object Detection via Unix Domain Socket (Multithreaded) =====\n\n"); //
-
+    srand(time(NULL));
     change_current_dir(); // Change current directory to executable's location //
 
     // Load INI settings
