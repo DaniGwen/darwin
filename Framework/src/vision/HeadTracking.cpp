@@ -980,4 +980,8 @@ namespace Robot
         return m_last_object_angular_error;
     }
 
+    double HeadTracking::GetFocalLengthPx() const
+    {
+        return camera_focal_length_px_;
+    }
 }

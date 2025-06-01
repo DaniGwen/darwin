@@ -60,12 +60,14 @@ namespace Robot
         // Now only takes minIni and CM730, as Head module is integrated.
         bool Initialize(minIni *ini, CM730 *cm730);
 
-        Point2D GetLastDetectedObjectAngularError(); // Used with BallFoller 
+        Point2D GetLastDetectedObjectAngularError(); // Used with BallFoller
 
         // Main tracking loop
         void Run();
 
         void Cleanup();
+
+        double GetFocalLengthPx() const;
 
         std::string GetDetectedLabel();
         Robot::Point2D GetTrackedObjectCenter();
