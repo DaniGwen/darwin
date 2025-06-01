@@ -207,7 +207,10 @@ void handleBottleInteraction(BottleTaskState &state,
             run_action(ACTION_PAGE_READY_TO_PICKUP);
             setEnableMotionManagerAndWalking(false);
 
-            run_action(ACTION_PAGE_PICKUP_ITEM);
+            right_arm_controller.OpenGripper();
+            right_arm_controller.CenterHandInView();
+
+            //run_action(ACTION_PAGE_PICKUP_ITEM);
             std::this_thread::sleep_for(std::chrono::milliseconds(4000));
 
             run_action(ACTION_PAGE_PASS_ITEM);

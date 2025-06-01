@@ -18,6 +18,7 @@ namespace Robot
         RightArmController(CM730 *cm730);
 
         Point2D GetHandPositionInCameraView();
+        void CenterHandInView(int centering_speed = 50);
         void CloseGripper(int moving_speed = 200, int p_gain = 30);
         void OpenGripper(int moving_speed = 200, int p_gain = 30);
         void RotateWristCW90Deg(int moving_speed = 100, int p_gain = 30);

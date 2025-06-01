@@ -210,6 +210,66 @@ namespace Robot
         return Point2D(final_x_rel_center, final_y_rel_center);
     }
 
+    void RightArmController::CenterHandInView(int centering_speed) // Parameter is now used
+    {
+        std::cout << BOLDCYAN << "INFO: Starting visual servoing to center hand with speed " << centering_speed << "..." << RESET << std::endl;
+
+        const int MAX_ITERATIONS = 100;
+        const double PIXEL_THRESHOLD = 10.0;
+
+        for (int i = 0; i < MAX_ITERATIONS; ++i)
+        {
+            // 1. Get the current position of the hand in the camera view
+            Point2D pixel_error = GetHandPositionInCameraView();
+
+            if (pixel_error.X == -1)
+            {
+                std::cerr << BOLDRED << "WARN: Could not get hand position. Aborting servoing." << RESET << std::endl;
+                return;
+            }
+
+            std::cout << "INFO: Iteration " << i << " - Hand Error (px): X=" << pixel_error.X << ", Y=" << pixel_error.Y << std::endl;
+
+            // 2. Check if the hand is centered
+            if (std::abs(pixel_error.X) < PIXEL_THRESHOLD && std::abs(pixel_error.Y) < PIXEL_THRESHOLD)
+            {
+                std::cout << BOLDGREEN << "SUCCESS: Hand is centered." << RESET << std::endl;
+                return; // Exit the function
+            }
+
+            // 3. Calculate the required correction in degrees
+            // The P-gain converts pixel error into an angular offset.
+            // The signs are inverted because a positive pixel error (hand is right/down) requires a negative angle change.
+            double pitch_offset_deg = -pixel_error.Y * m_Hand_P_Gain_Y; // Y pixel error controls shoulder pitch
+            double roll_offset_deg = -pixel_error.X * m_Hand_P_Gain_X;  // X pixel error controls shoulder roll
+
+            // 4. Read the current motor positions
+            int shoulder_pitch_val, shoulder_roll_val;
+            cm730_->ReadWord(JointData::ID_R_SHOULDER_PITCH, MX28::P_PRESENT_POSITION_L, &shoulder_pitch_val, 0);
+            cm730_->ReadWord(JointData::ID_R_SHOULDER_ROLL, MX28::P_PRESENT_POSITION_L, &shoulder_roll_val, 0);
+
+            // Convert to degrees
+            double current_pitch_deg = Robot::HeadTracking::Value2Deg(shoulder_pitch_val);
+            double current_roll_deg = Robot::HeadTracking::Value2Deg(shoulder_roll_val);
+
+            // 5. Calculate new target angles
+            double target_pitch_deg = current_pitch_deg + pitch_offset_deg;
+            double target_roll_deg = current_roll_deg + roll_offset_deg;
+
+            // 6. Create a new pose and apply it with the specified speed
+            Pose next_pose;
+            next_pose.joint_positions[JointData::ID_R_SHOULDER_PITCH] = Robot::HeadTracking::Deg2Value(target_pitch_deg);
+            next_pose.joint_positions[JointData::ID_R_SHOULDE_ROLL] = Robot::HeadTracking::Deg2Value(target_roll_deg);
+
+            // Apply the correction using the speed passed into the function
+            ApplyPose(next_pose, centering_speed);
+
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        }
+
+        std::cerr << BOLDRED << "WARN: Visual servoing timed out after " << MAX_ITERATIONS << " iterations." << RESET << std::endl;
+    }
+
     void RightArmController::SetPID(int p_gain)
     {
         int ids_to_configure[] = {
