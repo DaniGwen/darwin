@@ -259,7 +259,7 @@ namespace Robot
             // 6. Create a new pose and apply it with the specified speed
             Pose next_pose;
             next_pose.joint_positions[JointData::ID_R_SHOULDER_PITCH] = Robot::HeadTracking::Deg2Value(target_pitch_deg);
-            next_pose.joint_positions[JointData::ID_R_SHOULDE_ROLL] = Robot::HeadTracking::Deg2Value(target_roll_deg);
+            next_pose.joint_positions[JointData::ID_R_SHOULDER_ROLL] = Robot::HeadTracking::Deg2Value(target_roll_deg);
 
             // Apply the correction using the speed passed into the function
             ApplyPose(next_pose, centering_speed);
