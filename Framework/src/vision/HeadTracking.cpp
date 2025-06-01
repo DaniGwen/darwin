@@ -117,7 +117,7 @@ namespace Robot
           current_tracked_object_center_(0.0, 0.0),
           detection_score_(0),
           last_motor_command_time_(std::chrono::steady_clock::now()),
-          motor_command_interval_ms_(60),
+          motor_command_interval_ms_(100),
           camera_focal_length_px_(700.0),
           current_object_distance_m_(-1.0),
           m_last_object_angular_error(-1.0, -1.0)

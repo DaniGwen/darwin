@@ -75,16 +75,14 @@ void change_current_dir()
 
 void run_action(int action_page)
 {
-    //HeadTracking::SetTrackingEnabled(false);
     MotionManager::GetInstance()->SetEnable(true);
 
     Action::GetInstance()->Start(action_page);
-    Action::GetInstance()->ReleaseHeadControl();
+    Action::GetInstance()->ReleaseHeadControl();  // Release head control to allow HeadTracking to manage it
     while (Action::GetInstance()->IsRunning())
         usleep(8 * 1000);
 
     MotionManager::GetInstance()->SetEnable(false);
-    //HeadTracking::SetTrackingEnabled(true);
 }
 
 // Thread entry point function for HeadTracking
@@ -463,27 +461,27 @@ int main(void)
         // Add other object handling "else if" blocks here, potentially using handleGenericObjectDetected
         // or new specific handlers if their logic is complex.
 
-        else if (detected_object_label == "none" && current_action_label != "standby" && can_perform_action) //
+        else if (detected_object_label == "none" && current_action_label != "standby" && can_perform_action)
         {
             handleNoTargetOrStandby(current_action_label, last_action_time, current_time);
         }
 
-        std::this_thread::sleep_for(std::chrono::milliseconds(150)); //
+        std::this_thread::sleep_for(std::chrono::milliseconds(150));
     }
 
-    std::cout << "INFO: Main loop terminated. Waiting for HeadTracking thread to join..." << std::endl; //
-    pthread_join(tracking_thread, NULL);                                                                //
-    std::cout << "INFO: HeadTracking thread joined." << std::endl;                                      //
+    std::cout << "INFO: Main loop terminated. Waiting for HeadTracking thread to join..." << std::endl;
+    pthread_join(tracking_thread, NULL);                                                               
+    std::cout << "INFO: HeadTracking thread joined." << std::endl;                                     
 
-    std::cout << "INFO: Shutting down motion framework..." << std::endl;       //
-    motion_timer->Stop();                                                      //
-    MotionManager::GetInstance()->SetEnable(false);                            //
-    MotionManager::GetInstance()->RemoveModule((MotionModule *)action_module); //
+    std::cout << "INFO: Shutting down motion framework..." << std::endl;      
+    motion_timer->Stop();                                                   
+    MotionManager::GetInstance()->SetEnable(false);                           
+    MotionManager::GetInstance()->RemoveModule((MotionModule *)action_module);
 
     delete ini;
     delete motion_timer;
 
-    std::cout << "INFO: Main program exiting." << std::endl; //
+    std::cout << "INFO: Main program exiting." << std::endl;
 
     return 0;
 }

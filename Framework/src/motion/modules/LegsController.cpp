@@ -113,29 +113,6 @@ namespace Robot
         // std::cout << BOLDGREEN << "INFO: LegsController PID gains set (P=" << p_gain << ") and speed (" << moving_speed << ") for all leg joints." << RESET << std::endl;
     }
 
-    void LegsController::Stand(int moving_speed, int p_gain)
-    {
-        std::cout << BOLDGREEN << "INFO: LegsController moving to default standing pose..." << RESET << std::endl;
-        StopWalk();                                                  // Ensure walking is stopped
-        std::this_thread::sleep_for(std::chrono::milliseconds(100)); // Small delay
-
-        SetPID(p_gain);
-        ApplyPose(POSE_LEGS_DEFAULT_STAND, moving_speed, p_gain);
-
-        std::this_thread::sleep_for(std::chrono::milliseconds(1500));
-    }
-
-    void LegsController::ReadyToPickUpItem(int moving_speed, int p_gain)
-    {
-        std::cout << BOLDGREEN << "INFO: LegsController moving to ReadyToPickUpItem pose..." << RESET << std::endl;
-        StopWalk(); // Ensure walking is stopped
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
-
-        SetPID(p_gain);
-        ApplyPose(POSE_READY_TO_PICKUP_STAND, moving_speed, p_gain);
-        std::this_thread::sleep_for(std::chrono::milliseconds(1500));
-    }
-
     // --- Walking Control Method Implementations ---
     void LegsController::InitializeWalking(minIni *ini, const std::string &section)
     {

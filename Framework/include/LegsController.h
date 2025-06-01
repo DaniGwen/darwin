@@ -25,10 +25,6 @@ namespace Robot
         void ApplyPose(const Pose &pose, int speed = 100, int p_gain = JointData::P_GAIN_DEFAULT);
         void SetPID(int p_gain = JointData::P_GAIN_DEFAULT);
 
-        // --- Standard Poses ---
-        void Stand(int moving_speed = 90, int p_gain = 50);
-        void ReadyToPickUpItem(int moving_speed = 100, int p_gain = 50);
-
         // --- Walking Control Methods ---
         // Initializes walking parameters from an INI file
         void InitializeWalking(minIni *ini, const std::string &section = "Walking Config");
@@ -54,36 +50,6 @@ namespace Robot
     private:
         CM730 *cm730_;
         std::mutex cm730_mutex;
-
-        const Pose POSE_LEGS_DEFAULT_STAND = {
-            std::map<int, int>{
-                {JointData::ID_R_HIP_YAW, 2113},
-                {JointData::ID_L_HIP_YAW, 1934},
-                {JointData::ID_R_HIP_ROLL, 2056},
-                {JointData::ID_L_HIP_ROLL, 2032},
-                {JointData::ID_R_HIP_PITCH, 1753},
-                {JointData::ID_L_HIP_PITCH, 2311},
-                {JointData::ID_R_KNEE, 2266},
-                {JointData::ID_L_KNEE, 1771},
-                {JointData::ID_R_ANKLE_PITCH, 2143},
-                {JointData::ID_L_ANKLE_PITCH, 1890},
-                {JointData::ID_R_ANKLE_ROLL, 2105},
-                {JointData::ID_L_ANKLE_ROLL, 2014}}};
-
-        const Pose POSE_READY_TO_PICKUP_STAND = {
-            std::map<int, int>{
-                {JointData::ID_R_HIP_YAW, 2401},
-                {JointData::ID_L_HIP_YAW, 2077},
-                {JointData::ID_R_HIP_ROLL, 2055},
-                {JointData::ID_L_HIP_ROLL, 1981},
-                {JointData::ID_R_HIP_PITCH, 1569},
-                {JointData::ID_L_HIP_PITCH, 2682},
-                {JointData::ID_R_KNEE, 2836},
-                {JointData::ID_L_KNEE, 1224},
-                {JointData::ID_R_ANKLE_PITCH, 2467},
-                {JointData::ID_L_ANKLE_PITCH, 1747},
-                {JointData::ID_R_ANKLE_ROLL, 2170},
-                {JointData::ID_L_ANKLE_ROLL, 2001}}};
     };
 
 } // namespace Robot
