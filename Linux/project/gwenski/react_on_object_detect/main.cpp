@@ -76,15 +76,12 @@ void change_current_dir()
         chdir(dirname(exepath));
 }
 
-void run_action(int action_page, bool disable_head_control = true)
+void run_action(int action_page)
 {
     MotionManager::GetInstance()->SetEnable(true);
 
     Action::GetInstance()->Start(action_page);
-    if (disable_head_control)
-    {
-        Action::GetInstance()->ReleaseHeadControl(); // Release head control to allow HeadTracking to manage it
-    }
+    Action::GetInstance()->ReleaseHeadControl(); // Release head control to allow HeadTracking to manage it
     while (Action::GetInstance()->IsRunning())
         usleep(8 * 1000);
 
@@ -123,11 +120,11 @@ void handlePersonDetected(LeftArmController &left_arm_controller,
     int random = rand() % 2; // Randomly choose between two wave actions
     if (random == 0)
     {
-        run_action(ACTION_PAGE_WAVE, true);
+        run_action(ACTION_PAGE_WAVE);
     }
     else
     {
-        run_action(ACTION_PAGE_WAVE2, true);
+        run_action(ACTION_PAGE_WAVE2);
     }
 
     std::chrono::milliseconds wave_duration(1000);
