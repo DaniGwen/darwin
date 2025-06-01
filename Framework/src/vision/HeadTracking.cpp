@@ -695,9 +695,6 @@ namespace Robot
         }
         else
         {
-            m_last_tracked_center_px.X = -1.0;
-            m_last_tracked_center_px.Y = -1.0;
-
             if (no_target_count_ < NO_TARGET_MAX_COUNT)
             {
                 // Slowly center head if no target for a few frames
@@ -966,8 +963,8 @@ namespace Robot
 
         for (int joint_id : joints)
         {
-            cm730_->WriteByte(joint_id, MX28::P_P_GAIN, 9, 0);
-            cm730_->WriteByte(joint_id, MX28::P_D_GAIN, 9, 0);
+            cm730_->WriteByte(joint_id, MX28::P_P_GAIN, 10, 0);
+            cm730_->WriteByte(joint_id, MX28::P_D_GAIN, 10, 0);
             cm730_->WriteWord(joint_id, MX28::P_MOVING_SPEED_L, 200, 0); // Value 0 means max speed. 1~1023 for controlled speed.
         }
     }
