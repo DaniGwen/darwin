@@ -10,6 +10,7 @@
 #include <chrono>      // For std::chrono::milliseconds
 #include "Globals.h"
 #include "Point.h"
+#include "HeadTracking.h"
 
 namespace Robot
 {
