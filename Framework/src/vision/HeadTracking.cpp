@@ -120,7 +120,8 @@ namespace Robot
           motor_command_interval_ms_(100),
           camera_focal_length_px_(200.0),
           current_object_distance_m_(-1.0),
-          m_last_object_angular_error(-1.0, -1.0)
+          m_last_object_angular_error(-1.0, -1.0),
+          m_last_tracked_center_px(-1.0, -1.0)
     {
         // Constructor is intentionally minimal.
         // initialization should be done in the Initialize() method.
@@ -625,6 +626,25 @@ namespace Robot
             Point2D P_err;
             Point2D pixel_offset_from_center;
 
+            const double MAX_PIXEL_JUMP = 100.0; // Max allowed jump in pixels between frames
+
+            if (m_last_tracked_center_px.X != -1.0)
+            {
+                double dx = tracked_object_center_for_head.X - m_last_tracked_center_px.X;
+                double dy = tracked_object_center_for_head.Y - m_last_tracked_center_px.Y;
+                double distance_sq = dx * dx + dy * dy;
+
+                // If the jump is too large, treat it as noise and ignore this frame
+                if (distance_sq > MAX_PIXEL_JUMP * MAX_PIXEL_JUMP)
+                {
+                    std::cout << "WARN: Ignored noisy detection (jumped " << sqrt(distance_sq) << " pixels)." << std::endl;
+                    return; // Exit the function, making no head movement this frame
+                }
+            }
+
+            // If the detection is valid, update the last known position for the next frame
+            m_last_tracked_center_px = tracked_object_center_for_head;
+
             pixel_offset_from_center.X = tracked_object_center_for_head.X - (Camera::WIDTH / 2.0);
             pixel_offset_from_center.Y = tracked_object_center_for_head.Y - (Camera::HEIGHT / 2.0);
 
@@ -675,6 +695,9 @@ namespace Robot
         }
         else
         {
+            m_last_tracked_center_px.X = -1.0;
+            m_last_tracked_center_px.Y = -1.0;
+
             if (no_target_count_ < NO_TARGET_MAX_COUNT)
             {
                 // Slowly center head if no target for a few frames
