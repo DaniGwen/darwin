@@ -13,7 +13,7 @@ namespace Robot
         }
     }
 
-     void LeftArmController::ApplyPose(const Pose &pose, int speed = 100)
+     void LeftArmController::ApplyPose(const Pose &pose, int speed)
     {
         if (!cm730_)
         {
