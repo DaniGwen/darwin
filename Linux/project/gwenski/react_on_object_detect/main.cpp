@@ -123,11 +123,11 @@ void handlePersonDetected(LeftArmController &left_arm_controller,
     int random = rand() % 2; // Randomly choose between two wave actions
     if (random == 0)
     {
-        run_action(ACTION_PAGE_WAVE);
+        run_action(ACTION_PAGE_WAVE, true);
     }
     else
     {
-        run_action(ACTION_PAGE_WAVE2);
+        run_action(ACTION_PAGE_WAVE2, true);
     }
 
     std::chrono::milliseconds wave_duration(1000);
