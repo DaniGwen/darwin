@@ -201,13 +201,6 @@ void handleBottleInteraction(BottleTaskState &state,
         {
             std::cout << GREEN << "INFO: Performing pickup sequence." << RESET << std::endl;
 
-            // legs_controller.ReadyToPickUpItem();
-            // right_arm_controller.PositionHandAway();
-            // right_arm_controller.RotateWrist90Deg();
-            // right_arm_controller.OpenGripper();
-            // right_arm_controller.HandReach();
-            // std::this_thread::sleep_for(std::chrono::milliseconds(2000));
-
             MotionManager::GetInstance()->RemoveModule(static_cast<MotionModule *>(Walking::GetInstance()));
             run_action(ACTION_PAGE_READY_TO_PICKUP);
             setEnableMotionManagerAndWalking(false);
@@ -217,8 +210,7 @@ void handleBottleInteraction(BottleTaskState &state,
             right_arm_controller.HoldItem();
             std::this_thread::sleep_for(std::chrono::milliseconds(4000));
             right_arm_controller.OpenGripper();
-            // right_arm_controller.Default();
-            // legs_controller.Stand();
+            std::this_thread::sleep_for(std::chrono::milliseconds(1000));
 
             run_action(ACTION_PAGE_STAND);
             setEnableMotionManagerAndWalking(true);
