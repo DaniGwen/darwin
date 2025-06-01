@@ -268,6 +268,33 @@ bool Action::SavePage(int index, PAGE *pPage)
 	return true;
 }
 
+// Let go" of the head controls, allowing the active HeadTracking thread to take exclusive command
+void Action::ReleaseHeadControl()
+{
+    // First, check if an action is currently running
+    if (m_Playing == false)
+    {
+        if(DEBUG_PRINT == true)
+			fprintf(stderr, "Cannot release head control: No action is playing.\n");
+        return;
+    }
+
+    // Iterate through all the steps in the currently playing page
+    for (int i = 0; i < m_PlayPage.header.stepnum; i++)
+    {
+        // Use a bitwise OR to set the TORQUE_OFF_BIT_MASK for the head joints.
+        // This flag tells the motor controller to disable torque for that joint.
+        m_PlayPage.step[i].position[JointData::ID_HEAD_PAN] |= TORQUE_OFF_BIT_MASK;
+        m_PlayPage.step[i].position[JointData::ID_HEAD_TILT] |= TORQUE_OFF_BIT_MASK;
+    }
+
+    // It's good practice to update the checksum after modifying the page data in memory.
+    SetChecksum(&m_PlayPage);
+
+    if(DEBUG_PRINT == true)
+        fprintf(stdout, "Head control released for current action.\n");
+}
+
 void Action::Process()
 {
 	//////////////////// ���� ����

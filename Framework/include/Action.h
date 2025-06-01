@@ -110,6 +110,7 @@ namespace Robot
 		bool LoadPage(int index, PAGE *pPage);
 		bool SavePage(int index, PAGE *pPage);
 		void ResetPage(PAGE *pPage);
+		void ReleaseHeadControl();
 	};
 }
 

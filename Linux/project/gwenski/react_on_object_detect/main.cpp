@@ -75,15 +75,16 @@ void change_current_dir()
 
 void run_action(int action_page)
 {
-    HeadTracking::SetTrackingEnabled(false);
+    //HeadTracking::SetTrackingEnabled(false);
     MotionManager::GetInstance()->SetEnable(true);
 
     Action::GetInstance()->Start(action_page);
+    Action::GetInstance()->ReleaseHeadControl();
     while (Action::GetInstance()->IsRunning())
         usleep(8 * 1000);
 
     MotionManager::GetInstance()->SetEnable(false);
-    HeadTracking::SetTrackingEnabled(true);
+    //HeadTracking::SetTrackingEnabled(true);
 }
 
 // Thread entry point function for HeadTracking
