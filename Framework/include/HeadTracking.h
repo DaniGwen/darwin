@@ -56,19 +56,15 @@ namespace Robot
         static HeadTracking *GetInstance();
         static void DestroyInstance();
 
-        // Initialization method
-        // Now only takes minIni and CM730, as Head module is integrated.
         bool Initialize(minIni *ini, CM730 *cm730);
-
-        Point2D GetLastDetectedObjectAngularError(); // Used with BallFoller
 
         // Main tracking loop
         void Run();
-
         void Cleanup();
-
         double GetFocalLengthPx() const;
-
+        int Deg2Value(double angle);
+        double Value2Deg(int value);
+        Point2D GetLastDetectedObjectAngularError(); // Used with BallFoller
         std::string GetDetectedLabel();
         Robot::Point2D GetTrackedObjectCenter();
         int GetDetectionScore();
@@ -185,8 +181,6 @@ namespace Robot
         void InitTracking();                             // Reset tracking errors
         void UpdateHeadAngles(Robot::Point2D err);       // Calculate new angles based on error (replaces MoveTracking(Point2D err))
         void ApplyHeadAngles();                          // Apply calculated angles to motors (replaces Head::Process())
-        double Value2Deg(int value);
-        int Deg2Value(double angle);
         void SetMotorPIDAndSpeed();
     };
 }
