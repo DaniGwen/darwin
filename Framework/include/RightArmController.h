@@ -19,7 +19,8 @@ namespace Robot
 
         void CloseGripper(int moving_speed = 200, int p_gain = 30);
         void OpenGripper(int moving_speed = 200, int p_gain = 30);
-        void RotateWrist90Deg(int moving_speed = 200, int p_gain = 30);
+        void RotateWristCW90Deg(int moving_speed = 100, int p_gain = 30);
+        void RotateWristCCW90Deg(int moving_speed = 100, int p_gain = 30);
         void HoldItem(int moving_speed = 100, int p_gain = 30);
         void Default();
 
@@ -37,6 +38,10 @@ namespace Robot
         const Pose POSE_ROTATE_WRIST_90DEG = {
             std::map<int, int>{
                 {JointData::ID_R_WRIST, 3078}}};
+
+        const Pose POSE_ROTATE_WRIST_CCW_90DEG = {
+            std::map<int, int>{
+                {JointData::ID_R_WRIST, 1299}}};
 
         const Pose POSE_ROTATE_WRIST_DEFAULT = {
             std::map<int, int>{

@@ -43,6 +43,8 @@
 #define ACTION_PAGE_BOTTLE 14
 #define ACTION_PAGE_STAND 1
 #define ACTION_PAGE_READY_TO_PICKUP 32
+#define ACTION_PAGE_PICKUP_ITEM 33
+#define ACTION_PAGE_PASS_ITEM 34
 
 enum class BottleTaskState
 {
@@ -73,12 +75,15 @@ void change_current_dir()
         chdir(dirname(exepath));
 }
 
-void run_action(int action_page)
+void run_action(int action_page, bool disable_head_control = true)
 {
     MotionManager::GetInstance()->SetEnable(true);
 
     Action::GetInstance()->Start(action_page);
-    Action::GetInstance()->ReleaseHeadControl(); // Release head control to allow HeadTracking to manage it
+    if (disable_head_control)
+    {
+        Action::GetInstance()->ReleaseHeadControl(); // Release head control to allow HeadTracking to manage it
+    }
     while (Action::GetInstance()->IsRunning())
         usleep(8 * 1000);
 
@@ -201,11 +206,10 @@ void handleBottleInteraction(BottleTaskState &state,
             run_action(ACTION_PAGE_READY_TO_PICKUP);
             setEnableMotionManagerAndWalking(false);
 
-            right_arm_controller.CloseGripper();
-            std::this_thread::sleep_for(std::chrono::milliseconds(1000));
-            right_arm_controller.HoldItem();
+            run_action(ACTION_PAGE_PICKUP_ITEM);
             std::this_thread::sleep_for(std::chrono::milliseconds(4000));
-            right_arm_controller.OpenGripper();
+
+            run_action(ACTION_PAGE_PASS_ITEM);
             std::this_thread::sleep_for(std::chrono::milliseconds(1000));
 
             run_action(ACTION_PAGE_STAND);
@@ -289,8 +293,6 @@ int main(void)
     motion_manager->LoadINISettings(ini);
     motion_manager->AddModule((MotionModule *)action_module);
 
-    MotionManager::GetInstance()->SetEnable(true);
-
     LinuxMotionTimer *motion_timer = new LinuxMotionTimer(motion_manager);
     motion_timer->Start();
 
@@ -313,7 +315,7 @@ int main(void)
     }
 
     std::cout << "INFO: Playing initial standby action (Page " << ACTION_PAGE_STAND << ")..." << std::endl; //
-    run_action(ACTION_PAGE_STAND);
+    run_action(ACTION_PAGE_STAND, false);
 
     pthread_t tracking_thread;
     std::cout << "INFO: Creating HeadTracking thread..." << std::endl;                                   //
@@ -354,8 +356,8 @@ int main(void)
 
         if (detected_object_label != "none")
         {
-            distance = head_tracker->GetDetectedObjectDistance(); //
-            if (distance > 0)                                     //
+            distance = head_tracker->GetDetectedObjectDistance();
+            if (distance > 0)
             {
                 std::cout << MAGENTA << "INFO: Estimated distance to " << detected_object_label
                           << ": " << distance << " meters." << RESET << std::endl;

@@ -90,7 +90,7 @@ namespace Robot
         std::this_thread::sleep_for(std::chrono::milliseconds(500));
     }
 
-    void RightArmController::RotateWrist90Deg(int moving_speed, int p_gain)
+    void RightArmController::RotateWristCW90Deg(int moving_speed, int p_gain)
     {
         SetPID(p_gain);
 
@@ -98,6 +98,16 @@ namespace Robot
         ApplyPose(POSE_ROTATE_WRIST_90DEG, moving_speed);
         std::this_thread::sleep_for(std::chrono::milliseconds(500));
     }
+
+    void RightArmController::RotateWristCCW90Deg(int moving_speed, int p_gain)
+    {
+        SetPID(p_gain);
+
+        std::cout << "INFO: Moving right arm to POSE_ROTATE_WRIST_90DEG ..." << std::endl;
+        ApplyPose(POSE_ROTATE_WRIST_CCW_90DEG, moving_speed);
+        std::this_thread::sleep_for(std::chrono::milliseconds(500));
+    }
+
 
     void RightArmController::HoldItem(int moving_speed, int p_gain)
     {
