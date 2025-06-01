@@ -326,7 +326,7 @@ int main(void)
     }
 
     std::cout << "INFO: Playing initial standby action (Page " << ACTION_PAGE_STAND << ")..." << std::endl; //
-    run_action(ACTION_PAGE_STAND, false);
+    run_action(ACTION_PAGE_STAND);
 
     pthread_t tracking_thread;
     std::cout << "INFO: Creating HeadTracking thread..." << std::endl;                                   //
