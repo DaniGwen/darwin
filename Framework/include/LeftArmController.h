@@ -16,27 +16,10 @@ namespace Robot
     {
     public:
         LeftArmController(CM730 *cm730);
-
-        void Wave(int moving_speed = 150, int repetitions = 3, int p_gain = 15);
         void ToDefaultPose();
 
     private:
         CM730 *cm730_; // Pointer to the CM730 instance for direct motor control
-
-        // Define the two poses for the left arm
-        const Pose POSE_1 = {
-            std::map<int, int>{
-                {JointData::ID_L_SHOULDER_PITCH, 1251}, // Example: Assuming ID_L_SHOULDER_ROLL is Joint ID 2
-                {JointData::ID_L_SHOULDER_ROLL, 1670},  // Example: Assuming ID_L_ELBOW is Joint ID 4
-                {JointData::ID_L_ELBOW, 1869}           // Example: Assuming ID_L_WRIST_YAW is Joint ID 6
-            }};
-
-        const Pose POSE_2 = {
-            std::map<int, int>{
-                {JointData::ID_L_SHOULDER_PITCH, 1251}, // Example: Assuming ID_L_SHOULDER_ROLL is Joint ID 2
-                {JointData::ID_L_SHOULDER_ROLL, 1670},  // Example: Assuming ID_L_ELBOW is Joint ID 4
-                {JointData::ID_L_ELBOW, 2433}           // Example: Assuming ID_L_WRIST_YAW is Joint ID 6
-            }};
 
         const Pose DEFAULT = {
             std::map<int, int>{

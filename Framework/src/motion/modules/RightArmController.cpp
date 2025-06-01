@@ -1,5 +1,8 @@
 #include "RightArmController.h"
 #include "ConsoleColors.h"
+#include "cmath"
+#include "HeadTracking.h" // Needed for Value2Deg
+#include "Point.h"
 
 namespace Robot
 {
@@ -108,7 +111,6 @@ namespace Robot
         std::this_thread::sleep_for(std::chrono::milliseconds(500));
     }
 
-
     void RightArmController::HoldItem(int moving_speed, int p_gain)
     {
         SetPID(p_gain);
@@ -125,6 +127,87 @@ namespace Robot
         std::cout << "INFO: Resetting right arm to default pose..." << std::endl;
         ApplyPose(DEFAULT);
         std::this_thread::sleep_for(std::chrono::milliseconds(1200));
+    }
+
+    Point2D RightArmController::GetHandPositionInCameraView()
+    {
+        if (!cm730_)
+        {
+            return Point2D(-1, -1); // Return invalid point
+        }
+
+        // --- Step 1: Read Current Joint Angles from Motors ---
+        int shoulder_pitch_val, shoulder_roll_val, elbow_val;
+        // Read the 16-bit "Present Position" value from each motor.
+        cm730_->ReadWord(JointData::ID_R_SHOULDER_PITCH, MX28::P_PRESENT_POSITION_L, &shoulder_pitch_val, 0);
+        cm730_->ReadWord(JointData::ID_R_SHOULDER_ROLL, MX28::P_PRESENT_POSITION_L, &shoulder_roll_val, 0);
+        cm730_->ReadWord(JointData::ID_R_ELBOW, MX28::P_PRESENT_POSITION_L, &elbow_val, 0);
+
+        // Convert raw values to degrees, then to radians for C++ math functions.
+        // The Value2Deg function is a static method in the HeadTracking class.
+        double shoulder_pitch_rad = Robot::HeadTracking::Value2Deg(shoulder_pitch_val) * (M_PI / 180.0);
+        double shoulder_roll_rad = Robot::HeadTracking::Value2Deg(shoulder_roll_val) * (M_PI / 180.0);
+        double elbow_rad = Robot::HeadTracking::Value2Deg(elbow_val) * (M_PI / 180.0);
+
+        // --- Step 2: Forward Kinematics using Dimensions from Image ---
+        // All dimensions are converted from mm to meters.
+        // The origin (0,0,0) is at the robot's shoulder roll joint.
+
+        // Length of the upper arm segment (shoulder roll to elbow).
+        // From schematic: 129.0mm (torso center to elbow) - 60.0mm (torso center to shoulder) = 69.0mm
+        const double ARM_UPPER_LENGTH_M = 0.069;
+
+        // Length of the forearm segment (elbow to end-effector).
+        // From schematic: 60.0mm from the elbow joint to the end of the arm block.
+        const double ARM_LOWER_LENGTH_M = 0.060;
+
+        // Simplified forward kinematics calculation.
+        // Assumes X is forward, Y is to the left, and Z is up, relative to the torso.
+        double hand_x = cos(shoulder_pitch_rad) * (ARM_UPPER_LENGTH_M * cos(shoulder_roll_rad) + ARM_LOWER_LENGTH_M * cos(shoulder_roll_rad + elbow_rad));
+        double hand_y = sin(shoulder_pitch_rad) * (ARM_UPPER_LENGTH_M * cos(shoulder_roll_rad) + ARM_LOWER_LENGTH_M * cos(shoulder_roll_rad + elbow_rad));
+        double hand_z = -ARM_UPPER_LENGTH_M * sin(shoulder_roll_rad) - ARM_LOWER_LENGTH_M * sin(shoulder_roll_rad + elbow_rad);
+
+        // --- Step 3: Transform Hand Position to Camera's Coordinate Frame ---
+        // These offsets are the camera's position relative to our origin (the shoulder roll joint).
+
+        // Sideways offset (X in camera frame). Assumed to be centered.
+        const double CAM_X_OFFSET_M = 0.0;
+
+        // Vertical offset (Y in camera frame).
+        // From schematic: 50.5mm from shoulder pitch axis to camera level.
+        const double CAM_Y_OFFSET_M = 0.0505;
+
+        // Forward offset (Z in camera frame).
+        // From your measurement: ~3cm forward offset.
+        const double CAM_Z_OFFSET_M = 0.030;
+
+        // Calculate the hand's position from the camera's perspective by translating the origin.
+        // This also involves rotating the coordinate system axes to match the camera's view.
+        double hand_in_cam_x = hand_y - CAM_X_OFFSET_M; // Robot's Y-axis (left/right) is camera's X-axis.
+        double hand_in_cam_y = hand_z - CAM_Y_OFFSET_M; // Robot's Z-axis (up/down) is camera's Y-axis.
+        double hand_in_cam_z = hand_x - CAM_Z_OFFSET_M; // Robot's X-axis (forward/back) is camera's Z-axis.
+
+        // --- Step 4: Project 3D Camera Point to 2D Image Plane ---
+        // Using intrinsic camera data from your HeadTracking class.
+        const double FOCAL_LENGTH_PX = HeadTracking::GetInstance()->camera_focal_length_px_;
+        const double IMG_CENTER_X = Camera::WIDTH / 2.0;
+        const double IMG_CENTER_Y = Camera::HEIGHT / 2.0;
+
+        // Cannot project if the hand is behind or at the same plane as the camera.
+        if (hand_in_cam_z <= 0)
+        {
+            return Point2D(-1, -1);
+        }
+
+        // Perspective Projection formula
+        double image_x = (hand_in_cam_x * FOCAL_LENGTH_PX / hand_in_cam_z) + IMG_CENTER_X;
+        double image_y = (hand_in_cam_y * FOCAL_LENGTH_PX / hand_in_cam_z) + IMG_CENTER_Y;
+
+        // Calculate the final position relative to the center of the camera view.
+        double final_x_rel_center = image_x - IMG_CENTER_X;
+        double final_y_rel_center = image_y - IMG_CENTER_Y;
+
+        return Point2D(final_x_rel_center, final_y_rel_center);
     }
 
     void RightArmController::SetPID(int p_gain)

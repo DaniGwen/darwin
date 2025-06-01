@@ -13,7 +13,7 @@ namespace Robot
         }
     }
 
-     void LeftArmController::ApplyPose(const Pose &pose, int speed)
+     void LeftArmController::ApplyPose(const Pose &pose, int speed = 100)
     {
         if (!cm730_)
         {
@@ -70,23 +70,6 @@ namespace Robot
                 std::cerr << BOLDRED << "ERROR: Combined SyncWrite failed with code: " << result << RESET << std::endl;
             }
         }
-    }
-
-    void LeftArmController::Wave(int moving_speed, int repetitions, int p_gain)
-    {
-        std::cout << "INFO: Starting left arm movement sequence for " << repetitions << " repetitions." << std::endl;
-
-        SetPID(p_gain);
-
-        for (int i = 0; i < repetitions; ++i)
-        {
-            ApplyPose(POSE_1, moving_speed);
-            std::this_thread::sleep_for(std::chrono::milliseconds(700));
-            ApplyPose(POSE_2, moving_speed);
-            std::this_thread::sleep_for(std::chrono::milliseconds(700));
-        }
-
-        std::cout << GREEN << "INFO: Wave movement sequence finished." << RESET << std::endl;
     }
 
     void LeftArmController::ToDefaultPose()

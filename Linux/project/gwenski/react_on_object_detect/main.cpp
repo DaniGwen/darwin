@@ -119,8 +119,9 @@ void handlePersonDetected(LeftArmController &left_arm_controller,
 {
     std::cout << "INFO: Detected person consistently. Playing Wave" << std::endl;
 
-    left_arm_controller.Wave();
-    left_arm_controller.ToDefaultPose();
+    run_action(ACTION_PAGE_WAVE);
+    std::chrono::milliseconds wave_duration(1000);
+    run_action(ACTION_PAGE_STAND);
 
     current_action_label = "person";
     last_action_time = current_time;
