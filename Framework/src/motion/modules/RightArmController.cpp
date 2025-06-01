@@ -8,7 +8,9 @@ namespace Robot
 {
 
     RightArmController::RightArmController(CM730 *cm730)
-        : cm730_(cm730)
+        : cm730_(cm730),
+          m_Hand_P_Gain_X(0.02),
+          m_Hand_P_Gain_Y(0.02)
     {
         if (!cm730_)
         {

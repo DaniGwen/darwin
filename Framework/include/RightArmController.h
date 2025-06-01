@@ -29,6 +29,9 @@ namespace Robot
     private:
         CM730 *cm730_;
 
+        double m_Hand_P_Gain_X; // Gain for correcting horizontal error
+        double m_Hand_P_Gain_Y; // Gain for correcting vertical error
+
         const Pose POSE_CLOSE_GRIPPER = {
             std::map<int, int>{
                 {JointData::ID_R_GRIPPER, 2109}}};
