@@ -78,8 +78,9 @@ void change_current_dir()
 
 void run_action(int action_page)
 {
-    MotionManager::GetInstance()->SetEnable(true);
-
+    MotionManager::GetInstance()->SetEnable(true); // Must be active for Action class to work
+    MotionManager::GetInstance()->SetJointEnableState(JointData::ID_HEAD_PAN, false);
+    MotionManager::GetInstance()->SetJointEnableState(JointData::ID_HEAD_TILT, false);
     Action::GetInstance()->Start(action_page);
     Action::GetInstance()->ReleaseHeadControl(); // Release head control to allow HeadTracking to manage it
     while (Action::GetInstance()->IsRunning())
