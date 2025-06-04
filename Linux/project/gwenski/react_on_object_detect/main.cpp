@@ -60,6 +60,7 @@ void set_enable_motion_manager_and_walking(bool enable)
     if (enable)
     {
         MotionManager::GetInstance()->AddModule(static_cast<MotionModule *>(Walking::GetInstance()));
+        Walking::GetInstance()->BALANCE_ENABLE = true;
         MotionManager::GetInstance()->SetEnable(true);
     }
     else
@@ -78,16 +79,19 @@ void change_current_dir()
 
 void run_action(int action_page)
 {
-    MotionManager::GetInstance()->SetEnable(true); // Must be active for Action class to work
+    MotionManager::GetInstance()->RemoveModule(static_cast<MotionModule *>(Walking::GetInstance())); // Walking module must be removed before running Action
+    MotionManager::GetInstance()->SetEnable(true);                                                   // Must be active to run Action
+
     MotionManager::GetInstance()->SetJointEnableState(JointData::ID_HEAD_PAN, false);
     MotionManager::GetInstance()->SetJointEnableState(JointData::ID_HEAD_TILT, false);
 
     Action::GetInstance()->Start(action_page);
-    
-    Action::GetInstance()->ReleaseHeadControl(); // Release head control to allow HeadTracking to manage it
+
+    //Action::GetInstance()->ReleaseHeadControl(); // Release head control to allow HeadTracking to manage it
     while (Action::GetInstance()->IsRunning())
         usleep(8 * 1000);
 
+    MotionManager::GetInstance()->AddModule(static_cast<MotionModule *>(Walking::GetInstance()));
     MotionManager::GetInstance()->SetEnable(false);
 }
 
@@ -165,13 +169,16 @@ void handleBottleInteraction(BottleTaskState &state,
         switch (state)
         {
         case BottleTaskState::IDLE:
-            run_action(ACTION_PAGE_STAND);
-
             if (is_bottle_detected)
             {
                 std::cout << GREEN << "INFO: New bottle detected. Starting approach." << RESET << std::endl;
                 state = BottleTaskState::WALKING_TO_BOTTLE;
             }
+            else
+            {
+                run_action(ACTION_PAGE_STAND);
+            }
+
             break;
 
         case BottleTaskState::WALKING_TO_BOTTLE:
