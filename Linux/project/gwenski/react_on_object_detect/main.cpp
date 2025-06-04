@@ -41,11 +41,12 @@
 #define ACTION_PAGE_DOG 11
 #define ACTION_PAGE_CAT 12
 #define ACTION_PAGE_SPORTS_BALL 13
-#define ACTION_PAGE_BOTTLE 14
+#define ACTION_PAGE_SWING_LEFT_RIGHT 14
 #define ACTION_PAGE_STAND 1
 #define ACTION_PAGE_READY_TO_PICKUP 32
 #define ACTION_PAGE_PICKUP_ITEM 33
 #define ACTION_PAGE_PASS_ITEM 34
+
 
 enum class BottleTaskState
 {
@@ -124,14 +125,18 @@ void handlePersonDetected(LeftArmController &left_arm_controller,
 {
     std::cout << "INFO: Detected person consistently. Playing Wave" << std::endl;
 
-    int random = rand() % 2; // Randomly choose between two wave actions
+   int random = rand() % 3; // Randomly choose between three actions
     if (random == 0)
     {
         run_action(ACTION_PAGE_WAVE);
     }
-    else
+    else if (random == 1)
     {
         run_action(ACTION_PAGE_WAVE2);
+    }
+    else // random == 2
+    {
+        run_action(ACTION_PAGE_SWING_LEFT_RIGHT);
     }
 
     std::chrono::milliseconds wave_duration(1000);
