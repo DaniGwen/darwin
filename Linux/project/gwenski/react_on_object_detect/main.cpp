@@ -55,7 +55,7 @@ enum class BottleTaskState
     DONE               // Task completed successfully
 };
 
-void setEnableMotionManagerAndWalking(bool enable)
+void set_enable_motion_manager_and_walking(bool enable)
 {
     if (enable)
     {
@@ -81,7 +81,9 @@ void run_action(int action_page)
     MotionManager::GetInstance()->SetEnable(true); // Must be active for Action class to work
     MotionManager::GetInstance()->SetJointEnableState(JointData::ID_HEAD_PAN, false);
     MotionManager::GetInstance()->SetJointEnableState(JointData::ID_HEAD_TILT, false);
+
     Action::GetInstance()->Start(action_page);
+    
     Action::GetInstance()->ReleaseHeadControl(); // Release head control to allow HeadTracking to manage it
     while (Action::GetInstance()->IsRunning())
         usleep(8 * 1000);
@@ -147,7 +149,7 @@ void handleBottleInteraction(BottleTaskState &state,
     BallFollower follower = BallFollower();
 
     // IMPORTANT! Enable walking here because it interfires with Action class, must be disabled after usage
-    setEnableMotionManagerAndWalking(true);
+    set_enable_motion_manager_and_walking(true);
     MotionManager::GetInstance()->SetJointEnableState(JointData::ID_HEAD_TILT, false);
     MotionManager::GetInstance()->SetJointEnableState(JointData::ID_HEAD_PAN, false);
 
@@ -163,6 +165,8 @@ void handleBottleInteraction(BottleTaskState &state,
         switch (state)
         {
         case BottleTaskState::IDLE:
+            run_action(ACTION_PAGE_STAND);
+
             if (is_bottle_detected)
             {
                 std::cout << GREEN << "INFO: New bottle detected. Starting approach." << RESET << std::endl;
@@ -173,7 +177,7 @@ void handleBottleInteraction(BottleTaskState &state,
         case BottleTaskState::WALKING_TO_BOTTLE:
         {
             // This threshold is critical and must be tuned carefully!
-            const double PICKUP_DISTANCE_THRESHOLD = 0.27; // in meters
+            const double PICKUP_DISTANCE_THRESHOLD = 0.30; // in meters
 
             if (!is_bottle_detected)
             {
@@ -213,7 +217,7 @@ void handleBottleInteraction(BottleTaskState &state,
 
             MotionManager::GetInstance()->RemoveModule(static_cast<MotionModule *>(Walking::GetInstance()));
             run_action(ACTION_PAGE_READY_TO_PICKUP);
-            setEnableMotionManagerAndWalking(false);
+            set_enable_motion_manager_and_walking(false);
 
             right_arm_controller.OpenGripper();
             // right_arm_controller.CenterHandInView();
@@ -225,7 +229,7 @@ void handleBottleInteraction(BottleTaskState &state,
             std::this_thread::sleep_for(std::chrono::milliseconds(1000));
 
             run_action(ACTION_PAGE_STAND);
-            setEnableMotionManagerAndWalking(true);
+            set_enable_motion_manager_and_walking(true);
 
             current_action_label = "bottle_pickup_complete";
             last_action_time = current_time;
@@ -234,8 +238,7 @@ void handleBottleInteraction(BottleTaskState &state,
         break;
 
         case BottleTaskState::DONE:
-            MotionManager::GetInstance()->RemoveModule(static_cast<MotionModule *>(Walking::GetInstance()));
-            MotionManager::GetInstance()->SetEnable(false);
+            set_enable_motion_manager_and_walking(false);
             return;
         }
     }
