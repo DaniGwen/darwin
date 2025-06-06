@@ -143,29 +143,26 @@ int LinuxActionScript::PlayMP3(const char *filename)
 
 int LinuxActionScript::PlayMP3Wait(const char *filename)
 {
-    // If a process is already playing, stop it.
     if (mp3_pid != -1)
         kill(mp3_pid, SIGKILL);
-    mp3_pid = fork(); // Create a new child process
+
+    mp3_pid = fork();
+
     switch (mp3_pid)
     {
     case -1:
-        fprintf(stderr, "Fork for VLC failed! \n");
+        fprintf(stderr, "Fork failed!! \n");
         break;
-    case 0: // This is the code executed by the child process
-        fprintf(stderr, "Playing stream with VLC from \"%s\" ...\n", filename);
-        // Execute VLC in headless mode, then exit after playing.
-        execl("/usr/bin/vlc", "vlc", "--intf", "dummy", "--play-and-exit", filename, (char *)0);
-        // If execl returns, it means an error occurred.
-        fprintf(stderr, "exec for VLC failed! Is VLC installed?\n");
-        _exit(1); // Exit child process on failure
+    case 0:
+        fprintf(stderr, "Playing MPEG stream from \"%s\" ...\n", filename);
+        execl("/usr/bin/madplay", "madplay", filename, "-q", (char *)0);
+        fprintf(stderr, "exec failed!! \n");
         break;
-    default: // This is the code executed by the parent process
+    default:
         int status;
-        // Wait for the child process (VLC) to terminate.
         waitpid(mp3_pid, &status, 0);
-        mp3_pid = -1; // Reset the process ID
         break;
     }
+
     return 1;
 }
