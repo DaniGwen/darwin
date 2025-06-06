@@ -22,7 +22,7 @@
 #include <thread>    // Required for std::this_thread::sleep_for (optional)
 #include <cctype>
 #include "algorithm"
-#include "cstring"
+#include <cstring>
 
 #include "minIni.h" // For INI file loading
 #include "HeadTracking.h"
@@ -30,6 +30,7 @@
 #include "RightArmController.h"
 #include "LegsController.h"
 #include "LinuxDARwIn.h" // Include for Motion Framework components (MotionManager, Action)
+#include "LinuxActionScript.h"
 
 // --- Configuration ---
 #define INI_FILE_PATH "../../../../Data/config.ini"
