@@ -34,6 +34,7 @@
 #define INI_FILE_PATH "../../../../Data/config.ini"
 #define U2D_DEV_NAME "/dev/ttyUSB0" // Verify this path is correct!
 #define MOTION_FILE_PATH "../../../../Data/motion_4096.bin"
+#define SOUNDS_PATH "../../../../Data/mp3"
 
 // Define action page numbers for different detected objects
 #define ACTION_PAGE_WAVE 7
@@ -344,12 +345,15 @@ int main(void)
     std::cout << "INFO: Playing initial standby action (Page " << ACTION_PAGE_STAND << ")..." << std::endl; //
     run_action(ACTION_PAGE_STAND);
 
+    LinuxActionScript::PlayMP3(SOUNDS_PATH + "/lock-and-load-male.mp3")
+
     pthread_t tracking_thread;
     std::cout << "INFO: Creating HeadTracking thread..." << std::endl;                                   //
     int thread_create_status = pthread_create(&tracking_thread, NULL, HeadTrackingThread, head_tracker); //
 
     if (thread_create_status != 0)
     {
+        LinuxActionScript::PlayMP3(SOUNDS_PATH + "/girl-scream.mp3")
         std::cerr << "ERROR: Failed to create HeadTracking thread: " << strerror(thread_create_status) << std::endl; //
         head_tracker->Cleanup();                                                                                     //
         motion_timer->Stop();                                                                                        //
