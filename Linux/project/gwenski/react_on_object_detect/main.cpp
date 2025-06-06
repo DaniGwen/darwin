@@ -22,6 +22,7 @@
 #include <thread>    // Required for std::this_thread::sleep_for (optional)
 #include <cctype>
 #include "algorithm"
+#include "cstring"
 
 #include "minIni.h" // For INI file loading
 #include "HeadTracking.h"
@@ -47,7 +48,6 @@
 #define ACTION_PAGE_READY_TO_PICKUP 32
 #define ACTION_PAGE_PICKUP_ITEM 33
 #define ACTION_PAGE_PASS_ITEM 34
-
 
 enum class BottleTaskState
 {
@@ -89,7 +89,7 @@ void run_action(int action_page)
 
     Action::GetInstance()->Start(action_page);
 
-    //Action::GetInstance()->ReleaseHeadControl(); // Release head control to allow HeadTracking to manage it
+    // Action::GetInstance()->ReleaseHeadControl(); // Release head control to allow HeadTracking to manage it
     while (Action::GetInstance()->IsRunning())
         usleep(8 * 1000);
 
@@ -126,7 +126,7 @@ void handlePersonDetected(LeftArmController &left_arm_controller,
 {
     std::cout << "INFO: Detected person consistently. Playing Wave" << std::endl;
 
-   int random = rand() % 3; // Randomly choose between three actions
+    int random = rand() % 3; // Randomly choose between three actions
     if (random == 0)
     {
         run_action(ACTION_PAGE_WAVE);
@@ -333,6 +333,7 @@ int main(void)
 
     if (!head_tracker->Initialize(ini, &cm730)) // Updated call //
     {
+        LinuxActionScript::PlayMP3(strcat(SOUNDS_PATH, "/girl-scream.mp3"));
         std::cerr << "ERROR: HeadTracking initialization failed. Exiting." << std::endl; //
         motion_timer->Stop();
         MotionManager::GetInstance()->SetEnable(false);
@@ -345,7 +346,7 @@ int main(void)
     std::cout << "INFO: Playing initial standby action (Page " << ACTION_PAGE_STAND << ")..." << std::endl; //
     run_action(ACTION_PAGE_STAND);
 
-    LinuxActionScript::PlayMP3(SOUNDS_PATH + "/lock-and-load-male.mp3")
+    LinuxActionScript::PlayMP3(strcat(SOUNDS_PATH, "/lock-and-load-male.mp3"));
 
     pthread_t tracking_thread;
     std::cout << "INFO: Creating HeadTracking thread..." << std::endl;                                   //
@@ -353,7 +354,7 @@ int main(void)
 
     if (thread_create_status != 0)
     {
-        LinuxActionScript::PlayMP3(SOUNDS_PATH + "/girl-scream.mp3")
+        LinuxActionScript::PlayMP3(strcat(SOUNDS_PATH, "/girl-scream.mp3"));
         std::cerr << "ERROR: Failed to create HeadTracking thread: " << strerror(thread_create_status) << std::endl; //
         head_tracker->Cleanup();                                                                                     //
         motion_timer->Stop();                                                                                        //
