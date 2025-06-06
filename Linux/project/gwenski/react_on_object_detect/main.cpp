@@ -22,7 +22,6 @@
 #include <thread>    // Required for std::this_thread::sleep_for (optional)
 #include <cctype>
 #include "algorithm"
-#include <cstring>
 
 #include "minIni.h" // For INI file loading
 #include "HeadTracking.h"
@@ -36,7 +35,6 @@
 #define INI_FILE_PATH "../../../../Data/config.ini"
 #define U2D_DEV_NAME "/dev/ttyUSB0" // Verify this path is correct!
 #define MOTION_FILE_PATH "../../../../Data/motion_4096.bin"
-#define SOUNDS_PATH "../../../../Data/mp3"
 
 // Define action page numbers for different detected objects
 #define ACTION_PAGE_WAVE 7
@@ -334,7 +332,7 @@ int main(void)
 
     if (!head_tracker->Initialize(ini, &cm730)) // Updated call //
     {
-        LinuxActionScript::PlayMP3(strcat(SOUNDS_PATH, "/girl-scream.mp3"));
+        LinuxActionScript::PlayMP3("../../../../Data/mp3/girl-scream.mp3");
         while (LinuxActionScript::m_is_running) // Wait for the sound to finish playing //
         {
             std::this_thread::sleep_for(std::chrono::milliseconds(100 * 8));
@@ -351,7 +349,7 @@ int main(void)
     std::cout << "INFO: Playing initial standby action (Page " << ACTION_PAGE_STAND << ")..." << std::endl; //
     run_action(ACTION_PAGE_STAND);
 
-    LinuxActionScript::PlayMP3(strcat(SOUNDS_PATH, "/lock-and-load-male.mp3"));
+    LinuxActionScript::PlayMP3("../../../../Data/mp3/lock-and-load-male.mp3");
     while (LinuxActionScript::m_is_running) // Wait for the sound to finish playing //
     {
         std::this_thread::sleep_for(std::chrono::milliseconds(100 * 8));
@@ -363,7 +361,7 @@ int main(void)
 
     if (thread_create_status != 0)
     {
-        LinuxActionScript::PlayMP3(strcat(SOUNDS_PATH, "/girl-scream.mp3"));
+        LinuxActionScript::PlayMP3("../../../../Data/mp3/girl-scream.mp3");
         while (LinuxActionScript::m_is_running) // Wait for the sound to finish playing //
         {
             std::this_thread::sleep_for(std::chrono::milliseconds(100 * 8));
