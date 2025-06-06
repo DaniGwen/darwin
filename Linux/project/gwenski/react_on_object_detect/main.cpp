@@ -332,7 +332,7 @@ int main(void)
 
     if (!head_tracker->Initialize(ini, &cm730)) // Updated call //
     {
-        LinuxActionScript::PlayMP3Wait("../../../../Data/mp3/girl-scream.mp3");
+        LinuxActionScript::PlayMP3Wait("/home/darwin/darwin/Data/mp3/girl-scream.mp3");
         std::cerr << "ERROR: HeadTracking initialization failed. Exiting." << std::endl; //
         motion_timer->Stop();
         MotionManager::GetInstance()->SetEnable(false);
@@ -345,7 +345,7 @@ int main(void)
     std::cout << "INFO: Playing initial standby action (Page " << ACTION_PAGE_STAND << ")..." << std::endl; //
     run_action(ACTION_PAGE_STAND);
 
-    LinuxActionScript::PlayMP3Wait("../../../../Data/mp3/lock-and-load-male.mp3");
+    LinuxActionScript::PlayMP3Wait("/home/darwin/darwin/Data/mp3/lock-and-load-male.mp3");
 
     pthread_t tracking_thread;
     std::cout << "INFO: Creating HeadTracking thread..." << std::endl;                                   //
@@ -353,7 +353,7 @@ int main(void)
 
     if (thread_create_status != 0)
     {
-        LinuxActionScript::PlayMP3Wait("../../../../Data/mp3/girl-scream.mp3");
+        LinuxActionScript::PlayMP3Wait("/home/darwin/darwin/Data/mp3/girl-scream.mp3");
         std::cerr << "ERROR: Failed to create HeadTracking thread: " << strerror(thread_create_status) << std::endl; //
         head_tracker->Cleanup();                                                                                     //
         motion_timer->Stop();                                                                                        //
