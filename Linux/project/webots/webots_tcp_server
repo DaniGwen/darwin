@@ -49,21 +49,22 @@ struct MotorCommands {
 // This function will eventually contain your neural network model.
 // For now, it just generates a simple "dance" motion.
 void process_logic(const SensorData& sensors, MotorCommands& commands, double time) {
-    // Simple dance: move arms and hips with a sine wave
+    // First, set all joints to a neutral 0.0 position.
+    for (int i = 0; i < 20; ++i) {
+        commands.joint_targets[i] = 0.0;
+    }
+
+    // Now, override specific joints for the "dance" motion.
     double amplitude = 0.5; // radians
     double frequency = 0.5; // Hz
 
-    // ShoulderR, ShoulderL
+    // ShoulderR (ID 0), ShoulderL (ID 1)
     commands.joint_targets[0] = -amplitude * sin(2 * M_PI * frequency * time);
     commands.joint_targets[1] =  amplitude * sin(2 * M_PI * frequency * time);
     
-    // PelvR, PelvL
+    // PelvR (ID 8), PelvL (ID 9)
     commands.joint_targets[8] = -amplitude * 0.5 * sin(2 * M_PI * frequency * time + M_PI);
     commands.joint_targets[9] =  amplitude * 0.5 * sin(2 * M_PI * frequency * time + M_PI);
-
-    // Keep all other joints at their current position to hold steady
-    for (int i = 2; i < 8; ++i) commands.joint_targets[i] = sensors.joint_positions[i];
-    for (int i = 10; i < 20; ++i) commands.joint_targets[i] = sensors.joint_positions[i];
 }
 
 
