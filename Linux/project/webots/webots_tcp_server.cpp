@@ -1,173 +1,158 @@
-/*
+*
  * Description: A cross-platform C++ TCP server designed to run within the
- * Darwin-OP framework. It listens for a connection from a Webots client,
- * receives sensor data, processes it (placeholder logic), and sends
- * motor commands back. This forms the "brain" side of the simulation setup.
+ * Darwin-OP framework. This is the final, robust version with a self-contained
+ * clamp function for maximum compatibility with different C++ compilers.
  */
 
 #include <iostream>
 #include <vector>
 #include <string>
-#include <cmath> // For sin() in placeholder logic
-#include <chrono> // For timing
-#include <algorithm> // Needed for std::clamp
+#include <cmath>     // For sin() in placeholder logic
+#include <chrono>    // For timing
+#include <algorithm> // Needed for std::min and std::max
 
 // --- Platform-Specific Networking Includes ---
 #ifdef _WIN32
-  // For Windows Sockets (Winsock)
-  #include <winsock2.h>
-  #include <ws2tcpip.h>
-  // Link with ws2_32.lib in your build system (e.g., Makefile or IDE settings)
+#include <winsock2.h>
+#include <ws2tcpip.h>
 #else
-  // For POSIX Sockets (Linux, macOS)
-  #include <sys/socket.h>
-  #include <netinet/in.h>
-  #include <arpa/inet.h>
-  #include <unistd.h> // For close()
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <unistd.h>
 #endif
 
-// --- IMPORTANT ---
-// These data structures MUST EXACTLY MATCH the ones on your client (Webots controller)
-// to ensure correct communication. The size and order of members matter.
-
-#pragma pack(push, 1) // Ensure compiler doesn't add padding bytes
-struct SensorData {
-    // 20 Motor Positions (in radians)
+// --- IMPORTANT DATA STRUCTURES ---
+#pragma pack(push, 1)
+struct SensorData
+{
     double joint_positions[20];
-    // Inertial Measurement Unit (IMU)
-    double roll;
-    double pitch;
-    double yaw;
+    double roll, pitch, yaw;
 };
-
-struct MotorCommands {
-    // 20 Motor Target Positions (in radians)
+struct MotorCommands
+{
     double joint_targets[20];
 };
 #pragma pack(pop)
 
-// --- Placeholder for your framework's logic ---
-// This function will eventually contain your neural network model.
-// For now, it just generates a simple "dance" motion.
-void process_logic(const SensorData& sensors, MotorCommands& commands, double time) {
-    // Define the min/max joint limits in radians for all 20 motors.
-    // These values are typical for the ROBOTIS OP2.
-    const std::vector<std::pair<double, double>> joint_limits = {
-        {-2.25, 2.25}, {-2.25, 2.25}, {-2.25, 2.25}, {-2.25, 2.25}, // 0-3
-        {-2.25, 2.25}, {-2.25, 2.25}, {-2.25, 2.25}, {-2.25, 2.25}, // 4-7
-        {-2.25, 2.25}, {-2.25, 2.25}, {-2.25, 2.25}, {-2.25, 2.25}, // 8-11
-        {-2.25, 2.25}, {-2.25, 2.25}, {-2.25, 2.25}, {-2.25, 2.25}, // 12-15
-        {-2.25, 2.25}, {-2.25, 2.25}, {-2.25, 2.25}, {-2.25, 2.25}  // 16-19
-    };
+// --- HELPER FUNCTION ---
+// A simple clamp function to ensure compatibility with older C++ standards
+// that don't have std::clamp (pre-C++17).
+template <typename T>
+const T &clamp(const T &value, const T &low, const T &high)
+{
+    return std::min(high, std::max(value, low));
+}
 
-    // --- Start with a neutral pose ---
-    for (int i = 0; i < 20; ++i) {
+// --- Main Logic Processing ---
+void process_logic(const SensorData &sensors, MotorCommands &commands, double time)
+{
+    const std::vector<std::pair<double, double>> joint_limits = {
+        {-2.25, 2.25}, {-2.25, 2.25}, {-2.25, 2.25}, {-2.25, 2.25}, {-2.25, 2.25}, {-2.25, 2.25}, {-2.25, 2.25}, {-2.25, 2.25}, {-2.25, 2.25}, {-2.25, 2.25}, {-2.25, 2.25}, {-2.25, 2.25}, {-2.25, 2.25}, {-2.25, 2.25}, {-2.25, 2.25}, {-2.25, 2.25}, {-2.25, 2.25}, {-2.25, 2.25}, {-2.25, 2.25}, {-2.25, 2.25}};
+
+    for (int i = 0; i < 20; ++i)
+    {
         commands.joint_targets[i] = 0.0;
     }
 
-    // --- Calculate the "dance" motion ---
-    double amplitude = 0.5; // radians
-    double frequency = 0.5; // Hz
+    double amplitude = 0.5;
+    double frequency = 0.5;
 
-    // ShoulderR (ID 0), ShoulderL (ID 1)
     commands.joint_targets[0] = -amplitude * sin(2 * M_PI * frequency * time);
-    commands.joint_targets[1] =  amplitude * sin(2 * M_PI * frequency * time);
-    
-    // PelvR (ID 8), PelvL (ID 9)
+    commands.joint_targets[1] = amplitude * sin(2 * M_PI * frequency * time);
     commands.joint_targets[8] = -amplitude * 0.5 * sin(2 * M_PI * frequency * time + M_PI);
-    commands.joint_targets[9] =  amplitude * 0.5 * sin(2 * M_PI * frequency * time + M_PI);
+    commands.joint_targets[9] = amplitude * 0.5 * sin(2 * M_PI * frequency * time + M_PI);
 
-    // --- Final Safety Check: Clamp all values before sending ---
-    for (int i = 0; i < 20; ++i) {
+    // Final Safety Check: Clamp all values using our helper function
+    for (int i = 0; i < 20; ++i)
+    {
         double min_pos = joint_limits[i].first;
         double max_pos = joint_limits[i].second;
-        commands.joint_targets[i] = std::clamp(commands.joint_targets[i], min_pos, max_pos);
+        // Notice we call clamp(...) instead of std::clamp(...)
+        commands.joint_targets[i] = clamp(commands.joint_targets[i], min_pos, max_pos);
     }
 }
 
-
-int main() {
-    // --- Configuration ---
-    const char* SERVER_IP = "127.0.0.1";
+// --- Main Server Function ---
+int main()
+{
     const int PORT = 1234;
     int server_fd, client_socket;
     struct sockaddr_in address;
-    int opt = 1;
     int addrlen = sizeof(address);
 
 #ifdef _WIN32
-    // Initialize Winsock
     WSADATA wsaData;
-    if (WSAStartup(MAKEWORD(2, 2), &wsaData) != 0) {
+    if (WSAStartup(MAKEWORD(2, 2), &wsaData) != 0)
+    {
         std::cerr << "WSAStartup failed" << std::endl;
         return 1;
     }
 #endif
 
-    // --- Create Server Socket ---
-    if ((server_fd = socket(AF_INET, SOCK_STREAM, 0)) == 0) {
+    if ((server_fd = socket(AF_INET, SOCK_STREAM, 0)) == 0)
+    {
         std::cerr << "Socket creation failed" << std::endl;
         return 1;
     }
     std::cout << "Server socket created successfully." << std::endl;
 
-    // --- Bind Socket to IP and Port ---
     address.sin_family = AF_INET;
-    address.sin_addr.s_addr = INADDR_ANY; // Listen on all available interfaces
+    address.sin_addr.s_addr = INADDR_ANY;
     address.sin_port = htons(PORT);
 
-    if (bind(server_fd, (struct sockaddr *)&address, sizeof(address)) < 0) {
+    if (bind(server_fd, (struct sockaddr *)&address, sizeof(address)) < 0)
+    {
         std::cerr << "Bind failed" << std::endl;
         return 1;
     }
     std::cout << "Socket bound to port " << PORT << "." << std::endl;
 
-    // --- Listen for Incoming Connections ---
-    if (listen(server_fd, 3) < 0) {
+    if (listen(server_fd, 3) < 0)
+    {
         std::cerr << "Listen failed" << std::endl;
         return 1;
     }
     std::cout << "Server listening... Waiting for a Webots client to connect." << std::endl;
 
-    // --- Accept Connection from Client ---
-    if ((client_socket = accept(server_fd, (struct sockaddr *)&address, (socklen_t*)&addrlen)) < 0) {
+    if ((client_socket = accept(server_fd, (struct sockaddr *)&address, (socklen_t *)&addrlen)) < 0)
+    {
         std::cerr << "Accept failed" << std::endl;
         return 1;
     }
     std::cout << "Webots client connected!" << std::endl;
 
-    // --- Main Communication Loop ---
     SensorData received_sensors;
     MotorCommands commands_to_send;
     auto start_time = std::chrono::high_resolution_clock::now();
 
-    while (true) {
-        // 1. RECEIVE sensor data from the client
-        int bytes_received = recv(client_socket, (char*)&received_sensors, sizeof(SensorData), 0);
+    while (true)
+    {
+        int bytes_received = recv(client_socket, (char *)&received_sensors, sizeof(SensorData), 0);
 
-        if (bytes_received <= 0) {
+        if (bytes_received <= 0)
+        {
             std::cout << "Client disconnected or connection error." << std::endl;
             break;
         }
-        
-        if (bytes_received != sizeof(SensorData)) {
+
+        if (bytes_received != sizeof(SensorData))
+        {
             std::cerr << "Warning: Received incomplete sensor packet." << std::endl;
             continue;
         }
 
-        // 2. PROCESS the data and generate motor commands (Your NN goes here)
         auto current_time = std::chrono::high_resolution_clock::now();
         double elapsed_time = std::chrono::duration<double>(current_time - start_time).count();
         process_logic(received_sensors, commands_to_send, elapsed_time);
 
-        // 3. SEND motor commands back to the client
-        if (send(client_socket, (const char*)&commands_to_send, sizeof(MotorCommands), 0) == -1) {
+        if (send(client_socket, (const char *)&commands_to_send, sizeof(MotorCommands), 0) == -1)
+        {
             std::cerr << "Failed to send motor commands." << std::endl;
             break;
         }
     }
 
-    // --- Cleanup ---
     std::cout << "Closing sockets." << std::endl;
 #ifdef _WIN32
     closesocket(client_socket);
