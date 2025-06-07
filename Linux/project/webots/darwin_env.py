@@ -19,7 +19,7 @@ class DarwinOPEnv(gym.Env):
         self.port = port
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         
-        # We add a timeout to prevent the script from hanging indefinitely
+        # Add a timeout to prevent the script from hanging indefinitely
         self.socket.settimeout(10.0) 
         
         self.socket.connect((self.server_ip, self.port))
@@ -32,16 +32,17 @@ class DarwinOPEnv(gym.Env):
     def _get_obs(self):
         """Receives sensor data from the C++ server."""
         try:
-            data = self.socket.recv(self.sensor_struct.size)
+            # The buffer size should be large enough to handle potential network fragmentation
+            data = self.socket.recv(4096) 
             if len(data) < self.sensor_struct.size:
                 raise ConnectionError("Connection issue: Received incomplete sensor packet.")
-            unpacked_data = self.sensor_struct.unpack(data)
+            
+            unpacked_data = self.sensor_struct.unpack(data[:self.sensor_struct.size])
             return np.array(unpacked_data, dtype=np.float32)
         except socket.timeout:
             raise ConnectionError("Connection timed out while waiting for observation.")
         except Exception as e:
             raise ConnectionError(f"An error occurred while receiving data: {e}")
-
 
     def step(self, action):
         """Sends an action to the environment and gets the next state and reward."""
@@ -68,27 +69,19 @@ class DarwinOPEnv(gym.Env):
 
     def reset(self, seed=None, options=None):
         """
-        Resets the environment for a new episode.
-        This is the corrected logic.
+        Resets the environment for a new episode. This simplified logic
+        matches the corrected C++ Supervisor.
         """
         super().reset(seed=seed)
         
         print("Resetting environment...")
         
-        # --- FIX: Send the reset command ---
+        # --- FIX: Send the reset command. The C++ side will now
+        # --- automatically respond with the new state, breaking the deadlock.
         reset_command = [999.0] * 20
         packed_reset_command = self.command_struct.pack(*reset_command)
         self.socket.sendall(packed_reset_command)
         
-        # --- The C++ supervisor will now receive this, reset, step once,
-        #     and then enter its main loop where it waits for the NEXT command.
-        #     It does NOT automatically send data after reset.
-        #     So, we must send a dummy action to get the first observation.
-        
-        dummy_action = [0.0] * 20
-        packed_dummy_action = self.command_struct.pack(*dummy_action)
-        self.socket.sendall(packed_dummy_action)
-
         # --- Now it is safe to wait for the first observation of the new episode ---
         observation = self._get_obs()
         info = {}
