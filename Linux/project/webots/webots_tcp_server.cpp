@@ -1,17 +1,20 @@
 /*
- * Description: A cross-platform C++ TCP server designed to run within the
- * Darwin-OP framework. This is the final, robust version with a self-contained
- * clamp function and a more compatible vector initialization method.
+ * Description: A C++ TCP server that loads a pre-trained ONNX neural network
+ * model to control the Darwin-OP robot in Webots.
  */
 
 #include <iostream>
 #include <vector>
 #include <string>
-#include <cmath> // For sin() in placeholder logic
-#include <chrono> // For timing
-#include <algorithm> // Needed for std::min and std::max
+#include <cmath>
+#include <chrono>
+#include <algorithm>
+#include <memory> // For std::unique_ptr
 
-// --- Platform-Specific Networking Includes ---
+// ONNX Runtime C++ API
+#include <onnxruntime_cxx_api.h>
+
+// Platform-Specific Networking Includes
 #ifdef _WIN32
   #include <winsock2.h>
   #include <ws2tcpip.h>
@@ -22,7 +25,7 @@
   #include <unistd.h>
 #endif
 
-// --- IMPORTANT DATA STRUCTURES ---
+// --- DATA STRUCTURES ---
 #pragma pack(push, 1)
 struct SensorData {
     double joint_positions[20];
@@ -33,46 +36,73 @@ struct MotorCommands {
 };
 #pragma pack(pop)
 
-// --- HELPER FUNCTION ---
-// A simple clamp function to ensure compatibility with older C++ standards
-// that don't have std::clamp (pre-C++17).
+// --- HELPER FUNCTION for clamping values ---
 template<typename T>
 const T& clamp(const T& value, const T& low, const T& high) {
     return std::min(high, std::max(value, low));
 }
 
+// --- GLOBAL VARIABLES for ONNX Runtime ---
+struct ONNX_Model {
+    Ort::Env env;
+    Ort::Session session;
+    Ort::AllocatorWithDefaultOptions allocator;
+    std::vector<const char*> input_node_names;
+    std::vector<const char*> output_node_names;
+
+    ONNX_Model(const char* model_path) : 
+        env(ORT_LOGGING_LEVEL_WARNING, "NN_INFERENCE"),
+        session(env, model_path, Ort::SessionOptions{nullptr}) {
+        
+        input_node_names.push_back(session.GetInputName(0, allocator));
+        output_node_names.push_back(session.GetOutputName(0, allocator));
+    }
+};
+
 // --- Main Logic Processing ---
-void process_logic(const SensorData& sensors, MotorCommands& commands, double time) {
-    // This initialization method is more compatible with older compilers.
+void process_logic(const SensorData& sensors, MotorCommands& commands, ONNX_Model& model) {
+    // --- 1. Prepare Input Tensor ---
+    const int input_size = 23;
+    std::vector<float> input_tensor_values(input_size);
+    for(int i = 0; i < 20; ++i) input_tensor_values[i] = (float)sensors.joint_positions[i];
+    input_tensor_values[20] = (float)sensors.roll;
+    input_tensor_values[21] = (float)sensors.pitch;
+    input_tensor_values[22] = (float)sensors.yaw;
+
+    std::vector<int64_t> input_tensor_shape = {1, input_size};
+    Ort::MemoryInfo memory_info = Ort::MemoryInfo::CreateCpu(OrtArenaAllocator, OrtMemTypeDefault);
+    Ort::Value input_tensor = Ort::Value::CreateTensor<float>(memory_info, input_tensor_values.data(), input_tensor_values.size(), input_tensor_shape.data(), input_tensor_shape.size());
+
+    // --- 2. Run Inference ---
+    auto output_tensors = model.session.Run(Ort::RunOptions{nullptr}, model.input_node_names.data(), &input_tensor, 1, model.output_node_names.data(), 1);
+
+    // --- 3. Extract Output and Clamp ---
+    float* output_values = output_tensors[0].GetTensorMutableData<float>();
+    const int output_size = 20;
+
     std::vector<std::pair<double, double>> joint_limits;
-    joint_limits.reserve(20); // Pre-allocate memory for efficiency
+    joint_limits.reserve(20);
     for (int i = 0; i < 20; ++i) {
         joint_limits.push_back({-2.25, 2.25});
     }
 
-    for (int i = 0; i < 20; ++i) {
-        commands.joint_targets[i] = 0.0;
-    }
-
-    double amplitude = 0.5;
-    double frequency = 0.5;
-
-    commands.joint_targets[0] = -amplitude * sin(2 * M_PI * frequency * time);
-    commands.joint_targets[1] =  amplitude * sin(2 * M_PI * frequency * time);
-    commands.joint_targets[8] = -amplitude * 0.5 * sin(2 * M_PI * frequency * time + M_PI);
-    commands.joint_targets[9] =  amplitude * 0.5 * sin(2 * M_PI * frequency * time + M_PI);
-
-    // Final Safety Check: Clamp all values using our helper function
-    for (int i = 0; i < 20; ++i) {
-        double min_pos = joint_limits[i].first;
-        double max_pos = joint_limits[i].second;
-        // Notice we call clamp(...) instead of std::clamp(...)
-        commands.joint_targets[i] = clamp(commands.joint_targets[i], min_pos, max_pos);
+    for (int i = 0; i < output_size; ++i) {
+        commands.joint_targets[i] = clamp((double)output_values[i], joint_limits[i].first, joint_limits[i].second);
     }
 }
 
 // --- Main Server Function ---
 int main() {
+    // --- Load the Neural Network Model ---
+    std::unique_ptr<ONNX_Model> model;
+    try {
+        model = std::make_unique<ONNX_Model>("./darwin_model.onnx");
+        std::cout << "Neural network model loaded successfully." << std::endl;
+    } catch (const Ort::Exception& e) {
+        std::cerr << "ERROR loading ONNX model: " << e.what() << std::endl;
+        return 1;
+    }
+    
     const int PORT = 1234;
     int server_fd, client_socket;
     struct sockaddr_in address;
@@ -90,8 +120,7 @@ int main() {
         std::cerr << "Socket creation failed" << std::endl;
         return 1;
     }
-    std::cout << "Server socket created successfully." << std::endl;
-
+    
     address.sin_family = AF_INET;
     address.sin_addr.s_addr = INADDR_ANY;
     address.sin_port = htons(PORT);
@@ -100,8 +129,7 @@ int main() {
         std::cerr << "Bind failed" << std::endl;
         return 1;
     }
-    std::cout << "Socket bound to port " << PORT << "." << std::endl;
-
+    
     if (listen(server_fd, 3) < 0) {
         std::cerr << "Listen failed" << std::endl;
         return 1;
@@ -116,24 +144,15 @@ int main() {
 
     SensorData received_sensors;
     MotorCommands commands_to_send;
-    auto start_time = std::chrono::high_resolution_clock::now();
-
+    
     while (true) {
         int bytes_received = recv(client_socket, (char*)&received_sensors, sizeof(SensorData), 0);
-
         if (bytes_received <= 0) {
             std::cout << "Client disconnected or connection error." << std::endl;
             break;
         }
         
-        if (bytes_received != sizeof(SensorData)) {
-            std::cerr << "Warning: Received incomplete sensor packet." << std::endl;
-            continue;
-        }
-
-        auto current_time = std::chrono::high_resolution_clock::now();
-        double elapsed_time = std::chrono::duration<double>(current_time - start_time).count();
-        process_logic(received_sensors, commands_to_send, elapsed_time);
+        process_logic(received_sensors, commands_to_send, *model);
 
         if (send(client_socket, (const char*)&commands_to_send, sizeof(MotorCommands), 0) == -1) {
             std::cerr << "Failed to send motor commands." << std::endl;
