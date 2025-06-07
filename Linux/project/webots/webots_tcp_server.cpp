@@ -1,6 +1,7 @@
 /*
  * Description: A C++ TCP server that loads a pre-trained ONNX neural network
- * model to control the Darwin-OP robot in Webots.
+ * model to control the Darwin-OP robot in Webots. This version contains the
+ * corrected header path for onnxruntime.
  */
 
 #include <iostream>
@@ -9,10 +10,10 @@
 #include <cmath>
 #include <chrono>
 #include <algorithm>
-#include <memory> // For std::unique_ptr
+#include <memory>
 
-// ONNX Runtime C++ API
-#include <onnxruntime_cxx_api.h>
+// --- Corrected ONNX Runtime C++ API Include Path ---
+#include <onnxruntime/core/session/onnxruntime_cxx_api.h>
 
 // Platform-Specific Networking Includes
 #ifdef _WIN32
