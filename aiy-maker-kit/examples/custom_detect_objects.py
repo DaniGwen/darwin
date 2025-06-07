@@ -26,7 +26,7 @@ import socket
 import struct # For packing/unpacking integers
 import time
 import numpy as np
-import playsound
+from playsound import playsound 
 from PIL import Image
 
 # Import tflite_runtime for the interpreter
