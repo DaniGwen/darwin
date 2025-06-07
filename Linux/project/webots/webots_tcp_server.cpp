@@ -178,6 +178,13 @@ int main() {
         
         process_logic(received_sensors, commands_to_send, *model);
 
+         std::cout << "IMU (R/P/Y): "
+                  << received_sensors.roll << ", "
+                  << received_sensors.pitch << ", "
+                  << received_sensors.yaw << std::endl;
+
+        std::cout << "NN Output (ShoulderR): " << commands_to_send.joint_targets[0] << std::endl;
+        
         if (send(client_socket, (const char*)&commands_to_send, sizeof(MotorCommands), 0) == -1) {
             std::cerr << "Failed to send motor commands." << std::endl;
             break;
