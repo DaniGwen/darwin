@@ -241,6 +241,7 @@ def process_frame(
 
     height_data = recvall(client_socket, 4)
     if not height_data:  # Connection closed
+        playsound("/home/darwin/darwin/Data/mp3/Bye bye.mp3")
         print("INFO: Connection closed by C++ program.", file=sys.stderr)
         return False  # Indicate connection closed
 
@@ -251,6 +252,7 @@ def process_frame(
     # --- Receive Raw Frame Data ---
     raw_frame_data = recvall(client_socket, frame_data_size)
     if not raw_frame_data:  # Connection closed
+        playsound("/home/darwin/darwin/Data/mp3/Bye bye.mp3")
         print("INFO: Connection closed by C++ program.", file=sys.stderr)
         return False  # Indicate connection closed
 
@@ -332,7 +334,6 @@ def process_frame(
         if result_size > 0:
             client_socket.sendall(result_bytes)
     except socket.error as e:
-        playsound("/home/darwin/darwin/Data/mp3/Bye bye.mp3")
         print(f"ERROR: Failed to send detection results: {e}", file=sys.stderr)
         return False  # Indicate send error
 
