@@ -14,12 +14,7 @@ ARFLAGS = cr
 TARGET = darwin.a
 
 INCLUDE_DIRS = -I../include -I../../Framework/include
-ONNX_INCLUDE_PATH = -I/home/darwin/onnxruntime/include
-ONNX_LIB_PATH = -L/home/darwin/onnxruntime/build/Linux/Release
-ONNX_LIBS = -lonnxruntime
 
-CXXFLAGS += $(ONNX_INCLUDE_PATH)
-LDFLAGS += $(ONNX_LIB_PATH) $(ONNX_LIBS)
 CXXFLAGS += -O2 -DLINUX -Wall -shared $(INCLUDE_DIRS)
 #CXXFLAGS += -O2 -DDEBUG -DLINUX -Wall -shared $(INCLUDE_DIRS)
 LFLAGS += -lpthread -ldl
