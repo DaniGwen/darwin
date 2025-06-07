@@ -26,6 +26,7 @@ import socket
 import struct # For packing/unpacking integers
 import time
 import numpy as np
+import playsound
 from PIL import Image
 
 # Import tflite_runtime for the interpreter
@@ -276,6 +277,7 @@ def process_frame(client_socket, interpreter, labels, model_input_width, model_i
         if result_size > 0:
             client_socket.sendall(result_bytes)
     except socket.error as e:
+        playsound('../../Data/mp3/Bye bye.mp3')
         print(f"ERROR: Failed to send detection results: {e}", file=sys.stderr)
         return False # Indicate send error
 
