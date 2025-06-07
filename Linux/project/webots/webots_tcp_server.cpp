@@ -1,7 +1,7 @@
 /*
  * Description: A C++ TCP server that loads a pre-trained ONNX neural network
  * model to control the Darwin-OP robot in Webots. This version contains the
- * corrected header path for onnxruntime.
+ * corrected header path for onnxruntime and compatibility fixes for v1.13.1.
  */
 
 #include <iostream>
@@ -48,15 +48,38 @@ struct ONNX_Model {
     Ort::Env env;
     Ort::Session session;
     Ort::AllocatorWithDefaultOptions allocator;
+
+    // These vectors hold the raw C-style strings for the API call.
     std::vector<const char*> input_node_names;
     std::vector<const char*> output_node_names;
+
+    // These vectors own the memory for the names and will clean it up automatically.
+    std::vector<Ort::AllocatedStringPtr> input_name_holder;
+    std::vector<Ort::AllocatedStringPtr> output_name_holder;
+
 
     ONNX_Model(const char* model_path) : 
         env(ORT_LOGGING_LEVEL_WARNING, "NN_INFERENCE"),
         session(env, model_path, Ort::SessionOptions{nullptr}) {
         
-        input_node_names.push_back(session.GetInputName(0, allocator));
-        output_node_names.push_back(session.GetOutputName(0, allocator));
+        // --- Corrected method for getting model input/output names for ORT v1.13 ---
+        // Get the number of inputs and outputs
+        size_t num_input_nodes = session.GetInputCount();
+        size_t num_output_nodes = session.GetOutputCount();
+
+        // Get the input node names
+        for (size_t i = 0; i < num_input_nodes; i++) {
+            Ort::AllocatedStringPtr name = session.GetInputNameAllocated(i, allocator);
+            input_node_names.push_back(name.get());
+            input_name_holder.push_back(std::move(name));
+        }
+
+        // Get the output node names
+        for (size_t i = 0; i < num_output_nodes; i++) {
+            Ort::AllocatedStringPtr name = session.GetOutputNameAllocated(i, allocator);
+            output_node_names.push_back(name.get());
+            output_name_holder.push_back(std::move(name));
+        }
     }
 };
 
