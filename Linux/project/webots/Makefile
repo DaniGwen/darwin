@@ -7,7 +7,7 @@
 #
 ###############################################################
 
-TARGET = webots_tcp_server
+TARGET =  webots_tcp_server
 
 CXX = g++
 INCLUDE_DIRS = -I../../include -I../../../Framework/include
