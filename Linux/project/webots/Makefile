@@ -11,6 +11,12 @@ TARGET =  webots_tcp_server
 
 CXX = g++
 INCLUDE_DIRS = -I../../include -I../../../Framework/include
+ONNX_INCLUDE_PATH = -I/home/darwin/onnxruntime/include
+ONNX_LIB_PATH = -L/home/darwin/onnxruntime/build/Linux/Release
+ONNX_LIBS = -lonnxruntime
+
+CXXFLAGS += $(ONNX_INCLUDE_PATH)
+LDFLAGS += $(ONNX_LIB_PATH) $(ONNX_LIBS)
 CXXFLAGS +=	-O2 -DLINUX -g -Wall -fmessage-length=0 $(INCLUDE_DIRS)
 LIBS += -lpthread -lncurses -lrt -ljpeg
 
