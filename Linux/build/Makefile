@@ -64,8 +64,6 @@ OBJS =  ../../Framework/src/MX28.o      \
 $(TARGET): $(OBJS)
         $(AR) $(ARFLAGS) ../lib/$(TARGET) $(OBJS)
 #       $(CC) -o $(TARGET) $(OBJS) $(LFLAGS)
-
 all: $(TARGET)
-
 clean:
         rm -f $(OBJS) ../lib/$(TARGET)
