@@ -4,7 +4,7 @@ from darwin_env import DarwinOPEnv # Import your custom environment
 # --- 1. Create the Environment ---
 # This will connect to your C++ server when created.
 # Make sure the C++ server is running on the Raspberry Pi FIRST.
-env = DarwinOPEnv(server_ip='192.168.1.100')
+env = DarwinOPEnv(server_ip='127.0.0.1')
 
 # --- 2. Create the RL Agent ---
 # We'll use the PPO (Proximal Policy Optimization) algorithm, a popular choice.
