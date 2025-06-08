@@ -1,4 +1,5 @@
-from stable_baselines3 import PPO
+#from stable_baselines3 import PPO
+from stable_baselines3 import SAC
 from darwin_env import DarwinOPEnv # Import your custom environment
 
 # --- 1. Create the Environment ---
@@ -9,7 +10,9 @@ env = DarwinOPEnv(server_ip='127.0.0.1')
 # --- 2. Create the RL Agent ---
 # We'll use the PPO (Proximal Policy Optimization) algorithm, a popular choice.
 # The "MlpPolicy" is a standard multi-layer perceptron (neural network).
-model = PPO("MlpPolicy", env, verbose=1, tensorboard_log="./ppo_darwin_tensorboard/")
+
+model = SAC("MlpPolicy", env, verbose=1, tensorboard_log="./sac_darwin_tensorboard/")
+##model = PPO("MlpPolicy", env, verbose=1, tensorboard_log="./ppo_darwin_tensorboard/")
 
 # --- 3. Train the Agent ---
 # This command starts the training loop.

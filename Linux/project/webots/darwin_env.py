@@ -8,7 +8,6 @@ class DarwinOPEnv(gym.Env):
     def __init__(self, server_ip='127.0.0.1', port=1234):
         super(DarwinOPEnv, self).__init__()
         
-        # Observation space: 20 joints, 3 IMU, 3 position = 26 values
         self.observation_space = spaces.Box(low=-np.pi, high=np.pi, shape=(26,), dtype=np.float32)
         self.action_space = spaces.Box(low=-1.0, high=1.0, shape=(20,), dtype=np.float32)
 
@@ -20,7 +19,6 @@ class DarwinOPEnv(gym.Env):
         self.sensor_struct = struct.Struct('26d')
         self.command_struct = struct.Struct('20d')
         
-        # These will track the robot's position between steps
         self.last_x_position = 0
         self.last_y_position = 0
 
@@ -37,51 +35,43 @@ class DarwinOPEnv(gym.Env):
         
         observation = self._get_obs()
         
-        # --- THE RE-TUNED REWARD FUNCTION V4 ---
+        # --- THE RE-TUNED REWARD FUNCTION V5 ---
         
         roll, pitch = observation[20], observation[21]
         current_x, current_y, height = observation[23], observation[24], observation[25]
         
-        # --- Component 1: Core survival and posture ---
-        # Stronger reward for simply being alive and upright
-        alive_bonus = 1.0
-        balance_reward = 1.5 * np.exp(-15.0 * (abs(pitch) + abs(roll)))
-        
-        # --- Component 2: Strongly incentivize the desired behavior ---
-        target_height = 0.33
-        # Reward being tall, penalize being short
-        height_reward = 15.0 * (height - target_height)
-        
-        # Very strong reward for forward velocity to make it the primary goal
+        # 1. Main Goal: Reward forward velocity
         forward_velocity = current_x - self.last_x_position
-        forward_reward = 0
-        if height > 0.28: # Only give forward reward if standing
-            forward_reward = 50.0 * forward_velocity
-            
-        # --- Component 3: Penalties to refine the movement ---
-        sideways_penalty = 10.0 * abs(current_y - self.last_y_position)
+        forward_reward = 100.0 * forward_velocity
+
+        # 2. Posture Rewards: Guide the agent to stand tall and balanced
+        target_height = 0.33
+        # Use an exponential function so the reward is high near the target height
+        height_reward = 0.5 * np.exp(-50.0 * abs(height - target_height))
+        balance_reward = 0.5 * np.exp(-20.0 * (abs(pitch) + abs(roll)))
+
+        # 3. Penalties for inefficient movement
         action_penalty = 0.01 * np.sum(np.square(action))
-        
-        # Combine the rewards
+        sideways_penalty = 5.0 * abs(current_y - self.last_y_position)
+
+        # Combine all components
         reward = (
-            alive_bonus +
-            balance_reward + 
+            forward_reward +
             height_reward +
-            forward_reward -
-            sideways_penalty -
-            action_penalty
+            balance_reward -
+            action_penalty -
+            sideways_penalty
         )
         
-        # --- 4. Termination ---
-        terminated = height < 0.23 or abs(pitch) > 1.4 or abs(roll) > 1.4
-        
-        if terminated:
-            reward = -50.0 # Make falling extremely punishing
-        
-        # Update state for the next step's calculation
+        # Update state for next step
         self.last_x_position = current_x
         self.last_y_position = current_y
         
+        # Termination condition
+        terminated = height < 0.24 or abs(pitch) > 1.4 or abs(roll) > 1.4
+        if terminated:
+            reward = -15.0  # Still a significant penalty for falling
+
         return observation, reward, terminated, False, {}
 
     def reset(self, seed=None, options=None):
@@ -100,4 +90,3 @@ class DarwinOPEnv(gym.Env):
 
     def close(self):
         self.socket.close()
-
