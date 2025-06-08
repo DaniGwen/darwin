@@ -11,34 +11,47 @@ class DarwinOPEnv(gym.Env):
         
         self.observation_space = spaces.Box(low=-np.pi, high=np.pi, shape=(26,), dtype=np.float32)
         self.action_space = spaces.Box(low=-1.0, high=1.0, shape=(20,), dtype=np.float32)
-
-        self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.socket.settimeout(20.0) 
-        print(f"Connecting to Webots C++ server at {server_ip}:{port}...")
-        try:
-            self.socket.connect((server_ip, port))
-            print("Connection successful.")
-        except socket.error as e:
-            print(f"Failed to connect to {server_ip}:{port}. Error: {e}")
-            raise
+        self.server_ip = server_ip
+        self.port = port
+        self.socket = None
+        self._connect()
 
         self.sensor_struct = struct.Struct('26d')
         self.command_struct = struct.Struct('20d')
         
+        # Trackers for calculating rewards
         self.last_x_position = 0.0
 
-    def _get_obs(self):
+    def _connect(self):
+        """Establishes a connection to the server."""
+        self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.socket.settimeout(25.0) 
+        print(f"Connecting to Webots C++ server at {self.server_ip}:{self.port}...")
         try:
-            data = self.socket.recv(self.sensor_struct.size)
-            if not data:
-                raise ConnectionError("Connection closed by server.")
-            if len(data) < self.sensor_struct.size:
-                raise ConnectionError(f"Incomplete packet received. Expected {self.sensor_struct.size}, got {len(data)}.")
+            self.socket.connect((self.server_ip, self.port))
+            print("Connection successful.")
+        except socket.error as e:
+            print(f"Failed to connect to {self.server_ip}:{self.port}. Error: {e}")
+            raise
+
+    def _get_obs(self):
+        """
+        Receives a full data packet from the socket, handling fragmented packets.
+        """
+        try:
+            packet_size = self.sensor_struct.size
+            data = b''
+            while len(data) < packet_size:
+                # Wait for the next chunk of data
+                chunk = self.socket.recv(packet_size - len(data))
+                if not chunk:
+                    raise ConnectionError("Connection closed by server while receiving data.")
+                data += chunk
+
             unpacked_data = self.sensor_struct.unpack(data)
             return np.array(unpacked_data, dtype=np.float32)
         except socket.timeout:
-            print("Timeout waiting for observation. Trying to reset.")
-            raise ConnectionError("Timeout waiting for observation.")
+            raise ConnectionError("Timeout: No observation received from simulator. It may have crashed or is not responding.")
         except Exception as e:
             raise ConnectionError(f"An error occurred receiving data: {e}")
 
@@ -52,32 +65,18 @@ class DarwinOPEnv(gym.Env):
             return np.zeros(self.observation_space.shape), -100.0, True, False, {"error": str(e)}
         
         roll, pitch = observation[20], observation[21]
-        current_x, current_y, height = observation[23], observation[24], observation[25]
+        current_x, height = observation[23], observation[25]
         
-        # --- REWARD FUNCTION V7: Stand Tall and Walk! ---
-        
-        # 1. Primary Goal: Reward forward progress.
-        forward_velocity = current_x - self.last_x_position
-        progress_reward = 150.0 * forward_velocity
-
-        # 2. Key Incentive: Stand tall!
+        # --- REWARD FUNCTION V7 (Unchanged): Stand Tall and Walk! ---
+        progress_reward = 150.0 * (current_x - self.last_x_position)
         target_height = 0.33
         height_reward = 5.0 * np.exp(-100.0 * abs(height - target_height))
-
-        # 3. Stability and Efficiency Penalties
         balance_penalty = 1.0 * (abs(pitch) + abs(roll))
         action_penalty = 0.01 * np.sum(np.square(action))
         
-        # Combine all components
-        reward = (
-            progress_reward +
-            height_reward -
-            balance_penalty -
-            action_penalty
-        )
+        reward = progress_reward + height_reward - balance_penalty - action_penalty
         
         self.last_x_position = current_x
-        
         terminated = height < 0.22 or abs(pitch) > 1.4 or abs(roll) > 1.4
         
         if terminated:
@@ -95,22 +94,17 @@ class DarwinOPEnv(gym.Env):
             self.last_x_position = observation[23]
             return observation, {}
         except ConnectionError as e:
-            print(f"Connection error during reset: {e}. Retrying connection...")
+            print(f"Connection error during reset: {e}. Attempting to reconnect...")
             self._reconnect()
             return self.reset(seed=seed, options=options)
 
     def _reconnect(self):
-        self.socket.close()
-        time.sleep(1)
-        self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.socket.settimeout(20.0)
-        try:
-            self.socket.connect((self.server_ip, self.port))
-            print("Reconnection successful.")
-        except socket.error as e:
-            print(f"Failed to reconnect: {e}")
-            raise
+        if self.socket:
+            self.socket.close()
+        time.sleep(2) # Wait a moment before trying again
+        self._connect()
 
     def close(self):
         print("Closing environment and socket.")
-        self.socket.close()
+        if self.socket:
+            self.socket.close()
