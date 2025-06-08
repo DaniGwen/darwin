@@ -8,10 +8,12 @@ class DarwinOPEnv(gym.Env):
     def __init__(self, server_ip='127.0.0.1', port=1234):
         super(DarwinOPEnv, self).__init__()
         
+        # Observation space: 20 joints, 3 IMU, 3 position = 26 values
         self.observation_space = spaces.Box(low=-np.pi, high=np.pi, shape=(26,), dtype=np.float32)
         self.action_space = spaces.Box(low=-1.0, high=1.0, shape=(20,), dtype=np.float32)
 
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.socket.settimeout(15.0)
         print(f"Connecting to Webots C++ server at {server_ip}:{port}...")
         self.socket.connect((server_ip, port))
         print("Connection successful.")
@@ -20,7 +22,6 @@ class DarwinOPEnv(gym.Env):
         self.command_struct = struct.Struct('20d')
         
         self.last_x_position = 0
-        self.last_y_position = 0
 
     def _get_obs(self):
         data = self.socket.recv(self.sensor_struct.size)
@@ -35,44 +36,24 @@ class DarwinOPEnv(gym.Env):
         
         observation = self._get_obs()
         
-        # --- THE RE-TUNED REWARD FUNCTION V5 ---
+        # --- THE SIMPLIFIED REWARD FUNCTION V6 ---
         
         roll, pitch = observation[20], observation[21]
-        current_x, current_y, height = observation[23], observation[24], observation[25]
         
-        # 1. Main Goal: Reward forward velocity
-        forward_velocity = current_x - self.last_x_position
-        forward_reward = 100.0 * forward_velocity
+        # 1. Main Goal: Survive! Give a large, constant reward for every step.
+        alive_bonus = 1.0
 
-        # 2. Posture Rewards: Guide the agent to stand tall and balanced
-        target_height = 0.33
-        # Use an exponential function so the reward is high near the target height
-        height_reward = 0.5 * np.exp(-50.0 * abs(height - target_height))
-        balance_reward = 0.5 * np.exp(-20.0 * (abs(pitch) + abs(roll)))
-
-        # 3. Penalties for inefficient movement
-        action_penalty = 0.01 * np.sum(np.square(action))
-        sideways_penalty = 5.0 * abs(current_y - self.last_y_position)
-
-        # Combine all components
-        reward = (
-            forward_reward +
-            height_reward +
-            balance_reward -
-            action_penalty -
-            sideways_penalty
-        )
+        # 2. Secondary Goal: Stay upright. Give a small bonus for good balance.
+        balance_reward = 0.1 * np.exp(-10.0 * (abs(pitch) + abs(roll)))
         
-        # Update state for next step
-        self.last_x_position = current_x
-        self.last_y_position = current_y
+        # Combine the rewards
+        reward = alive_bonus + balance_reward
         
-        # --- CORRECTED Termination condition ---
-        # The height threshold is now lower than the robot's starting height.
-        terminated = height < 0.22 or abs(pitch) > 1.4 or abs(roll) > 1.4
-        if terminated:
-            reward = -15.0  # Still a significant penalty for falling
-
+        # Termination condition remains the same
+        terminated = abs(pitch) > 1.4 or abs(roll) > 1.4
+        
+        # If it falls, it no longer gets the alive_bonus, which is the main penalty.
+        
         return observation, reward, terminated, False, {}
 
     def reset(self, seed=None, options=None):
@@ -83,9 +64,7 @@ class DarwinOPEnv(gym.Env):
         
         observation = self._get_obs()
         
-        # Reset position trackers
-        self.last_x_position = observation[23]
-        self.last_y_position = observation[24]
+        # We no longer need to track position for this simplified reward
         
         return observation, {}
 
