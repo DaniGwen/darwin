@@ -8,6 +8,7 @@ class DarwinOPEnv(gym.Env):
     def __init__(self, server_ip='127.0.0.1', port=1234):
         super(DarwinOPEnv, self).__init__()
         
+        # Observation space: 20 joints, 3 IMU, 3 position = 26 values
         self.observation_space = spaces.Box(low=-np.pi, high=np.pi, shape=(26,), dtype=np.float32)
         self.action_space = spaces.Box(low=-1.0, high=1.0, shape=(20,), dtype=np.float32)
 
@@ -90,9 +91,7 @@ class DarwinOPEnv(gym.Env):
         
         observation = self._get_obs()
         
-        # Reset position trackers
-        self.last_x_position = observation[23]
-        self.last_y_position = observation[24]
+        # We no longer need to track position for this simplified reward
         
         return observation, {}
 
