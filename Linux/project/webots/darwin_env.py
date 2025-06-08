@@ -23,6 +23,11 @@ class DarwinOPEnv(gym.Env):
         self.sensor_struct = struct.Struct('24d')
         self.command_struct = struct.Struct('18d')
 
+        # --- Curriculum Learning Parameters ---
+        self.learning_phase = 'balance'  # Start with 'balance', transition to 'walk'
+        self.balance_success_duration = 500  # Timesteps to stay balanced before switching to walk
+        self.steps_balanced_continuously = 0
+
         # Tracking variables
         self.last_x_position = 0.0
         self.current_x = 0.0
@@ -53,7 +58,6 @@ class DarwinOPEnv(gym.Env):
                 data += chunk
             unpacked_data = self.sensor_struct.unpack(data)
             
-            # Add small observation noise
             obs = np.array(unpacked_data, dtype=np.float32)
             obs += np.random.normal(0, 0.01, obs.shape)
             return obs
@@ -64,64 +68,78 @@ class DarwinOPEnv(gym.Env):
             raise ConnectionError(f"An error occurred receiving data: {e}")
 
     def step(self, action):
-        """Execute one time step with enhanced reward function"""
+        """Execute one time step. Reward function changes based on learning_phase."""
         self.episode_steps += 1
         
         try:
-            # Scale action to appropriate range
             scaled_action = action * 2.25
             self.socket.sendall(self.command_struct.pack(*scaled_action))
             observation = self._get_obs()
         except ConnectionError as e:
             print(f"Connection error during step: {e}. Terminating episode.")
-            return np.zeros(self.observation_space.shape), -5.0, True, False, {"error": str(e)}
+            return np.zeros(self.observation_space.shape), -10.0, True, False, {"error": str(e)}
 
         # Extract key observations
         roll, pitch = observation[18], observation[19]
         self.current_x, height = observation[21], observation[23]
         
-        # --- Enhanced Reward Components ---
-        # Distance reward (primary driver)
-        delta_x = self.current_x - self.last_x_position
-        progress_reward = 50.0 * max(0.0, delta_x)
+        # --- Reward Calculation based on Learning Phase ---
+        if self.learning_phase == 'balance':
+            # --- Phase 1: Balance Reward ---
+            # Strong rewards for being stable and upright
+            height_reward = max(0.0, 1.0 - abs(height - self.target_height) * 10.0)
+            pitch_reward = max(0.0, 1.0 - abs(pitch) * 5.0)
+            roll_reward = max(0.0, 1.0 - abs(roll) * 5.0)
+            
+            # Penalize any forward/backward movement to encourage stillness
+            movement_penalty = abs(self.current_x - self.last_x_position) * 50.0
+            
+            energy_penalty = 0.001 * np.sum(np.square(action))
+            
+            reward = (height_reward + pitch_reward + roll_reward) * 2.0 - movement_penalty - energy_penalty
+
+            # --- Check for Transition to 'walk' phase ---
+            is_balanced = (height > 0.30 and abs(pitch) < 0.25 and abs(roll) < 0.25)
+            if is_balanced:
+                self.steps_balanced_continuously += 1
+            else:
+                self.steps_balanced_continuously = 0  # Reset if balance is lost
+
+            if self.steps_balanced_continuously >= self.balance_success_duration:
+                self.learning_phase = 'walk'
+                self.steps_balanced_continuously = 0
+                print(f"\n--- GOAL MET: BALANCING MASTERED! TRANSITIONING TO WALK PHASE. ---\n")
+                reward += 100.0  # Big bonus for achieving the balance goal
+
+        else: # self.learning_phase == 'walk'
+            # --- Phase 2: Walk Reward (Your original enhanced function) ---
+            delta_x = self.current_x - self.last_x_position
+            progress_reward = 50.0 * max(0.0, delta_x)
+            
+            height_reward = max(0.0, 1.0 - abs(height - self.target_height) * 5.0)
+            pitch_reward = max(0.0, 1.0 - abs(pitch) * 2.0)
+            roll_reward = max(0.0, 1.0 - abs(roll) * 2.0)
+            
+            energy_penalty = 0.001 * np.sum(np.square(action))
+            
+            left_leg_avg = np.mean(observation[0:9])
+            right_leg_avg = np.mean(observation[9:18])
+            symmetry_reward = max(0.0, 1.0 - abs(left_leg_avg - right_leg_avg))
+            
+            reward = (progress_reward + height_reward + pitch_reward + 
+                      roll_reward + (symmetry_reward * 0.5) - energy_penalty)
         
-        # Height stability reward (wider acceptable range)
-        height_error = abs(height - self.target_height)
-        height_reward = max(0.0, 1.0 - height_error * 5.0)
-        
-        # Balance rewards
-        pitch_reward = max(0.0, 1.0 - abs(pitch) * 2.0)
-        roll_reward = max(0.0, 1.0 - abs(roll) * 2.0)
-        
-        # Energy penalty (reduced to encourage movement)
-        energy_penalty = 0.001 * np.sum(np.square(action))
-        
-        # Step symmetry reward (encourage alternating gait)
-        left_leg_avg = np.mean(observation[0:9])
-        right_leg_avg = np.mean(observation[9:18])
-        symmetry_reward = max(0.0, 1.0 - abs(left_leg_avg - right_leg_avg))
-        
-        # Combine rewards
-        reward = (progress_reward + 
-                 height_reward + 
-                 pitch_reward + 
-                 roll_reward + 
-                 (symmetry_reward * 0.5) - 
-                 energy_penalty)
-        
-        # Termination conditions
+        # --- Termination Conditions (Applied to both phases) ---
         terminated = (height < 0.22 or     # Fallen down
                      abs(pitch) > 1.0 or  # Too much forward/backward tilt
                      abs(roll) > 1.0 or    # Too much side tilt
                      self.episode_steps > 1000)  # Episode timeout
                      
-        # Early termination if not making progress
-        if self.current_x < 0.1 and self.episode_steps > 50:
+        if self.learning_phase == 'walk' and self.current_x < 0.1 and self.episode_steps > 150:
             terminated = True
             reward -= 2.0
             
         if terminated:
-            # Small penalty for termination
             reward -= 5.0
 
         self.last_x_position = self.current_x
@@ -131,6 +149,7 @@ class DarwinOPEnv(gym.Env):
         """Reset the environment"""
         super().reset(seed=seed)
         self.episode_steps = 0
+        self.steps_balanced_continuously = 0 # Reset balance counter every episode
         
         try:
             reset_command = [999.0] * 18
