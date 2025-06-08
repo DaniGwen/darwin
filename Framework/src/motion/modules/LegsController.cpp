@@ -118,7 +118,6 @@ namespace Robot
     {
         std::cout << BOLDGREEN << "INFO: Initializing Walking module through LegsController..." << RESET << std::endl;
         Walking::GetInstance()->Initialize();
-        Walking::GetInstance()->BALANCE_ENABLE = true;
         if (ini)
         {
             Walking::GetInstance()->LoadINISettings(ini, section);
