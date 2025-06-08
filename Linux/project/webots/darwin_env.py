@@ -19,8 +19,9 @@ class DarwinOPEnv(gym.Env):
         self.sensor_struct = struct.Struct('26d')
         self.command_struct = struct.Struct('20d')
         
-        # Trackers for calculating rewards
+        # Trackers for calculating rewards and goal achievement
         self.last_x_position = 0.0
+        self.current_x = 0.0 # This will be updated each step for the callback
 
     def _connect(self):
         """Establishes a connection to the server."""
@@ -42,7 +43,6 @@ class DarwinOPEnv(gym.Env):
             packet_size = self.sensor_struct.size
             data = b''
             while len(data) < packet_size:
-                # Wait for the next chunk of data
                 chunk = self.socket.recv(packet_size - len(data))
                 if not chunk:
                     raise ConnectionError("Connection closed by server while receiving data.")
@@ -65,10 +65,10 @@ class DarwinOPEnv(gym.Env):
             return np.zeros(self.observation_space.shape), -100.0, True, False, {"error": str(e)}
         
         roll, pitch = observation[20], observation[21]
-        current_x, height = observation[23], observation[25]
+        self.current_x, height = observation[23], observation[25] # Update current_x
         
-        # --- REWARD FUNCTION V7 (Unchanged): Stand Tall and Walk! ---
-        progress_reward = 150.0 * (current_x - self.last_x_position)
+        # --- Reward Function (Unchanged) ---
+        progress_reward = 150.0 * (self.current_x - self.last_x_position)
         target_height = 0.33
         height_reward = 5.0 * np.exp(-100.0 * abs(height - target_height))
         balance_penalty = 1.0 * (abs(pitch) + abs(roll))
@@ -76,7 +76,7 @@ class DarwinOPEnv(gym.Env):
         
         reward = progress_reward + height_reward - balance_penalty - action_penalty
         
-        self.last_x_position = current_x
+        self.last_x_position = self.current_x
         terminated = height < 0.22 or abs(pitch) > 1.4 or abs(roll) > 1.4
         
         if terminated:
@@ -92,6 +92,7 @@ class DarwinOPEnv(gym.Env):
             self.socket.sendall(self.command_struct.pack(*reset_command))
             observation = self._get_obs()
             self.last_x_position = observation[23]
+            self.current_x = observation[23]
             return observation, {}
         except ConnectionError as e:
             print(f"Connection error during reset: {e}. Attempting to reconnect...")
@@ -101,7 +102,7 @@ class DarwinOPEnv(gym.Env):
     def _reconnect(self):
         if self.socket:
             self.socket.close()
-        time.sleep(2) # Wait a moment before trying again
+        time.sleep(2)
         self._connect()
 
     def close(self):
