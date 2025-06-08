@@ -67,8 +67,9 @@ class DarwinOPEnv(gym.Env):
         self.last_x_position = current_x
         self.last_y_position = current_y
         
-        # Termination condition
-        terminated = height < 0.24 or abs(pitch) > 1.4 or abs(roll) > 1.4
+        # --- CORRECTED Termination condition ---
+        # The height threshold is now lower than the robot's starting height.
+        terminated = height < 0.22 or abs(pitch) > 1.4 or abs(roll) > 1.4
         if terminated:
             reward = -15.0  # Still a significant penalty for falling
 
