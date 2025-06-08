@@ -12,6 +12,7 @@ class DarwinOPEnv(gym.Env):
         self.action_space = spaces.Box(low=-1.0, high=1.0, shape=(20,), dtype=np.float32)
 
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.socket.settimeout(15.0) 
         print(f"Connecting to Webots C++ server at {server_ip}:{port}...")
         self.socket.connect((server_ip, port))
         print("Connection successful.")
@@ -19,15 +20,21 @@ class DarwinOPEnv(gym.Env):
         self.sensor_struct = struct.Struct('26d')
         self.command_struct = struct.Struct('20d')
         
-        self.last_x_position = 0
-        self.last_y_position = 0
+        # Trackers for calculating rewards
+        self.last_x_position = 0.0
+        self.last_y_position = 0.0
 
     def _get_obs(self):
-        data = self.socket.recv(self.sensor_struct.size)
-        if len(data) < self.sensor_struct.size:
-            raise ConnectionError("Incomplete packet received.")
-        unpacked_data = self.sensor_struct.unpack(data)
-        return np.array(unpacked_data, dtype=np.float32)
+        try:
+            data = self.socket.recv(self.sensor_struct.size)
+            if len(data) < self.sensor_struct.size:
+                raise ConnectionError("Incomplete packet received.")
+            unpacked_data = self.sensor_struct.unpack(data)
+            return np.array(unpacked_data, dtype=np.float32)
+        except socket.timeout:
+            raise ConnectionError("Connection timed out while waiting for observation.")
+        except Exception as e:
+            raise ConnectionError(f"An error occurred receiving data: {e}")
 
     def step(self, action):
         scaled_action = action * 2.25
@@ -35,44 +42,44 @@ class DarwinOPEnv(gym.Env):
         
         observation = self._get_obs()
         
-        # --- THE RE-TUNED REWARD FUNCTION V5 ---
+        # --- REWARD FUNCTION V6: Progressive & Stable ---
         
-        roll, pitch = observation[20], observation[21]
+        roll, pitch, yaw = observation[20], observation[21], observation[22]
         current_x, current_y, height = observation[23], observation[24], observation[25]
         
-        # 1. Main Goal: Reward forward velocity
-        forward_velocity = current_x - self.last_x_position
-        forward_reward = 100.0 * forward_velocity
+        # 1. Primary Goal: Alive Bonus (constant reward for not falling)
+        alive_bonus = 1.0
 
-        # 2. Posture Rewards: Guide the agent to stand tall and balanced
-        target_height = 0.33
-        # Use an exponential function so the reward is high near the target height
-        height_reward = 0.5 * np.exp(-50.0 * abs(height - target_height))
-        balance_reward = 0.5 * np.exp(-20.0 * (abs(pitch) + abs(roll)))
-
-        # 3. Penalties for inefficient movement
+        # 2. Main Incentive: Progress towards the positive X direction
+        # This rewards the agent for the change in position, not just the raw speed.
+        progress_reward = 100 * (current_x - self.last_x_position)
+        
+        # 3. Posture Control: Keep the robot upright
+        # Small penalty for tilting helps maintain balance.
+        balance_penalty = 0.5 * (abs(pitch) + abs(roll))
+        
+        # 4. Efficiency Control: Penalize jerky movements
+        # This encourages smoother, more energy-efficient actions.
         action_penalty = 0.01 * np.sum(np.square(action))
-        sideways_penalty = 5.0 * abs(current_y - self.last_y_position)
 
-        # Combine all components
+        # Combine the rewards
         reward = (
-            forward_reward +
-            height_reward +
-            balance_reward -
-            action_penalty -
-            sideways_penalty
+            alive_bonus + 
+            progress_reward - 
+            balance_penalty -
+            action_penalty
         )
         
-        # Update state for next step
+        # Update state for the next step's calculation
         self.last_x_position = current_x
         self.last_y_position = current_y
         
-        # --- CORRECTED Termination condition ---
-        # The height threshold is now lower than the robot's starting height.
+        # Termination condition: has the robot fallen?
         terminated = height < 0.22 or abs(pitch) > 1.4 or abs(roll) > 1.4
+        
         if terminated:
-            reward = -15.0  # Still a significant penalty for falling
-
+            reward = -20.0  # A large penalty for falling to discourage it.
+        
         return observation, reward, terminated, False, {}
 
     def reset(self, seed=None, options=None):
