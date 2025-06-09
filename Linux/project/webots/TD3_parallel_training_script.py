@@ -5,10 +5,12 @@ from stable_baselines3.common.noise import NormalActionNoise
 from stable_baselines3.common.logger import configure
 from stable_baselines3.common.callbacks import BaseCallback
 from stable_baselines3.common.vec_env import SubprocVecEnv
+# --- MODIFICATION: Import the Monitor wrapper ---
+from stable_baselines3.common.monitor import Monitor
 
 from darwin_env import DarwinOPEnv
 
-# --- Custom Callback (Unchanged, but works with VecEnv) ---
+# --- Custom Callback (Unchanged) ---
 class GoalCallback(BaseCallback):
     def __init__(self, check_freq: int, goal_distance: float, verbose=1):
         super(GoalCallback, self).__init__(verbose)
@@ -17,10 +19,10 @@ class GoalCallback(BaseCallback):
 
     def _on_step(self) -> bool:
         if self.n_calls % self.check_freq == 0:
+            # This logic remains the same and works correctly with VecEnv
             current_phase_list = self.training_env.get_attr('learning_phase')
             if not current_phase_list: return True
             
-            # Log progress from the first environment
             current_phase = current_phase_list[0]
 
             if current_phase == 'walk':
@@ -46,18 +48,24 @@ class GoalCallback(BaseCallback):
 # --- Main Training Execution ---
 if __name__ == '__main__':
     # --- Parallel Training Configuration ---
-    NUM_ENVIRONMENTS = 2 # <<-- SET THE NUMBER OF WEBOTS INSTANCES TO RUN
+    NUM_ENVIRONMENTS = 2  # Set the number of Webots instances you are running
     STARTING_PORT = 1234
     
-    MODEL_PATH = "td3_darwin_no_head.zip"
+    # Using a new model name for the parallel version is good practice
+    MODEL_PATH = "td3_darwin_no_head.zip" 
     TENSORBOARD_LOG_DIR = "./td3_darwin_tensorboard_parallel/"
     
     print(f"Starting parallel training with {NUM_ENVIRONMENTS} environments.")
 
-    # --- Create the Vectorized Environment ---
-    # This creates a list of functions, each one responsible for creating an env with a unique port.
-    env_fns = [lambda i=i: DarwinOPEnv(port=STARTING_PORT + i) for i in range(NUM_ENVIRONMENTS)]
+    # --- MODIFICATION: Create the Vectorized Environment with the Monitor wrapper ---
+    # We create a list of functions. Each function creates one environment.
+    # We wrap each DarwinOPEnv instance in a Monitor.
+    env_fns = [
+        lambda i=i: Monitor(DarwinOPEnv(port=STARTING_PORT + i))
+        for i in range(NUM_ENVIRONMENTS)
+    ]
     env = SubprocVecEnv(env_fns)
+    # --- END MODIFICATION ---
 
     # Agent Hyperparameters
     n_actions = env.action_space.shape[-1]
@@ -66,7 +74,9 @@ if __name__ == '__main__':
     # Create the Callback
     goal_callback = GoalCallback(check_freq=1000, goal_distance=5.0)
 
-    # Check if a saved model exists
+    # --- Check if a saved model exists ---
+    # NOTE: You were loading "td3_darwin_no_head.zip". If you want to continue training
+    # the parallel model, make sure this path is MODEL_PATH ("td3_darwin_parallel.zip")
     if os.path.exists(MODEL_PATH):
         print(f"Found saved model at {MODEL_PATH}. Loading to continue training.")
         model = TD3.load(MODEL_PATH, env=env)
@@ -80,22 +90,21 @@ if __name__ == '__main__':
             action_noise=action_noise,
             verbose=1,
             tensorboard_log=TENSORBOARD_LOG_DIR,
-            buffer_size=1_000_000,
+            buffer_size=1000000,
             batch_size=256,
             gamma=0.99,
             learning_rate=1e-4,
             tau=0.005,
             learning_starts=10000,
-            train_freq=(1, "step"), # Train after every step
-            gradient_steps=-1 # As many gradient steps as transitions collected
+            train_freq=(1, "step"),
+            gradient_steps=-1
         )
 
     try:
-        # Note: log_interval is per environment. Total logs will be frequent.
         model.learn(
             total_timesteps=2_000_000,
             reset_num_timesteps=False,
-            log_interval=10,
+            log_interval=10, # Note: This will now log every 10 * NUM_ENVIRONMENTS episodes
             callback=goal_callback
         )
     except KeyboardInterrupt:
@@ -105,4 +114,3 @@ if __name__ == '__main__':
         model.save(MODEL_PATH)
         print(f"Model saved to {MODEL_PATH}")
         env.close()
-
