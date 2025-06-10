@@ -74,24 +74,41 @@ class DarwinOPEnv(gym.Env):
         roll, pitch = observation[18], observation[19]
         self.current_x, height = observation[21], observation[23]
         
-        # --- MODIFICATION: Create a persistent reward for balance ---
-        # These rewards are now calculated in every step, for both phases.
+        # --- Persistent Balance Rewards ---
         height_reward = max(0.0, 1.0 - abs(height - self.target_height) * 10.0)
         pitch_reward = max(0.0, 1.0 - abs(pitch) * 5.0)
         roll_reward = max(0.0, 1.0 - abs(roll) * 5.0)
         balance_reward = (height_reward + pitch_reward + roll_reward) * 2.0
         
         energy_penalty = 0.001 * np.sum(np.square(action))
-        
+
+        # --- Arm Posture "Soft Limits" Penalty ---
+        arm_posture_penalty = 0.0
+        arm_joint_indices = [0, 1, 2, 3, 4, 5]
+        natural_range = 0.5
+        for i in arm_joint_indices:
+            if abs(action[i]) > natural_range:
+                arm_posture_penalty += (abs(action[i]) - natural_range)**2
+        arm_posture_penalty *= 0.5
+
+        # --- MODIFICATION: Foot Symmetry Reward (Applied in BOTH phases) ---
+        # This encourages keeping both feet planted or in a similar phase of a gait.
+        foot_roll_r = observation[16]
+        foot_roll_l = observation[17]
+        foot_symmetry_reward = max(0.0, 1.0 - abs(foot_roll_r - foot_roll_l))
+
         # --- Reward Calculation based on Learning Phase ---
         if self.learning_phase == 'balance':
             # --- Phase 1: Balance Reward ---
-            # Penalize any forward/backward movement to encourage pure stillness
             movement_penalty = abs(self.current_x - self.last_x_position) * 50.0
             
-            reward = balance_reward - movement_penalty - energy_penalty
+            # The goal is now to balance while keeping arms in a natural pose AND feet symmetrical.
+            reward = (balance_reward + 
+                      foot_symmetry_reward - # Encourage two-footed balance from the start
+                      movement_penalty - 
+                      energy_penalty - 
+                      arm_posture_penalty)
 
-            # --- Check for Transition to 'walk' phase ---
             is_balanced_now = (height > 0.30 and abs(pitch) < 0.25 and abs(roll) < 0.25)
             if is_balanced_now:
                 self.steps_balanced_continuously += 1
@@ -102,27 +119,22 @@ class DarwinOPEnv(gym.Env):
                 self.learning_phase = 'walk'
                 self.steps_balanced_continuously = 0
                 print(f"\n--- GOAL MET (Env on port {self.port}): BALANCING MASTERED! TRANSITIONING TO WALK PHASE. ---\n")
-                reward += 100.0  # Big bonus for achieving the balance goal
+                reward += 100.0
 
         else: # self.learning_phase == 'walk'
             # --- Phase 2: Walk Reward ---
-            # Main goal is to make progress
             delta_x = self.current_x - self.last_x_position
             progress_reward = 50.0 * max(0.0, delta_x)
-            
-            # Also add a reward for a symmetric gait
-            left_leg_avg = np.mean(observation[0:9])
-            right_leg_avg = np.mean(observation[9:18])
-            symmetry_reward = max(0.0, 1.0 - abs(left_leg_avg - right_leg_avg))
-            
-            # The final reward encourages progress WHILE maintaining balance
-            reward = progress_reward + balance_reward + (symmetry_reward * 0.5) - energy_penalty
+
+            # The final reward encourages progress WHILE maintaining balance and good posture.
+            reward = (progress_reward + 
+                      balance_reward + 
+                      foot_symmetry_reward - # Continue rewarding foot symmetry
+                      arm_posture_penalty - 
+                      energy_penalty)
         
-        # --- Termination Conditions (Applied to both phases) ---
-        terminated = (height < 0.22 or     # Fallen down
-                     abs(pitch) > 1.0 or  # Too much forward/backward tilt
-                     abs(roll) > 1.0 or    # Too much side tilt
-                     self.episode_steps > 1000)
+        # --- Termination Conditions ---
+        terminated = (height < 0.22 or abs(pitch) > 1.0 or abs(roll) > 1.0 or self.episode_steps > 1000)
                      
         if self.learning_phase == 'walk' and self.current_x < 0.1 and self.episode_steps > 150:
             terminated = True
