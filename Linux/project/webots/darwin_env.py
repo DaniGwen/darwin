@@ -22,7 +22,7 @@ class DarwinOPEnv(gym.Env):
         self.command_struct = struct.Struct('18d')
 
         self.learning_phase = 'balance'
-        self.balance_success_duration = 500
+        self.balance_success_duration = 700
         self.steps_balanced_continuously = 0
 
         self.last_x_position = 0.0
