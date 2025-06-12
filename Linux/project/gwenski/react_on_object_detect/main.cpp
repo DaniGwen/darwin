@@ -334,7 +334,6 @@ int main(void)
     LeftArmController left_arm_controller(&cm730);
     RightArmController right_arm_controller(&cm730);
     LegsController legs_controller(&cm730);
-    //legs_controller.InitializeWalking(ini);
 
     HeadTracking *head_tracker = HeadTracking::GetInstance();
 
