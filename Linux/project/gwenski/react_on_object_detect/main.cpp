@@ -128,15 +128,18 @@ void handlePersonDetected(LeftArmController &left_arm_controller,
     int random = rand() % 3; // Randomly choose between three actions
     if (random == 0)
     {
+        LinuxActionScript::PlayMP3("/home/darwin/darwin/Data/mp3/hello.mp3");
         run_action(ACTION_PAGE_WAVE);
     }
     else if (random == 1)
     {
+        LinuxActionScript::PlayMP3("/home/darwin/darwin/Data/mp3/i-can-see-you.mp3");
         run_action(ACTION_PAGE_WAVE2);
     }
     else // random == 2
     {
-        run_action(ACTION_PAGE_SWING_LEFT_RIGHT);
+        LinuxActionScript::PlayMP3("/home/darwin/darwin/Data/mp3/i-love-you-cartoon.mp3");
+        // run_action(ACTION_PAGE_SWING_LEFT_RIGHT);
     }
 
     std::chrono::milliseconds wave_duration(1000);
@@ -263,7 +266,12 @@ void handleGenericObjectDetected(const std::string &label, int action_page,
                                  const std::chrono::steady_clock::time_point &current_time)
 {
     std::cout << "INFO: Detected " << label << " consistently. Playing action page " << action_page << std::endl;
-    run_action(action_page);
+    if (label == "dog")
+    {
+        LinuxActionScript::PlayMP3("/home/darwin/darwin/Data/mp3/dogs-growling.mp3");
+    }
+
+    //run_action(action_page);
     current_action_label = label;
     last_action_time = current_time;
     detect_count_ref = 0; // Reset counter
@@ -332,7 +340,7 @@ int main(void)
 
     if (!head_tracker->Initialize(ini, &cm730)) // Updated call //
     {
-        LinuxActionScript::PlayMP3Wait("/home/darwin/darwin/Data/mp3/girl-scream.mp3");
+        LinuxActionScript::PlayMP3("/home/darwin/darwin/Data/mp3/sonic-boom-sound-effect.mp3");
         std::cerr << "ERROR: HeadTracking initialization failed. Exiting." << std::endl; //
         motion_timer->Stop();
         MotionManager::GetInstance()->SetEnable(false);
@@ -345,7 +353,7 @@ int main(void)
     std::cout << "INFO: Playing initial standby action (Page " << ACTION_PAGE_STAND << ")..." << std::endl; //
     run_action(ACTION_PAGE_STAND);
 
-    LinuxActionScript::PlayMP3Wait("/home/darwin/darwin/Data/mp3/lock-and-load-male.mp3");
+    LinuxActionScript::PlayMP3("/home/darwin/darwin/Data/mp3/cinematic-space-effect.mp3");
 
     pthread_t tracking_thread;
     std::cout << "INFO: Creating HeadTracking thread..." << std::endl;                                   //
@@ -353,7 +361,7 @@ int main(void)
 
     if (thread_create_status != 0)
     {
-        LinuxActionScript::PlayMP3Wait("/home/darwin/darwin/Data/mp3/girl-scream.mp3");
+        LinuxActionScript::PlayMP3("/home/darwin/darwin/Data/mp3/sonic-boom-sound-effect.mp3");
         std::cerr << "ERROR: Failed to create HeadTracking thread: " << strerror(thread_create_status) << std::endl; //
         head_tracker->Cleanup();                                                                                     //
         motion_timer->Stop();                                                                                        //
