@@ -31,7 +31,18 @@ class DarwinOPBalanceEnv(DarwinOPEnvBase):
         foot_roll_l = observation[17]
         foot_symmetry_reward = max(0.0, 1.0 - abs(foot_roll_r - foot_roll_l))
 
-        reward = balance_reward + foot_symmetry_reward - movement_penalty - energy_penalty
+        # --- MODIFICATION: Add Stance Width Penalty ---
+        # This penalizes the agent for spreading its legs too far apart.
+        # CORRECTED INDICES: PelvR (ID 9) is at index 8, PelvL (ID 10) is at index 9.
+        hip_roll_r = observation[8]
+        hip_roll_l = observation[9]
+        stance_width_penalty = 0.5 * (abs(hip_roll_r) + abs(hip_roll_l))
+
+        reward = (balance_reward + 
+                  foot_symmetry_reward - 
+                  movement_penalty - 
+                  energy_penalty -
+                  stance_width_penalty) # Subtract the new penalty
         
         # Termination conditions
         terminated = (height < 0.22 or abs(pitch) > 1.0 or abs(roll) > 1.0 or self.episode_steps > 1000)

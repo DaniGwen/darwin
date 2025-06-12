@@ -51,7 +51,7 @@ if __name__ == '__main__':
     action_noise = NormalActionNoise(mean=np.zeros(18), sigma=0.05 * np.ones(18))
 
     # Callback will stop when the mean reward is consistently high (e.g., > 500)
-    goal_callback = BalanceGoalCallback(check_freq=5000, reward_threshold=500.0)
+    goal_callback = BalanceGoalCallback(check_freq=5000, reward_threshold=700.0)
 
     if os.path.exists(MODEL_PATH):
         print(f"Found saved balance model at {MODEL_PATH}. Loading to continue training.")
