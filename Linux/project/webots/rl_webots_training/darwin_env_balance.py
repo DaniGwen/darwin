@@ -31,18 +31,36 @@ class DarwinOPBalanceEnv(DarwinOPEnvBase):
         foot_roll_l = observation[17]
         foot_symmetry_reward = max(0.0, 1.0 - abs(foot_roll_r - foot_roll_l))
 
-        # --- MODIFICATION: Add Stance Width Penalty ---
-        # This penalizes the agent for spreading its legs too far apart.
-        # CORRECTED INDICES: PelvR (ID 9) is at index 8, PelvL (ID 10) is at index 9.
+        # Stance Width Penalty
         hip_roll_r = observation[8]
         hip_roll_l = observation[9]
-        stance_width_penalty = 0.8 * (abs(hip_roll_r) + abs(hip_roll_l))
+        stance_width_penalty = 0.5 * (abs(hip_roll_r) + abs(hip_roll_l))
+
+        # --- MODIFICATION: Shoulder Posture Penalty ---
+        # This penalizes the agent for raising its shoulders too high.
+        # Shoulder Pitch motor indices: ShoulderR (ID 1) is at index 0, ShoulderL (ID 2) is at index 1.
+        shoulder_pitch_r = observation[0]
+        shoulder_pitch_l = observation[1]
+        
+        # We want the shoulders to be near 0 (straight down). We penalize them
+        # if they go too high (a large positive value).
+        shoulder_penalty = 0.0
+        # Penalize if right shoulder goes too far up (positive angle)
+        if shoulder_pitch_r > 0.5: # 0.5 radians is about 28 degrees
+            shoulder_penalty += (shoulder_pitch_r - 0.5)**2
+        # Penalize if left shoulder goes too far up (positive angle)
+        if shoulder_pitch_l > 0.5:
+            shoulder_penalty += (shoulder_pitch_l - 0.5)**2
+            
+        shoulder_penalty *= 1.5 # Increase the weight of this penalty
+
 
         reward = (balance_reward + 
                   foot_symmetry_reward - 
                   movement_penalty - 
                   energy_penalty -
-                  stance_width_penalty) # Subtract the new penalty
+                  stance_width_penalty -
+                  shoulder_penalty) # Subtract the new shoulder penalty
         
         # Termination conditions
         terminated = (height < 0.22 or abs(pitch) > 1.0 or abs(roll) > 1.0 or self.episode_steps > 1000)
