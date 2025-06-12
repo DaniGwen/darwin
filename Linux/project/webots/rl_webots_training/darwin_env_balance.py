@@ -36,7 +36,7 @@ class DarwinOPBalanceEnv(DarwinOPEnvBase):
         # CORRECTED INDICES: PelvR (ID 9) is at index 8, PelvL (ID 10) is at index 9.
         hip_roll_r = observation[8]
         hip_roll_l = observation[9]
-        stance_width_penalty = 0.5 * (abs(hip_roll_r) + abs(hip_roll_l))
+        stance_width_penalty = 0.8 * (abs(hip_roll_r) + abs(hip_roll_l))
 
         reward = (balance_reward + 
                   foot_symmetry_reward - 
