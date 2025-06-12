@@ -5,6 +5,8 @@ class DarwinOPBalanceEnv(DarwinOPEnvBase):
     def __init__(self, **kwargs):
         super(DarwinOPBalanceEnv, self).__init__(**kwargs)
         self.target_height = 0.33
+        # MODIFICATION: Initialize a variable to store the last action taken
+        self.last_action = np.zeros(self.action_space.shape, dtype=np.float32)
 
     def step(self, action):
         self.episode_steps += 1
@@ -36,23 +38,20 @@ class DarwinOPBalanceEnv(DarwinOPEnvBase):
         hip_roll_l = observation[9]
         stance_width_penalty = 0.5 * (abs(hip_roll_r) + abs(hip_roll_l))
 
-        # --- MODIFICATION: Shoulder Posture Penalty ---
-        # This penalizes the agent for raising its shoulders too high.
-        # Shoulder Pitch motor indices: ShoulderR (ID 1) is at index 0, ShoulderL (ID 2) is at index 1.
+        # Shoulder Posture Penalty
         shoulder_pitch_r = observation[0]
         shoulder_pitch_l = observation[1]
-        
-        # We want the shoulders to be near 0 (straight down). We penalize them
-        # if they go too high (a large positive value).
         shoulder_penalty = 0.0
-        # Penalize if right shoulder goes too far up (positive angle)
-        if shoulder_pitch_r > 0.5: # 0.5 radians is about 28 degrees
+        if shoulder_pitch_r > 0.5:
             shoulder_penalty += (shoulder_pitch_r - 0.5)**2
-        # Penalize if left shoulder goes too far up (positive angle)
         if shoulder_pitch_l > 0.5:
             shoulder_penalty += (shoulder_pitch_l - 0.5)**2
-            
-        shoulder_penalty *= 1.5 # Increase the weight of this penalty
+        shoulder_penalty *= 1.5
+
+        # --- MODIFICATION: Add Action Smoothness Penalty ---
+        # This penalizes large changes in motor commands between steps,
+        # encouraging smoother, less jerky movements.
+        action_smoothness_penalty = 0.1 * np.sum(np.square(action - self.last_action))
 
 
         reward = (balance_reward + 
@@ -60,8 +59,12 @@ class DarwinOPBalanceEnv(DarwinOPEnvBase):
                   movement_penalty - 
                   energy_penalty -
                   stance_width_penalty -
-                  shoulder_penalty) # Subtract the new shoulder penalty
+                  shoulder_penalty -
+                  action_smoothness_penalty) # Subtract the new smoothness penalty
         
+        # --- Update last action for the next step ---
+        self.last_action = action
+
         # Termination conditions
         terminated = (height < 0.22 or abs(pitch) > 1.0 or abs(roll) > 1.0 or self.episode_steps > 1000)
         if terminated:
@@ -69,3 +72,8 @@ class DarwinOPBalanceEnv(DarwinOPEnvBase):
 
         self.last_x_position = self.current_x
         return observation, reward, terminated, False, {}
+
+    def reset(self, seed=None, options=None):
+        # MODIFICATION: Reset the last_action variable at the start of a new episode
+        self.last_action = np.zeros(self.action_space.shape, dtype=np.float32)
+        return super().reset(seed=seed, options=options)
