@@ -5,7 +5,7 @@ class DarwinOPBalanceEnv(DarwinOPEnvBase):
     def __init__(self, **kwargs):
         super(DarwinOPBalanceEnv, self).__init__(**kwargs)
         self.target_height = 0.33
-        # MODIFICATION: Initialize a variable to store the last action taken
+        # Initialize a variable to store the last action taken
         self.last_action = np.zeros(self.action_space.shape, dtype=np.float32)
 
     def step(self, action):
@@ -25,10 +25,11 @@ class DarwinOPBalanceEnv(DarwinOPEnvBase):
         roll_reward = max(0.0, 1.0 - abs(roll) * 5.0)
         balance_reward = (height_reward + pitch_reward + roll_reward) * 2.0
 
+        # --- Penalties ---
         movement_penalty = abs(self.current_x - self.last_x_position) * 50.0
         energy_penalty = 0.001 * np.sum(np.square(action))
         
-        # Encourage two-footed stance
+        # Encourage two-footed stance (keeps feet parallel)
         foot_roll_r = observation[16]
         foot_roll_l = observation[17]
         foot_symmetry_reward = max(0.0, 1.0 - abs(foot_roll_r - foot_roll_l))
@@ -48,10 +49,17 @@ class DarwinOPBalanceEnv(DarwinOPEnvBase):
             shoulder_penalty += (shoulder_pitch_l - 0.5)**2
         shoulder_penalty *= 1.5
 
-        # --- MODIFICATION: Add Action Smoothness Penalty ---
-        # This penalizes large changes in motor commands between steps,
-        # encouraging smoother, less jerky movements.
+        # Action Smoothness Penalty
         action_smoothness_penalty = 0.1 * np.sum(np.square(action - self.last_action))
+
+        # --- MODIFICATION: Ankle Posture Penalty ---
+        # This penalizes the agent for tilting its ankles too much,
+        # encouraging flat feet for a stable base.
+        # Ankle Pitch (R:14, L:15), Ankle Roll (R:16, L:17)
+        ankle_pitch_r = observation[14]
+        ankle_pitch_l = observation[15]
+        # The penalty is the sum of the absolute values of the angles.
+        ankle_penalty = 0.3 * (abs(ankle_pitch_r) + abs(ankle_pitch_l) + abs(foot_roll_r) + abs(foot_roll_l))
 
 
         reward = (balance_reward + 
@@ -60,7 +68,8 @@ class DarwinOPBalanceEnv(DarwinOPEnvBase):
                   energy_penalty -
                   stance_width_penalty -
                   shoulder_penalty -
-                  action_smoothness_penalty) # Subtract the new smoothness penalty
+                  action_smoothness_penalty -
+                  ankle_penalty) # Subtract the new ankle penalty
         
         # --- Update last action for the next step ---
         self.last_action = action
@@ -74,6 +83,5 @@ class DarwinOPBalanceEnv(DarwinOPEnvBase):
         return observation, reward, terminated, False, {}
 
     def reset(self, seed=None, options=None):
-        # MODIFICATION: Reset the last_action variable at the start of a new episode
         self.last_action = np.zeros(self.action_space.shape, dtype=np.float32)
         return super().reset(seed=seed, options=options)
