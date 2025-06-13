@@ -39,26 +39,25 @@ class DarwinOPBalanceEnv(DarwinOPEnvBase):
         hip_roll_l = observation[9]
         stance_width_penalty = 0.5 * (abs(hip_roll_r) + abs(hip_roll_l))
 
-        # Shoulder Posture Penalty
+        # --- MODIFICATION: Updated Shoulder Posture Penalty ---
+        # This penalizes the agent for raising its shoulders too high based on specific limits.
         shoulder_pitch_r = observation[0]
         shoulder_pitch_l = observation[1]
         shoulder_penalty = 0.0
-        if shoulder_pitch_r > 0.3:
-            shoulder_penalty += (shoulder_pitch_r - 0.5)**2
+        # Penalize if right shoulder goes higher than -0.3 radians
+        if shoulder_pitch_r > -0.3:
+            shoulder_penalty += (shoulder_pitch_r - (-0.3))**2
+        # Penalize if left shoulder goes higher than 0.3 radians
         if shoulder_pitch_l > 0.3:
-            shoulder_penalty += (shoulder_pitch_l - 0.5)**2
+            shoulder_penalty += (shoulder_pitch_l - 0.3)**2
         shoulder_penalty *= 1.5
 
         # Action Smoothness Penalty
         action_smoothness_penalty = 0.1 * np.sum(np.square(action - self.last_action))
 
-        # --- MODIFICATION: Ankle Posture Penalty ---
-        # This penalizes the agent for tilting its ankles too much,
-        # encouraging flat feet for a stable base.
-        # Ankle Pitch (R:14, L:15), Ankle Roll (R:16, L:17)
+        # Ankle Posture Penalty
         ankle_pitch_r = observation[14]
         ankle_pitch_l = observation[15]
-        # The penalty is the sum of the absolute values of the angles.
         ankle_penalty = 0.5 * (abs(ankle_pitch_r) + abs(ankle_pitch_l) + abs(foot_roll_r) + abs(foot_roll_l))
 
 
@@ -69,7 +68,7 @@ class DarwinOPBalanceEnv(DarwinOPEnvBase):
                   stance_width_penalty -
                   shoulder_penalty -
                   action_smoothness_penalty -
-                  ankle_penalty) # Subtract the new ankle penalty
+                  ankle_penalty)
         
         # --- Update last action for the next step ---
         self.last_action = action
