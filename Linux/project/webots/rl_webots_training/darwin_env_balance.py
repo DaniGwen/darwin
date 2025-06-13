@@ -59,7 +59,7 @@ class DarwinOPBalanceEnv(DarwinOPEnvBase):
         ankle_pitch_r = observation[14]
         ankle_pitch_l = observation[15]
         # The penalty is the sum of the absolute values of the angles.
-        ankle_penalty = 0.3 * (abs(ankle_pitch_r) + abs(ankle_pitch_l) + abs(foot_roll_r) + abs(foot_roll_l))
+        ankle_penalty = 0.5 * (abs(ankle_pitch_r) + abs(ankle_pitch_l) + abs(foot_roll_r) + abs(foot_roll_l))
 
 
         reward = (balance_reward + 
