@@ -34,33 +34,54 @@ class DarwinOPBalanceEnv(DarwinOPEnvBase):
         foot_roll_l = observation[17]
         foot_symmetry_reward = max(0.0, 1.0 - abs(foot_roll_r - foot_roll_l))
 
-        # Stance Width Penalty
+        # Stance Width Penalty (Hip Roll)
         hip_roll_r = observation[8]
         hip_roll_l = observation[9]
         stance_width_penalty = 0.5 * (abs(hip_roll_r) + abs(hip_roll_l))
 
-        # --- MODIFICATION: Updated Shoulder Posture Penalty ---
-        # This penalizes the agent for raising its shoulders too high based on specific limits.
+        # --- MODIFICATION 1: Symmetrical Shoulder Posture Penalty ---
         shoulder_pitch_r = observation[0]
         shoulder_pitch_l = observation[1]
         shoulder_penalty = 0.0
-        # Penalize if right shoulder goes higher than -0.3 radians
-        if shoulder_pitch_r > -0.3:
-            shoulder_penalty += (shoulder_pitch_r - (-0.3))**2
-        # Penalize if left shoulder goes higher than 0.3 radians
-        if shoulder_pitch_l > 0.3:
-            shoulder_penalty += (shoulder_pitch_l - 0.3)**2
-        shoulder_penalty *= 1.5
+        limit = 0.2
+        if abs(shoulder_pitch_r) > limit:
+            shoulder_penalty += (abs(shoulder_pitch_r) - limit)**2
+        if abs(shoulder_pitch_l) > limit:
+            shoulder_penalty += (abs(shoulder_pitch_l) - limit)**2
+        shoulder_penalty *= 1.8
 
+        # --- MODIFICATION 2: Ankle Posture Penalty ---
+        ankle_pitch_r = observation[14]
+        ankle_pitch_l = observation[15]
+        ankle_penalty = 0.0
+        limit = 0.2
+        if abs(ankle_pitch_r) > limit:
+            ankle_penalty += (abs(ankle_pitch_r) - limit)**2
+        if abs(ankle_pitch_l) > limit:
+            ankle_penalty += (abs(ankle_pitch_l) - limit)**2
+        if abs(foot_roll_r) > limit:
+            ankle_penalty += (abs(foot_roll_r) - limit)**2
+        if abs(foot_roll_l) > limit:
+            ankle_penalty += (abs(foot_roll_l) - limit)**2
+        ankle_penalty *= 1.7
+
+        # --- MODIFICATION 3: Hip Yaw Penalty ---
+        # This prevents the robot from twisting its hips too much.
+        # PelvYR (ID 7) is index 6, PelvYL (ID 8) is index 7.
+        hip_yaw_r = observation[6]
+        hip_yaw_l = observation[7]
+        hip_yaw_penalty = 0.0
+        limit = 0.1
+        if abs(hip_yaw_r) > limit:
+            hip_yaw_penalty += (abs(hip_yaw_r) - limit)**2
+        if abs(hip_yaw_l) > limit:
+            hip_yaw_penalty += (abs(hip_yaw_l) - limit)**2
+        hip_yaw_penalty *= 1.7
+        
         # Action Smoothness Penalty
         action_smoothness_penalty = 0.1 * np.sum(np.square(action - self.last_action))
 
-        # Ankle Posture Penalty
-        ankle_pitch_r = observation[14]
-        ankle_pitch_l = observation[15]
-        ankle_penalty = 0.5 * (abs(ankle_pitch_r) + abs(ankle_pitch_l) + abs(foot_roll_r) + abs(foot_roll_l))
-
-
+        # Combine all rewards and penalties
         reward = (balance_reward + 
                   foot_symmetry_reward - 
                   movement_penalty - 
@@ -68,7 +89,8 @@ class DarwinOPBalanceEnv(DarwinOPEnvBase):
                   stance_width_penalty -
                   shoulder_penalty -
                   action_smoothness_penalty -
-                  ankle_penalty)
+                  ankle_penalty -
+                  hip_yaw_penalty) # Subtract the new hip yaw penalty
         
         # --- Update last action for the next step ---
         self.last_action = action
