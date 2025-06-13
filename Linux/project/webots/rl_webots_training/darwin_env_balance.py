@@ -43,9 +43,9 @@ class DarwinOPBalanceEnv(DarwinOPEnvBase):
         shoulder_pitch_r = observation[0]
         shoulder_pitch_l = observation[1]
         shoulder_penalty = 0.0
-        if shoulder_pitch_r > 0.5:
+        if shoulder_pitch_r > 0.3:
             shoulder_penalty += (shoulder_pitch_r - 0.5)**2
-        if shoulder_pitch_l > 0.5:
+        if shoulder_pitch_l > 0.3:
             shoulder_penalty += (shoulder_pitch_l - 0.5)**2
         shoulder_penalty *= 1.5
 
