@@ -20,7 +20,8 @@ class DarwinOPBalanceEnv(DarwinOPEnvBase):
         self.current_x, height = observation[21], observation[23]
 
         # --- Balance-Specific Rewards ---
-        height_reward = max(0.0, 1.0 - abs(height - self.target_height) * 10.0)
+        # MODIFICATION: Increased the weight of the height reward to make standing more valuable.
+        height_reward = max(0.0, 1.0 - abs(height - self.target_height) * 15.0)
         pitch_reward = max(0.0, 1.0 - abs(pitch) * 5.0)
         roll_reward = max(0.0, 1.0 - abs(roll) * 5.0)
         balance_reward = (height_reward + pitch_reward + roll_reward) * 2.0
@@ -79,14 +80,11 @@ class DarwinOPBalanceEnv(DarwinOPEnvBase):
         # Action Smoothness Penalty
         action_smoothness_penalty = 0.1 * np.sum(np.square(action - self.last_action))
 
-        # --- NEW: Knee Bend Penalty ---
-        # This penalizes the agent for bending its knees too much, which causes the "sitting" posture.
-        # LegLowerR (ID 13) is index 12, LegLowerL (ID 14) is index 13.
+        # --- MODIFICATION: Increased Knee Bend Penalty ---
         knee_r = observation[12]
         knee_l = observation[13]
-        # A straight leg has a knee angle near 0. A bent knee has a large absolute angle.
-        # We penalize the sum of the absolute angles to encourage straight legs.
-        knee_bend_penalty = 1.0 * (abs(knee_r) + abs(knee_l))
+        # The weight is increased from 1.0 to 4.0 to make kneeling much more "costly".
+        knee_bend_penalty = 4.0 * (abs(knee_r) + abs(knee_l))
 
 
         # Combine all rewards and penalties
