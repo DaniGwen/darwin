@@ -39,7 +39,7 @@ class DarwinOPBalanceEnv(DarwinOPEnvBase):
         hip_roll_l = observation[9]
         stance_width_penalty = 0.5 * (abs(hip_roll_r) + abs(hip_roll_l))
 
-        # --- MODIFICATION 1: Symmetrical Shoulder Posture Penalty ---
+        # Symmetrical Shoulder Posture Penalty
         shoulder_pitch_r = observation[0]
         shoulder_pitch_l = observation[1]
         shoulder_penalty = 0.0
@@ -50,7 +50,7 @@ class DarwinOPBalanceEnv(DarwinOPEnvBase):
             shoulder_penalty += (abs(shoulder_pitch_l) - limit)**2
         shoulder_penalty *= 1.4
 
-        # --- MODIFICATION 2: Ankle Posture Penalty ---
+        # Ankle Posture Penalty
         ankle_pitch_r = observation[14]
         ankle_pitch_l = observation[15]
         ankle_penalty = 0.0
@@ -65,9 +65,7 @@ class DarwinOPBalanceEnv(DarwinOPEnvBase):
             ankle_penalty += (abs(foot_roll_l) - limit)**2
         ankle_penalty *= 1.4
 
-        # --- MODIFICATION 3: Hip Yaw Penalty ---
-        # This prevents the robot from twisting its hips too much.
-        # PelvYR (ID 7) is index 6, PelvYL (ID 8) is index 7.
+        # Hip Yaw Penalty
         hip_yaw_r = observation[6]
         hip_yaw_l = observation[7]
         hip_yaw_penalty = 0.0
@@ -81,6 +79,16 @@ class DarwinOPBalanceEnv(DarwinOPEnvBase):
         # Action Smoothness Penalty
         action_smoothness_penalty = 0.1 * np.sum(np.square(action - self.last_action))
 
+        # --- NEW: Knee Bend Penalty ---
+        # This penalizes the agent for bending its knees too much, which causes the "sitting" posture.
+        # LegLowerR (ID 13) is index 12, LegLowerL (ID 14) is index 13.
+        knee_r = observation[12]
+        knee_l = observation[13]
+        # A straight leg has a knee angle near 0. A bent knee has a large absolute angle.
+        # We penalize the sum of the absolute angles to encourage straight legs.
+        knee_bend_penalty = 1.0 * (abs(knee_r) + abs(knee_l))
+
+
         # Combine all rewards and penalties
         reward = (balance_reward + 
                   foot_symmetry_reward - 
@@ -90,7 +98,8 @@ class DarwinOPBalanceEnv(DarwinOPEnvBase):
                   shoulder_penalty -
                   action_smoothness_penalty -
                   ankle_penalty -
-                  hip_yaw_penalty) # Subtract the new hip yaw penalty
+                  hip_yaw_penalty -
+                  knee_bend_penalty) # Subtract the new knee penalty
         
         # --- Update last action for the next step ---
         self.last_action = action
