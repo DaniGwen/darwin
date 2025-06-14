@@ -20,7 +20,6 @@ class DarwinOPBalanceEnv(DarwinOPEnvBase):
         self.current_x, height = observation[21], observation[23]
 
         # --- Balance-Specific Rewards ---
-        # MODIFICATION: Increased weight to make standing taller more valuable
         height_reward = max(0.0, 1.0 - abs(height - self.target_height) * 20.0)
         pitch_reward = max(0.0, 1.0 - abs(pitch) * 5.0)
         roll_reward = max(0.0, 1.0 - abs(roll) * 5.0)
@@ -36,8 +35,9 @@ class DarwinOPBalanceEnv(DarwinOPEnvBase):
 
         hip_roll_r = observation[8]
         hip_roll_l = observation[9]
-        stance_width_penalty = 0.5 * (abs(hip_roll_r) + abs(hip_roll_l))
+        stance_width_penalty = 1.0 * (abs(hip_roll_r) + abs(hip_roll_l)) # Increased penalty weight
 
+        # Symmetrical Shoulder Posture Penalty
         shoulder_pitch_r = observation[0]
         shoulder_pitch_l = observation[1]
         shoulder_penalty = 0.0
@@ -46,8 +46,9 @@ class DarwinOPBalanceEnv(DarwinOPEnvBase):
             shoulder_penalty += (abs(shoulder_pitch_r) - limit_shoulder)**2
         if abs(shoulder_pitch_l) > limit_shoulder:
             shoulder_penalty += (abs(shoulder_pitch_l) - limit_shoulder)**2
-        shoulder_penalty *= 1.4
+        shoulder_penalty *= 2.0 # Increased penalty weight
 
+        # Ankle Posture Penalty
         ankle_pitch_r = observation[14]
         ankle_pitch_l = observation[15]
         ankle_penalty = 0.0
@@ -60,8 +61,9 @@ class DarwinOPBalanceEnv(DarwinOPEnvBase):
             ankle_penalty += (abs(foot_roll_r) - limit_ankle)**2
         if abs(foot_roll_l) > limit_ankle:
             ankle_penalty += (abs(foot_roll_l) - limit_ankle)**2
-        ankle_penalty *= 1.4
+        ankle_penalty *= 2.0 # Increased penalty weight
 
+        # Hip Yaw Penalty
         hip_yaw_r = observation[6]
         hip_yaw_l = observation[7]
         hip_yaw_penalty = 0.0
@@ -70,21 +72,21 @@ class DarwinOPBalanceEnv(DarwinOPEnvBase):
             hip_yaw_penalty += (abs(hip_yaw_r) - limit_hip)**2
         if abs(hip_yaw_l) > limit_hip:
             hip_yaw_penalty += (abs(hip_yaw_l) - limit_hip)**2
-        hip_yaw_penalty *= 1.4
+        hip_yaw_penalty *= 2.0 # Increased penalty weight
         
         action_smoothness_penalty = 0.1 * np.sum(np.square(action - self.last_action))
 
-        # --- MODIFICATION: Aggressive Knee & Posture Control ---
+        # --- Aggressive Knee & Posture Control ---
         knee_r = observation[12]
         knee_l = observation[13]
         
-        # 1. Heavily penalize any significant knee bending.
-        knee_bend_penalty = 10.0 * (abs(knee_r) + abs(knee_l))
+        # 1. Drastically penalize any significant knee bending.
+        knee_bend_penalty = 25.0 * (abs(knee_r) + abs(knee_l))
 
-        # 2. Add a new explicit reward for standing tall.
+        # 2. Add a strong, explicit reward for standing tall.
         stand_tall_reward = 0.0
         if abs(knee_r) < 0.2 and abs(knee_l) < 0.2:
-            stand_tall_reward = 2.0 # Add a strong positive bonus for straight legs
+            stand_tall_reward = 5.0 # Increased bonus for straight legs
 
         # Combine all rewards and penalties
         reward = (balance_reward + 
