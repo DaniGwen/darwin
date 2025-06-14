@@ -1,7 +1,6 @@
 import os
 import numpy as np
-# --- MODIFICATION: Import the SAC algorithm ---
-from stable_baselines3 import SAC
+from stable_baselines3 import TD3
 
 # We will use the balance environment as that's what the model was trained on
 from darwin_env_balance import DarwinOPBalanceEnv
@@ -20,17 +19,14 @@ if __name__ == '__main__':
         else:
             print(f"Error: File not found at '{model_path}'. Please check the path and try again.")
 
-    # --- Create the Environment ---
-    # We only need one environment for testing.
     print(f"Connecting to Webots on port {PORT}...")
     env = DarwinOPBalanceEnv(port=PORT)
 
     # --- Load the Trained Model ---
     print(f"Loading model from {model_path}...")
     try:
-        # --- MODIFICATION: Load the model as an SAC agent ---
-        model = SAC.load(model_path, env=env)
-        print("Model loaded successfully as SAC agent.")
+        model = TD3.load(model_path, env=env)
+        print("Model loaded successfully.")
     except Exception as e:
         print(f"Fatal error loading model: {e}")
         env.close()
