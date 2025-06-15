@@ -8,6 +8,20 @@ class DarwinOPBalanceEnv(DarwinOPEnvBase):
         # Initialize a variable to store the last action taken
         self.last_action = np.zeros(self.action_space.shape, dtype=np.float32)
 
+    # --- MODIFICATION: Override the send_action method ---
+    # By changing the scaling factor, we limit the robot's range of motion.
+    def send_action(self, action):
+        """Sends the scaled action to the simulator."""
+        try:
+            # The original scaling factor of 2.25 is removed.
+            # Now, the action values [-1, 1] map directly to radians [-1, 1].
+            scaled_action = action * 1.0 
+            self.socket.sendall(self.command_struct.pack(*scaled_action))
+            return self._get_obs()
+        except ConnectionError as e:
+            print(f"Connection error during step on port {self.port}: {e}.")
+            return None
+
     def step(self, action):
         self.episode_steps += 1
         
@@ -35,7 +49,7 @@ class DarwinOPBalanceEnv(DarwinOPEnvBase):
 
         hip_roll_r = observation[8]
         hip_roll_l = observation[9]
-        stance_width_penalty = 1.0 * (abs(hip_roll_r) + abs(hip_roll_l)) # Increased penalty weight
+        stance_width_penalty = 1.0 * (abs(hip_roll_r) + abs(hip_roll_l))
 
         # Symmetrical Shoulder Posture Penalty
         shoulder_pitch_r = observation[0]
@@ -46,7 +60,7 @@ class DarwinOPBalanceEnv(DarwinOPEnvBase):
             shoulder_penalty += (abs(shoulder_pitch_r) - limit_shoulder)**2
         if abs(shoulder_pitch_l) > limit_shoulder:
             shoulder_penalty += (abs(shoulder_pitch_l) - limit_shoulder)**2
-        shoulder_penalty *= 2.0 # Increased penalty weight
+        shoulder_penalty *= 2.0
 
         # Ankle Posture Penalty
         ankle_pitch_r = observation[14]
@@ -61,7 +75,7 @@ class DarwinOPBalanceEnv(DarwinOPEnvBase):
             ankle_penalty += (abs(foot_roll_r) - limit_ankle)**2
         if abs(foot_roll_l) > limit_ankle:
             ankle_penalty += (abs(foot_roll_l) - limit_ankle)**2
-        ankle_penalty *= 2.0 # Increased penalty weight
+        ankle_penalty *= 2.0
 
         # Hip Yaw Penalty
         hip_yaw_r = observation[6]
@@ -72,7 +86,7 @@ class DarwinOPBalanceEnv(DarwinOPEnvBase):
             hip_yaw_penalty += (abs(hip_yaw_r) - limit_hip)**2
         if abs(hip_yaw_l) > limit_hip:
             hip_yaw_penalty += (abs(hip_yaw_l) - limit_hip)**2
-        hip_yaw_penalty *= 2.0 # Increased penalty weight
+        hip_yaw_penalty *= 2.0
         
         action_smoothness_penalty = 0.1 * np.sum(np.square(action - self.last_action))
 
@@ -80,13 +94,13 @@ class DarwinOPBalanceEnv(DarwinOPEnvBase):
         knee_r = observation[12]
         knee_l = observation[13]
         
-        # 1. Drastically penalize any significant knee bending.
-        knee_bend_penalty = 25.0 * (abs(knee_r) + abs(knee_l))
+        # Reduced penalty weight since the physical range is now smaller
+        knee_bend_penalty = 15.0 * (abs(knee_r) + abs(knee_l))
 
-        # 2. Add a strong, explicit reward for standing tall.
+        # Add a strong, explicit reward for standing tall.
         stand_tall_reward = 0.0
         if abs(knee_r) < 0.2 and abs(knee_l) < 0.2:
-            stand_tall_reward = 5.0 # Increased bonus for straight legs
+            stand_tall_reward = 5.0
 
         # Combine all rewards and penalties
         reward = (balance_reward + 
