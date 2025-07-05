@@ -15,10 +15,6 @@ namespace Robot
             std::cerr << BOLDRED << "ERROR: LegsController initialized with a NULL CM730 pointer. Motor control will not be possible." << RESET << std::endl;
         }
         std::cout << BOLDGREEN << "INFO: LegsController initialized." << RESET << std::endl;
-
-        // It's good practice to initialize the Walking module once if LegsController manages its lifecycle parameters
-        // However, Walking::Initialize is often called by MotionManager or a global init.
-        // For now, we'll add a specific InitializeWalking method.
     }
 
     LegsController::~LegsController()
