@@ -49,9 +49,9 @@
 
 enum class BottleTaskState
 {
-    IDLE,              
+    IDLE,
     WALKING_TO_BOTTLE,
-    PICKING_UP, 
+    PICKING_UP,
     DONE
 };
 
@@ -137,7 +137,7 @@ void handlePersonDetected(LeftArmController &left_arm_controller,
     }
     else // random == 2
     {
-       // LinuxActionScript::PlayMP3Wait("/home/darwin/darwin/Data/mp3/i-love-you-cartoon.mp3");
+        // LinuxActionScript::PlayMP3Wait("/home/darwin/darwin/Data/mp3/i-love-you-cartoon.mp3");
         // run_action();
     }
 
@@ -270,24 +270,26 @@ void handleGenericObjectDetected(const std::string &label, int action_page,
         LinuxActionScript::PlayMP3Wait("/home/darwin/darwin/Data/mp3/dogs-growling.mp3");
     }
 
-    //run_action(action_page);
+    // run_action(action_page);
     current_action_label = label;
     last_action_time = current_time;
     detect_count_ref = 0; // Reset counter
 
-    if(label == "dog")
+    if (label == "dog")
     {
         std::cout << "INFO: Dog detected, playing dog action." << std::endl;
         LinuxActionScript::PlayMP3Wait("/home/darwin/darwin/Data/mp3/such_a_nice_doggy.mp3");
         run_action(ACTION_PAGE_HAPPY);
+        run_action(ACTION_PAGE_STAND);
     }
-    else if(label == "cat")
+    else if (label == "cat")
     {
         LinuxActionScript::PlayMP3Wait("/home/darwin/darwin/Data/mp3/kitty_kitty.mp3");
         std::cout << "INFO: Cat detected, playing cat action." << std::endl;
-         run_action(ACTION_PAGE_HAPPY);
+        run_action(ACTION_PAGE_HAPPY);
+        run_action(ACTION_PAGE_STAND);
     }
-    else if(label == "sports_ball")
+    else if (label == "sports_ball")
     {
         std::cout << "INFO: Sports ball detected, playing sports ball action." << std::endl;
     }
