@@ -22,3 +22,5 @@
 *.zip
 Linux/project/webots/td3_darwin_tensorboard_no_head/TD3_0/events.out.tfevents.1749414433.DESKTOP-UAE71HC.13528.0
 *.csv
+# Ignore TensorBoard event logs
+*.tfevents.*
