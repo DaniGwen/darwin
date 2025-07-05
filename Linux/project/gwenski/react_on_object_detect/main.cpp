@@ -50,10 +50,10 @@
 
 enum class BottleTaskState
 {
-    IDLE,              // Doing nothing, or searching
-    WALKING_TO_BOTTLE, // Actively walking towards the bottle
-    PICKING_UP,        // Close enough, performing the pickup motion
-    DONE               // Task completed successfully
+    IDLE,              
+    WALKING_TO_BOTTLE,
+    PICKING_UP, 
+    DONE
 };
 
 void set_enable_motion_manager_and_walking(bool enable)
