@@ -271,13 +271,13 @@ void handleGenericObjectDetected(const std::string &label, int action_page,
     {
         std::cout << "INFO: Dog detected, playing dog action." << std::endl;
         LinuxActionScript::PlayMP3("/home/darwin/darwin/Data/mp3/such_a_nice_doggy.mp3");
-        run_action(ACTION_PAGE_HAPPY);
+        run_action(action_page);
     }
     else if (label == "cat")
     {
         LinuxActionScript::PlayMP3("/home/darwin/darwin/Data/mp3/kitty_kitty.mp3");
         std::cout << "INFO: Cat detected, playing cat action." << std::endl;
-        run_action(ACTION_PAGE_HAPPY);
+        run_action(action_page);
     }
     else if (label == "sports_ball")
     {
@@ -493,7 +493,7 @@ int main(void)
         }
         else if (detected_object_label == "cat" && cat_detect_count >= detect_threshold && current_action_label != "cat" && can_perform_action)
         {
-            handleGenericObjectDetected("cat", ACTION_PAGE_CAT, current_action_label, last_action_time, cat_detect_count, current_time);
+            handleGenericObjectDetected("cat", ACTION_PAGE_HAPPY, current_action_label, last_action_time, cat_detect_count, current_time);
         }
         else if (detected_object_label == "sports ball" && sports_ball_detect_count >= detect_threshold && current_action_label != "sports ball" && can_perform_action)
         {
