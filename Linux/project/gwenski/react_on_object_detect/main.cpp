@@ -265,15 +265,7 @@ void handleGenericObjectDetected(const std::string &label, int action_page,
                                  const std::chrono::steady_clock::time_point &current_time)
 {
     std::cout << "INFO: Detected " << label << " consistently. Playing action page " << action_page << std::endl;
-    if (label == "dog")
-    {
-        LinuxActionScript::PlayMP3Wait("/home/darwin/darwin/Data/mp3/dogs-growling.mp3");
-    }
 
-    // run_action(action_page);
-    current_action_label = label;
-    last_action_time = current_time;
-    detect_count_ref = 0; // Reset counter
 
     if (label == "dog")
     {
@@ -293,6 +285,10 @@ void handleGenericObjectDetected(const std::string &label, int action_page,
     {
         std::cout << "INFO: Sports ball detected, playing sports ball action." << std::endl;
     }
+
+    current_action_label = label;
+    last_action_time = current_time;
+    detect_count_ref = 0; // Reset counter
 }
 
 void handleNoTargetOrStandby(std::string &current_action_label,
