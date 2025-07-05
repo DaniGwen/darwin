@@ -39,10 +39,9 @@
 // Define action page numbers for different detected objects
 #define ACTION_PAGE_WAVE 7
 #define ACTION_PAGE_WAVE2 8
-#define ACTION_PAGE_DOG 11
+#define ACTION_PAGE_HAPPY 14
 #define ACTION_PAGE_CAT 12
 #define ACTION_PAGE_SPORTS_BALL 13
-#define ACTION_PAGE_SWING_LEFT_RIGHT 14
 #define ACTION_PAGE_STAND 1
 #define ACTION_PAGE_READY_TO_PICKUP 32
 #define ACTION_PAGE_PICKUP_ITEM 33
@@ -136,7 +135,7 @@ void handlePersonDetected(LeftArmController &left_arm_controller,
     }
     else // random == 2
     {
-        run_action(ACTION_PAGE_SWING_LEFT_RIGHT);
+       // run_action();
     }
 
     std::chrono::milliseconds wave_duration(1000);
@@ -267,6 +266,23 @@ void handleGenericObjectDetected(const std::string &label, int action_page,
     current_action_label = label;
     last_action_time = current_time;
     detect_count_ref = 0; // Reset counter
+
+    if(label == "dog")
+    {
+        std::cout << "INFO: Dog detected, playing dog action." << std::endl;
+        LinuxActionScript::PlayMP3Wait("/home/darwin/darwin/Data/mp3/such_a_nice_doggy.mp3");
+        run_action(ACTION_PAGE_HAPPY);
+    }
+    else if(label == "cat")
+    {
+        LinuxActionScript::PlayMP3Wait("/home/darwin/darwin/Data/mp3/kitty_kitty.mp3");
+        std::cout << "INFO: Cat detected, playing cat action." << std::endl;
+         run_action(ACTION_PAGE_HAPPY);
+    }
+    else if(label == "sports_ball")
+    {
+        std::cout << "INFO: Sports ball detected, playing sports ball action." << std::endl;
+    }
 }
 
 void handleNoTargetOrStandby(std::string &current_action_label,
@@ -469,7 +485,7 @@ int main(void)
         }
         else if (detected_object_label == "dog" && dog_detect_count >= detect_threshold && current_action_label != "dog" && can_perform_action)
         {
-            handleGenericObjectDetected("dog", ACTION_PAGE_DOG, current_action_label, last_action_time, dog_detect_count, current_time);
+            handleGenericObjectDetected("dog", ACTION_PAGE_HAPPY, current_action_label, last_action_time, dog_detect_count, current_time);
         }
         else if (detected_object_label == "cat" && cat_detect_count >= detect_threshold && current_action_label != "cat" && can_perform_action)
         {
