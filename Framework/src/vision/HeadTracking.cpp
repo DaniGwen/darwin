@@ -534,7 +534,7 @@ namespace Robot
 
     void HeadTracking::UpdateHeadTracking(const std::vector<ParsedDetection> &detections)
     {
-        bool person_found_in_frame = false;
+        bool target_found_in_frame = false;
         Point2D tracked_object_center_for_head;
         std::string primary_detected_label = "none";
         int current_detection_score_val = 0;
@@ -543,6 +543,7 @@ namespace Robot
         // Reset distance at the start of each update
         current_object_distance_m_ = -1.0;
 
+        // Priority 1: Person
         for (const auto &det : detections)
         {
             if (det.label == "person")
@@ -555,7 +556,7 @@ namespace Robot
                 tracked_object_center_for_head.X = (det.xmin + det.xmax) / 2.0 * Camera::WIDTH;
                 tracked_object_center_for_head.Y = (det.ymin + det.ymax) / 2.0 * Camera::HEIGHT;
 
-                person_found_in_frame = true;
+                target_found_in_frame = true;
                 primary_detected_label = det.label;
                 current_detection_score_val = static_cast<int>(det.score * 100); // Convert to percentage
                 primary_detection = det;
@@ -563,8 +564,30 @@ namespace Robot
             }
         }
 
-        // If no person was found, check for a bottle
-        if (!person_found_in_frame)
+        // Priority 2: Dog (if no person found)
+        if (!target_found_in_frame)
+        {
+            for (const auto &det : detections)
+            {
+                if (det.label == "dog")
+                {
+                    if (cm730_)
+                    {
+                        cm730_->WriteWord(CM730::ID_CM, CM730::P_LED_EYE_L, cm730_->MakeColor(0, 0, 255), 0); // Blue for dog
+                    }
+                    tracked_object_center_for_head.X = (det.xmin + det.xmax) / 2.0 * Camera::WIDTH;
+                    tracked_object_center_for_head.Y = (det.ymin + det.ymax) / 2.0 * Camera::HEIGHT;
+                    primary_detected_label = det.label;                              // Set to "dog"
+                    current_detection_score_val = static_cast<int>(det.score * 100); // Convert to percentage
+                    primary_detection = det;
+                    target_found_in_frame = true;
+                    break;
+                }
+            }
+        }
+        
+        // Priority 3: Bottle (if no person or dog found)
+        if (!target_found_in_frame)
         {
             for (const auto &det : detections)
             {
@@ -579,6 +602,7 @@ namespace Robot
                     primary_detected_label = det.label;                              // Set to "bottle"
                     current_detection_score_val = static_cast<int>(det.score * 100); // Convert to percentage
                     primary_detection = det;
+                    target_found_in_frame = true;
                     break;
                 }
             }
@@ -617,8 +641,6 @@ namespace Robot
                 }
             }
         }
-
-        bool target_found_in_frame = (primary_detected_label != "none");
 
         if (target_found_in_frame)
         {
@@ -679,8 +701,8 @@ namespace Robot
             }
 
             std::lock_guard<std::mutex> lock(m_data_access_mutex);
-            if (target_found_in_frame && primary_detected_label == "bottle")
-            {                                            // Only update if a bottle is the primary target
+            if (target_found_in_frame && (primary_detected_label == "bottle" || primary_detected_label == "dog"))
+            {                                            // Only update if a bottle or dog is the primary target
                 m_last_object_angular_error.X = P_err.X; // This P_err should be the angular error in degrees
                 m_last_object_angular_error.Y = P_err.Y;
             }
@@ -983,6 +1005,7 @@ namespace Robot
 
         // Load known object heights (provide defaults if not in INI)
         known_object_real_heights_m_["person"] = ini->getd("DistanceEstimation", "person_height_m", 1.76);
+        known_object_real_heights_m_["dog"] = ini->getd("DistanceEstimation", "dog_height_m", 0.5); // Added for dog
         known_object_real_heights_m_["bottle_small"] = ini->getd("DistanceEstimation", "bottle_small_height_m", 0.21);
         known_object_real_heights_m_["bottle_big"] = ini->getd("DistanceEstimation", "bottle_big_height_m", 0.25);
         known_object_real_heights_m_["bottle"] = ini->getd("DistanceEstimation", "bottle_default_height_m", 0.23); // For generic "bottle" label
