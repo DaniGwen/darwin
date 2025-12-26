@@ -1,6 +1,8 @@
 /*
  * main.cpp
- * FIXED: Properly initializes LinuxCM730 and HeadTracking to prevent Segfaults.
+ * FIXED VERSION 2.0
+ * - Removed invalid 'LinuxPlatform' reference.
+ * - Correctly initializes LinuxCM730.
  */
 
 #include <stdio.h>
@@ -49,10 +51,13 @@ void performWaveAction() {
 int main(int argc, char* argv[]) {
     std::cout << "\n\033[1;36m=== Darwin-OP Gesture Interaction (Initialized) ===\033[0m" << std::endl;
 
-    // 1. SYSTEM INITIALIZATION (Crucial to prevent crashes)
+    // 1. SYSTEM INITIALIZATION
     // ---------------------------------------------------------
     minIni* ini = new minIni(INI_FILE_PATH);
-    LinuxCM730 linux_cm730(new LinuxPlatform());
+    
+    // FIX: Use default constructor (connects to /dev/ttyUSB0 by default)
+    LinuxCM730 linux_cm730; 
+    
     CM730 cm730(&linux_cm730);
 
     if (MotionManager::GetInstance()->Initialize(&cm730) == false) {
@@ -61,7 +66,6 @@ int main(int argc, char* argv[]) {
     }
 
     // 2. Initialize HeadTracking (Pass hardware pointers)
-    // This fixes the NULL pointer crash
     if (HeadTracking::GetInstance()->Initialize(ini, &cm730) == false) {
         std::cerr << "ERROR: Fail to initialize HeadTracking!" << std::endl;
         return 0;
