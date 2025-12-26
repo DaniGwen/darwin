@@ -69,6 +69,7 @@ namespace Robot
         int GetDetectionScore();
         double GetDetectedObjectDistance() const;
         std::string GetDetectedLabel();
+        static void* AutoTrackingLoop(void* arg);
 
         // Static methods to control tracking state
         static void SetTrackingEnabled(bool enable);
