@@ -14,6 +14,7 @@
 #include <string>
 #include <thread>
 #include <chrono>
+#include <signal.h>
 
 // Framework Headers
 #include "HeadTracking.h"
@@ -48,6 +49,7 @@ void performWaveAction() {
 }
 
 int main(int argc, char* argv[]) {
+    signal(SIGPIPE, SIG_IGN);
     std::cout << "\n\033[1;36m=== Darwin-OP Gesture Interaction (Initialized) ===\033[0m" << std::endl;
 
     // 1. SYSTEM INITIALIZATION
