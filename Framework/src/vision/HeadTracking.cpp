@@ -640,7 +640,7 @@ namespace Robot
             std::lock_guard<std::mutex> lock(m_data_access_mutex);
             current_detected_label_ = primary_detected_label;
         }
-        
+
         current_tracked_object_center_ = tracked_object_center_for_head;
         detection_score_ = current_detection_score_val;
 
@@ -1059,5 +1059,12 @@ namespace Robot
     double HeadTracking::GetFocalLengthPx() const
     {
         return camera_focal_length_px_;
+    }
+
+    void *HeadTracking::AutoTrackingLoop(void *arg)
+    {
+        // Get the singleton instance and start the main loop
+        HeadTracking::GetInstance()->Run();
+        return NULL;
     }
 }
