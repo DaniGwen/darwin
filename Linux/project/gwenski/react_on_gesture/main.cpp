@@ -1,50 +1,45 @@
 /*
  * main.cpp
- * SAFE VERSION (No hacks, no segfaults)
- * - Relies on HeadTracking to handle the camera and Python.
- * - Uses the new GetDetectedLabel() function we just added.
+ * FIXED: Properly initializes LinuxCM730 and HeadTracking to prevent Segfaults.
  */
 
 #include <stdio.h>
 #include <unistd.h>
 #include <string.h>
+#include <libgen.h>
 #include <iostream>
 #include <cstdlib>
 #include <pthread.h>
 #include <string>
-#include <chrono>
 #include <thread>
+#include <chrono>
 
 // Framework Headers
 #include "HeadTracking.h"
 #include "LinuxDARwIn.h"
 #include "LinuxActionScript.h"
 
-using namespace Robot;
-
 // --- CONFIGURATION ---
-#define MOTION_FILE_PATH   "../../../../Data/motion_4096.bin"
-#define ACTION_PAGE_WAVE   15  // Page 15 is standard "Hello"
-#define ACTION_PAGE_READY  9   // Page 9 is "Walk Ready"
-#define DETECT_THRESHOLD   2   // Frames needed to confirm wave
+#define INI_FILE_PATH       "../../../../Data/config.ini"
+#define MOTION_FILE_PATH    "../../../../Data/motion_4096.bin"
+#define ACTION_PAGE_WAVE    15  // "Hello"
+#define ACTION_PAGE_READY   9   // "Walk Ready"
+#define DETECT_THRESHOLD    2   // Frames to confirm wave
 
-// --- GLOBAL ---
-bool g_is_waving = false;
+using namespace Robot;
 
 // --- HELPER FUNCTION ---
 void performWaveAction() {
     std::cout << "\n\033[1;35m>>> WAVE DETECTED! Greeting human... \033[0m" << std::endl;
     
-    // Play Sound (Optional)
-    // LinuxActionScript::PlayMP3Wait("/home/darwin/darwin/Data/mp3/demonstration_intro.mp3");
-
     if (Action::GetInstance()->IsRunning() == 0) {
+        // Enable bodies and head
         Action::GetInstance()->m_Joint.SetEnableBody(true, true);
         
-        // Execute Wave
+        // Start Wave
         Action::GetInstance()->Start(ACTION_PAGE_WAVE);
         
-        // Wait for it to finish
+        // Wait for action to finish
         while (Action::GetInstance()->IsRunning()) {
             usleep(50000); 
         }
@@ -52,21 +47,40 @@ void performWaveAction() {
 }
 
 int main(int argc, char* argv[]) {
-    std::cout << "\n\033[1;36m=== Darwin-OP Gesture Interaction (Safe Mode) ===\033[0m" << std::endl;
+    std::cout << "\n\033[1;36m=== Darwin-OP Gesture Interaction (Initialized) ===\033[0m" << std::endl;
 
-    // 1. Initialize Motion Manager
+    // 1. SYSTEM INITIALIZATION (Crucial to prevent crashes)
+    // ---------------------------------------------------------
+    minIni* ini = new minIni(INI_FILE_PATH);
+    LinuxCM730 linux_cm730(new LinuxPlatform());
+    CM730 cm730(&linux_cm730);
+
+    if (MotionManager::GetInstance()->Initialize(&cm730) == false) {
+        std::cerr << "ERROR: Fail to initialize Motion Manager!" << std::endl;
+        return 0;
+    }
+
+    // 2. Initialize HeadTracking (Pass hardware pointers)
+    // This fixes the NULL pointer crash
+    if (HeadTracking::GetInstance()->Initialize(ini, &cm730) == false) {
+        std::cerr << "ERROR: Fail to initialize HeadTracking!" << std::endl;
+        return 0;
+    }
+
+    // 3. Load Motion File
+    if (Action::GetInstance()->LoadFile((char*)MOTION_FILE_PATH) == false) {
+        std::cerr << "ERROR: Fail to load Motion file!" << std::endl;
+        return 0;
+    }
+    // ---------------------------------------------------------
+
+    // 4. Setup Motion Timer
     MotionManager::GetInstance()->AddModule((MotionModule*)Action::GetInstance());
     MotionManager::GetInstance()->AddModule((MotionModule*)Head::GetInstance());
     LinuxMotionTimer *motion_timer = new LinuxMotionTimer(MotionManager::GetInstance());
     motion_timer->Start();
 
-    // 2. Load Motion File
-    if (Action::GetInstance()->LoadFile((char*)MOTION_FILE_PATH) == false) {
-        std::cerr << "ERROR: Failed to load Motion file!" << std::endl;
-        return 0;
-    }
-
-    // 3. Start Head Tracking Thread (It handles Python & Camera internally)
+    // 5. Start Vision Thread
     std::cout << "INFO: Launching Vision Thread..." << std::endl;
     pthread_t tracking_thread;
     if (pthread_create(&tracking_thread, NULL, HeadTracking::AutoTrackingLoop, NULL) != 0) {
@@ -74,7 +88,7 @@ int main(int argc, char* argv[]) {
         return -1;
     }
 
-    // 4. Robot Stand Up
+    // 6. Robot Stand Up
     std::cout << "INFO: Robot Standing Up..." << std::endl;
     MotionManager::GetInstance()->SetEnable(true);
     Action::GetInstance()->m_Joint.SetEnableBody(true, true);
@@ -83,11 +97,11 @@ int main(int argc, char* argv[]) {
 
     std::cout << "\033[1;32mINFO: Ready! Waiting for wave...\033[0m" << std::endl;
 
-    // 5. Main Loop
+    // 7. Main Loop
     int wave_counter = 0;
 
     while (true) {
-        // Safe access via our new Getter
+        // Safe access to label
         std::string label = HeadTracking::GetInstance()->GetDetectedLabel();
 
         if (label == "hand_wave") {
@@ -97,9 +111,9 @@ int main(int argc, char* argv[]) {
             if (wave_counter >= DETECT_THRESHOLD) {
                 performWaveAction();
                 
-                // Reset and return to ready
+                // Reset
                 wave_counter = 0;
-                Action::GetInstance()->Start(ACTION_PAGE_READY);
+                Action::GetInstance()->Start(ACTION_PAGE_READY); 
                 while (Action::GetInstance()->IsRunning()) usleep(8000);
                 std::cout << "INFO: Ready for next gesture.      " << std::endl;
             }
