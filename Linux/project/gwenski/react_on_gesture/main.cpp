@@ -1,8 +1,7 @@
 /*
  * main.cpp
- * FIXED VERSION 2.0
- * - Removed invalid 'LinuxPlatform' reference.
- * - Correctly initializes LinuxCM730.
+ * FINAL FIX
+ * - Correctly initializes LinuxCM730 with "/dev/ttyUSB0"
  */
 
 #include <stdio.h>
@@ -55,8 +54,8 @@ int main(int argc, char* argv[]) {
     // ---------------------------------------------------------
     minIni* ini = new minIni(INI_FILE_PATH);
     
-    // FIX: Use default constructor (connects to /dev/ttyUSB0 by default)
-    LinuxCM730 linux_cm730; 
+    // FIX: Pass the device port explicitly
+    LinuxCM730 linux_cm730("/dev/ttyUSB0"); 
     
     CM730 cm730(&linux_cm730);
 
