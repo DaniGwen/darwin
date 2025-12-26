@@ -155,7 +155,7 @@ namespace Robot
         // --- Initialize Components ---
 
         // 0. Auto-start the Python detector script
-        std::string command = "python3 ";
+        std::string command = "nice -n 10 python3";
         command += PYTHON_SCRIPT_PATH;
         command += " &"; // Run in background
         std::cout << "INFO: Starting Python detector script: " << command << std::endl;
@@ -232,7 +232,7 @@ namespace Robot
         while (1)
         {
             // --- Capture Frame ---
-            usleep(30000); // Sleep 30ms (~30 FPS)
+           usleep(100000); // Sleep 10ms (~10 FPS)
             LinuxCamera::GetInstance()->CaptureFrame();
             Image *current_cam_rgb_frame = LinuxCamera::GetInstance()->fbuffer->m_RGBFrame;
 
