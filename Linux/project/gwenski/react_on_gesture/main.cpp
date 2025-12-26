@@ -1,14 +1,10 @@
 /*
  * main.cpp
- *
- * Mode: GESTURE INTERACTION
- * Description: 
- * - Dedicated script for Human-Robot Interaction via Gestures.
- * - Listens for "hand_wave" from the HeadTracking module.
- * - Triggers a greeting (Action Page 15) when waved at.
+ * FIXED VERSION
+ * - Defines Colors and Paths locally (Fixes "Color not declared" / "MOTION_FILE_PATH" error)
+ * - Implements a local Vision Thread (Fixes "AutoTrackingLoop" / "private member" errors)
  */
 
-#include "ConsoleColors.h"
 #include <stdio.h>
 #include <unistd.h>
 #include <string.h>
@@ -18,118 +14,216 @@
 #include <string>
 #include <chrono>
 #include <thread>
+#include <vector>
+#include <sys/socket.h>
+#include <sys/un.h>
+#include <sys/stat.h>
 
 #include "HeadTracking.h"
 #include "LinuxDARwIn.h"
 #include "LinuxActionScript.h"
-
-// --- Configuration ---
-#define ACTION_PAGE_WAVE 15      // Standard Hello/Wave
-#define ACTION_PAGE_STANDBY 2    // Standard Sit/Standby
-#define ACTION_PAGE_READY 9      // Walk Ready / Standing
+#include "LinuxCamera.h"
 
 using namespace Robot;
 
-// --- Tuning Constants ---
-const int DETECT_THRESHOLD = 2;  // Frames of consistent detection required
-const int WAVE_COOLDOWN_SEC = 10; // Seconds to wait after waving before looking again
+// --- 1. DEFINITIONS (Fixing Missing Headers) ---
+#define ANSI_COLOR_RED     "\x1b[31m"
+#define ANSI_COLOR_GREEN   "\x1b[32m"
+#define ANSI_COLOR_YELLOW  "\x1b[33m"
+#define ANSI_COLOR_BLUE    "\x1b[34m"
+#define ANSI_COLOR_MAGENTA "\x1b[35m"
+#define ANSI_COLOR_CYAN    "\x1b[36m"
+#define ANSI_COLOR_RESET   "\x1b[0m"
 
-// --- Global State ---
-int wave_counter = 0;
-bool is_interacting = false;
+#define MOTION_FILE_PATH   "../../../../Data/motion_4096.bin"
+#define ACTION_PAGE_WAVE   15
+#define ACTION_PAGE_READY  9
+#define PYTHON_SCRIPT      "/home/darwin/darwin/aiy-maker-kit/examples/gesture_detector.py"
+#define SOCKET_PATH        "/tmp/darwin_detector.sock"
 
-// --- Helper Functions ---
+// --- 2. GLOBAL VARIABLES ---
+std::string g_detected_label = "none";
+pthread_mutex_t g_label_mutex = PTHREAD_MUTEX_INITIALIZER;
+bool g_running = true;
 
+// --- 3. VISION THREAD (Replaces HeadTracking logic) ---
+void* VisionThreadLoop(void* arg) {
+    std::cout << ANSI_COLOR_BLUE << "[Vision] Starting Vision Thread..." << ANSI_COLOR_RESET << std::endl;
+
+    // A. Launch Python Script in background
+    std::string cmd = "python3 " + std::string(PYTHON_SCRIPT) + " &";
+    system(cmd.c_str());
+    sleep(2); // Give Python time to start
+
+    // B. Create Socket Server
+    int server_sock, client_sock;
+    struct sockaddr_un server_addr;
+
+    server_sock = socket(AF_UNIX, SOCK_STREAM, 0);
+    if (server_sock < 0) {
+        perror("[Vision] Socket error");
+        return NULL;
+    }
+
+    memset(&server_addr, 0, sizeof(server_addr));
+    server_addr.sun_family = AF_UNIX;
+    strncpy(server_addr.sun_path, SOCKET_PATH, sizeof(server_addr.sun_path) - 1);
+
+    unlink(SOCKET_PATH); // Remove old socket
+    if (bind(server_sock, (struct sockaddr*)&server_addr, sizeof(server_addr)) < 0) {
+        perror("[Vision] Bind error");
+        return NULL;
+    }
+
+    listen(server_sock, 1);
+    std::cout << ANSI_COLOR_BLUE << "[Vision] Waiting for Python connection..." << ANSI_COLOR_RESET << std::endl;
+    
+    // C. Accept Connection
+    client_sock = accept(server_sock, NULL, NULL);
+    if (client_sock < 0) {
+        perror("[Vision] Accept error");
+        return NULL;
+    }
+    std::cout << ANSI_COLOR_GREEN << "[Vision] Connected!" << ANSI_COLOR_RESET << std::endl;
+
+    // D. Initialize Camera
+    LinuxCamera::GetInstance()->Initialize(0);
+    LinuxCamera::GetInstance()->SetCameraSettings(LinuxCamera::GetInstance()->GetCameraSettings());
+
+    // E. Main Vision Loop
+    while (g_running) {
+        // Capture Frame
+        LinuxCamera::GetInstance()->CaptureFrame();
+        FrameBuffer* fb = LinuxCamera::GetInstance()->GetFrameBuffer();
+        
+        // Send Header (Width, Height)
+        int width = fb->m_GPixelFormat->m_Width;
+        int height = fb->m_GPixelFormat->m_Height;
+        send(client_sock, &width, sizeof(int), 0);
+        send(client_sock, &height, sizeof(int), 0);
+
+        // Send RGB Data
+        // Note: RGB Frame buffer size is Width * Height * 3
+        int data_size = width * height * 3;
+        send(client_sock, fb->m_RGBFrame->m_ImageData, data_size, 0);
+
+        // Receive Response (Length + String)
+        unsigned int msg_len = 0;
+        int n = recv(client_sock, &msg_len, sizeof(msg_len), 0);
+        if (n <= 0) break;
+
+        if (msg_len > 0) {
+            std::vector<char> buffer(msg_len + 1);
+            recv(client_sock, buffer.data(), msg_len, 0);
+            buffer[msg_len] = '\0';
+            
+            std::string response(buffer.data());
+            
+            // Parse: "label score x y..."
+            char label_buf[64];
+            sscanf(response.c_str(), "%s", label_buf);
+            
+            pthread_mutex_lock(&g_label_mutex);
+            g_detected_label = std::string(label_buf);
+            pthread_mutex_unlock(&g_label_mutex);
+        } else {
+             pthread_mutex_lock(&g_label_mutex);
+             g_detected_label = "none";
+             pthread_mutex_unlock(&g_label_mutex);
+        }
+    }
+
+    close(client_sock);
+    close(server_sock);
+    return NULL;
+}
+
+// --- 4. HELPER FUNCTIONS ---
 void performWaveAction() {
-    std::cout << Color::FG_MAGENTA << ">>> 👋 WAVE DETECTED! Greeting human..." << Color::FG_DEFAULT << std::endl;
+    std::cout << ANSI_COLOR_MAGENTA << ">>> 👋 WAVE DETECTED! Greeting human..." << ANSI_COLOR_RESET << std::endl;
 
-    // 1. Play Sound (Optional - ensure file exists)
+    // Optional: Play Sound
     // LinuxActionScript::PlayMP3Wait("/home/darwin/darwin/Data/mp3/hello.mp3");
 
-    // 2. Execute Motion
     if (Action::GetInstance()->IsRunning() == 0) {
-        // Ensure body is enabled
         Action::GetInstance()->m_Joint.SetEnableBody(true, true);
-        
-        // Start the Wave (Page 15)
         Action::GetInstance()->Start(ACTION_PAGE_WAVE);
         
-        // Wait for the action to finish so we don't interrupt it
+        // Wait for action to complete
         while (Action::GetInstance()->IsRunning()) {
-            usleep(50000); // Check every 50ms
+            usleep(50000); 
         }
     }
 }
 
+// --- 5. MAIN ---
 int main(int argc, char* argv[]) {
-    std::cout << Color::FG_CYAN << "=== Darwin-OP Gesture Interaction Mode ===" << Color::FG_DEFAULT << std::endl;
+    std::cout << ANSI_COLOR_CYAN << "=== Darwin-OP Gesture Interaction Mode ===" << ANSI_COLOR_RESET << std::endl;
 
-    // 1. Initialize Motion Framework
+    // Initialize Motion
     MotionManager::GetInstance()->AddModule((MotionModule*)Action::GetInstance());
     MotionManager::GetInstance()->AddModule((MotionModule*)Head::GetInstance());
     LinuxMotionTimer *motion_timer = new LinuxMotionTimer(MotionManager::GetInstance());
     motion_timer->Start();
 
-    // 2. Load Action File
     if (Action::GetInstance()->LoadFile((char*)MOTION_FILE_PATH) == false) {
-        std::cerr << "ERROR: Failed to load Motion file!" << std::endl;
+        std::cerr << ANSI_COLOR_RED << "ERROR: Failed to load Motion file!" << ANSI_COLOR_RESET << std::endl;
         return 0;
     }
 
-    // 3. Start Head Tracking Thread
-    // IMPORTANT: Ensure HeadTracking.cpp is pointing to 'gesture_detector.py'
-    std::cout << "INFO: Launching Vision Thread..." << std::endl;
-    pthread_t tracking_thread;
-    if (pthread_create(&tracking_thread, NULL, HeadTracking::AutoTrackingLoop, NULL) != 0) {
-        std::cerr << "ERROR: Failed to create thread" << std::endl;
+    // Launch LOCAL Vision Thread (Bypassing HeadTracking class issues)
+    pthread_t vision_thread;
+    if (pthread_create(&vision_thread, NULL, VisionThreadLoop, NULL) != 0) {
+        std::cerr << "ERROR: Failed to create vision thread" << std::endl;
         return -1;
     }
 
-    // 4. Robot Startup Sequence
-    std::cout << "INFO: Robot Standing Up..." << std::endl;
+    // Robot Startup
     MotionManager::GetInstance()->SetEnable(true);
     Action::GetInstance()->m_Joint.SetEnableBody(true, true);
-    Action::GetInstance()->Start(ACTION_PAGE_READY); 
+    Action::GetInstance()->Start(ACTION_PAGE_READY);
     while (Action::GetInstance()->IsRunning()) usleep(8000);
 
-    std::cout << Color::FG_GREEN << "INFO: Ready! Waiting for user to wave..." << Color::FG_DEFAULT << std::endl;
+    std::cout << ANSI_COLOR_GREEN << "INFO: Ready! Waiting for user to wave..." << ANSI_COLOR_RESET << std::endl;
 
-    // 5. Main Interaction Loop
+    // Main Interaction Loop
+    int wave_counter = 0;
+    const int DETECT_THRESHOLD = 2;
+
     while (true) {
-        // Get the latest label from the Vision Thread
-        std::string label = HeadTracking::GetInstance()->present_detected_object_label;
+        // Read Global Label safely
+        pthread_mutex_lock(&g_label_mutex);
+        std::string label = g_detected_label;
+        pthread_mutex_unlock(&g_label_mutex);
 
-        // --- Logic: Detect Wave ---
         if (label == "hand_wave") {
             wave_counter++;
             std::cout << "DEBUG: Wave Validating... " << wave_counter << "/" << DETECT_THRESHOLD << "\r" << std::flush;
 
             if (wave_counter >= DETECT_THRESHOLD) {
-                // Confirmed!
                 performWaveAction();
-
-                // Reset state
-                wave_counter = 0;
-                HeadTracking::GetInstance()->current_detected_label_ = "none";
                 
-                // Return to Ready pose
+                // Reset
+                wave_counter = 0;
+                pthread_mutex_lock(&g_label_mutex);
+                g_detected_label = "none";
+                pthread_mutex_unlock(&g_label_mutex);
+
+                // Return to Ready
                 Action::GetInstance()->Start(ACTION_PAGE_READY);
                 while (Action::GetInstance()->IsRunning()) usleep(8000);
-                
                 std::cout << "INFO: Ready for next gesture." << std::endl;
             }
-        } 
-        else {
-            // If we lose the detection, decay the counter quickly
+        } else {
             if (wave_counter > 0) wave_counter--;
         }
 
-        // Small delay to prevent CPU overuse
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
 
-    // Cleanup (Unlikely to reach here in infinite loop)
-    pthread_join(tracking_thread, NULL);
+    // Cleanup
+    g_running = false;
+    pthread_join(vision_thread, NULL);
     motion_timer->Stop();
     MotionManager::GetInstance()->SetEnable(false);
     return 0;
