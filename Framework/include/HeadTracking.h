@@ -65,10 +65,10 @@ namespace Robot
         int Deg2Value(double angle);
         double Value2Deg(int value);
         Point2D GetLastDetectedObjectAngularError(); // Used with BallFoller
-        std::string GetDetectedLabel();
         Robot::Point2D GetTrackedObjectCenter();
         int GetDetectionScore();
         double GetDetectedObjectDistance() const;
+        std::string GetDetectedLabel() { return current_detected_label_; }
 
         // Static methods to control tracking state
         static void SetTrackingEnabled(bool enable);
@@ -89,6 +89,7 @@ namespace Robot
         static std::mutex m_Mutex;     // Mutex to protect shared resources (like the enable flag)
         static bool m_TrackingEnabled; // New flag to control tracking
         Point2D m_last_tracked_center_px;
+        std::string current_detected_label_;
 
         // Delete copy constructor and assignment operator
         HeadTracking(const HeadTracking &) = delete;
