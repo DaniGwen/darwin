@@ -42,7 +42,7 @@ const char *SOCKET_PATH = "/tmp/darwin_detector.sock";
 // const char *PYTHON_SCRIPT_PATH = "/home/darwin/darwin/aiy-maker-kit/examples/custom_detect_objects.py";
 
 // GESTURES
- const char *PYTHON_SCRIPT_PATH = "/home/darwin/darwin/aiy-maker-kit/examples/gesture_detector.py";
+const char *PYTHON_SCRIPT_PATH = "/home/darwin/darwin/aiy-maker-kit/examples/gesture_detector.py";
 
 // FACES
 // const char *PYTHON_SCRIPT_PATH = "/home/darwin/darwin/aiy-maker-kit/examples/custom_detect_faces.py";
@@ -591,7 +591,7 @@ namespace Robot
                 }
             }
         }
-        
+
         // Priority 3: Cat (if no person or dog found)
         if (!target_found_in_frame)
         {
@@ -636,7 +636,11 @@ namespace Robot
             }
         }
 
-        current_detected_label_ = primary_detected_label;
+        {
+            std::lock_guard<std::mutex> lock(m_data_access_mutex);
+            current_detected_label_ = primary_detected_label;
+        }
+        
         current_tracked_object_center_ = tracked_object_center_for_head;
         detection_score_ = current_detection_score_val;
 

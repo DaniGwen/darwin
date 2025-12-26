@@ -68,7 +68,7 @@ namespace Robot
         Robot::Point2D GetTrackedObjectCenter();
         int GetDetectionScore();
         double GetDetectedObjectDistance() const;
-        std::string GetDetectedLabel() { return current_detected_label_; }
+        std::string GetDetectedLabel();
 
         // Static methods to control tracking state
         static void SetTrackingEnabled(bool enable);
