@@ -89,7 +89,6 @@ namespace Robot
         static std::mutex m_Mutex;     // Mutex to protect shared resources (like the enable flag)
         static bool m_TrackingEnabled; // New flag to control tracking
         Point2D m_last_tracked_center_px;
-        std::string current_detected_label_;
 
         // Delete copy constructor and assignment operator
         HeadTracking(const HeadTracking &) = delete;
