@@ -230,7 +230,7 @@ namespace Robot
         while (1)
         {
             // --- Capture Frame ---
-           usleep(30000); // Sleep 10ms (~10 FPS)
+            usleep(100000); // Sleep 10ms (~10 FPS)
             LinuxCamera::GetInstance()->CaptureFrame();
             Image *current_cam_rgb_frame = LinuxCamera::GetInstance()->fbuffer->m_RGBFrame;
 
@@ -958,15 +958,16 @@ namespace Robot
         if (cm730_)
         {
             // Convert the calculated angles (in degrees) to MX-28 motor values (0-4095)
-            int pan_goal_value = Deg2Value(m_PanAngle);
-            int tilt_goal_value = Deg2Value(m_TiltAngle);
+            //int pan_goal_value = Deg2Value(m_PanAngle);
+            //int tilt_goal_value = Deg2Value(m_TiltAngle);
 
             SetMotorPIDAndSpeed();
 
             // Write the converted values to the motor goal position registers
-            cm730_->WriteWord(JointData::ID_HEAD_PAN, MX28::P_GOAL_POSITION_L, pan_goal_value, 0);
-            cm730_->WriteWord(JointData::ID_HEAD_TILT, MX28::P_GOAL_POSITION_L, tilt_goal_value, 0);
-
+            // cm730_->WriteWord(JointData::ID_HEAD_PAN, MX28::P_GOAL_POSITION_L, pan_goal_value, 0);
+            // cm730_->WriteWord(JointData::ID_HEAD_TILT, MX28::P_GOAL_POSITION_L, tilt_goal_value, 0);
+            MotionManager::GetInstance()->m_Joint.SetValue(JointData::ID_HEAD_PAN, m_PanAngle);
+            MotionManager::GetInstance()->m_Joint.SetValue(JointData::ID_HEAD_TILT, m_TiltAngle);
             std::cout
                 << "DEBUG: HeadTracking::ApplyHeadAngles - Setting Pan Deg: " << m_PanAngle
                 << " (Value: " << pan_goal_value << "), Tilt Deg: " << m_TiltAngle
