@@ -31,12 +31,9 @@
 // Include LinuxCamera if it's not pulled in by Camera.h or LinuxDARwIn.h
 #include "LinuxCamera.h" // Needed for LinuxCamera::GetInstance()
 #include "MotionManager.h"
-#include "LinuxDARwIn.h"
 
 #include <thread> // Required for std::this_thread::sleep_for
 #include <chrono> // Required for std::chrono::milliseconds
-
-#define MOTION_FILE_PATH    "../../../../Data/motion_4096.bin"
 
 // Define socket path here (only once)
 const char *SOCKET_PATH = "/tmp/darwin_detector.sock";
@@ -188,7 +185,7 @@ namespace Robot
         LoadDistanceEstimationSettings(ini_);
 
         LinuxCamera::GetInstance()->LoadINISettings(ini_);
-        Action::GetInstance()->LoadFile((char*)MOTION_FILE_PATH);
+
         cm730_->WriteByte(JointData::ID_HEAD_PAN, MX28::P_TORQUE_ENABLE, 1, 0); // Enable torque for Pan
         cm730_->WriteByte(JointData::ID_HEAD_TILT, MX28::P_TORQUE_ENABLE, 1, 0);
 
@@ -912,10 +909,6 @@ namespace Robot
         m_Tilt_err_diff = err.Y - m_Tilt_err;
         m_Tilt_err = err.Y; // Update current error
 
-        // std::cout << "DEBUG: HeadTracking::UpdateHeadAngles - Input P_err.X: " << err.X << ", P_err.Y: " << err.Y << std::endl;
-        // std::cout << "DEBUG: HeadTracking::UpdateHeadAngles - m_Pan_err: " << m_Pan_err << ", m_Pan_err_diff: " << m_Pan_err_diff << std::endl;
-        // std::cout << "DEBUG: HeadTracking::UpdateHeadAngles - m_Tilt_err: " << m_Tilt_err << ", m_Tilt_err_diff: " << m_Tilt_err_diff << std::endl;
-
         double pOffset, dOffset;
 
         // Calculate PID components and update target angles
@@ -930,13 +923,6 @@ namespace Robot
         pOffset = m_Tilt_err * m_Tilt_p_gain;
         dOffset = m_Tilt_err_diff * m_Tilt_d_gain;
         m_TiltAngle += (pOffset + dOffset); // Update target tilt angle
-
-        // std::cout << "DEBUG: HeadTracking::UpdateHeadAngles - Pan pOffset: " << m_Pan_err * m_Pan_p_gain
-        //           << ", Pan dOffset: " << m_Pan_err_diff * m_Pan_d_gain
-        //           << ", New PanAngle (before limit): " << m_PanAngle << std::endl;
-        // std::cout << "DEBUG: HeadTracking::UpdateHeadAngles - Tilt pOffset: " << m_Tilt_err * m_Tilt_p_gain
-        //           << ", Tilt dOffset: " << m_Tilt_err_diff * m_Tilt_d_gain
-        //           << ", New TiltAngle (before limit): " << m_TiltAngle << std::endl;
 
         CheckLimit(); // Ensure the updated angles are within limits
     }
@@ -961,16 +947,15 @@ namespace Robot
         if (cm730_)
         {
             // Convert the calculated angles (in degrees) to MX-28 motor values (0-4095)
-            //int pan_goal_value = Deg2Value(m_PanAngle);
-            //int tilt_goal_value = Deg2Value(m_TiltAngle);
+            int pan_goal_value = Deg2Value(m_PanAngle);
+            int tilt_goal_value = Deg2Value(m_TiltAngle);
 
             SetMotorPIDAndSpeed();
 
             // Write the converted values to the motor goal position registers
-            // cm730_->WriteWord(JointData::ID_HEAD_PAN, MX28::P_GOAL_POSITION_L, pan_goal_value, 0);
-            // cm730_->WriteWord(JointData::ID_HEAD_TILT, MX28::P_GOAL_POSITION_L, tilt_goal_value, 0);
-            Action::GetInstance()->m_joint.SetValue(JointData::ID_HEAD_PAN, m_PanAngle);
-            Action::GetInstance()->m_joint.SetValue(JointData::ID_HEAD_TILT, m_TiltAngle);
+            cm730_->WriteWord(JointData::ID_HEAD_PAN, MX28::P_GOAL_POSITION_L, pan_goal_value, 0);
+            cm730_->WriteWord(JointData::ID_HEAD_TILT, MX28::P_GOAL_POSITION_L, tilt_goal_value, 0);
+
             std::cout
                 << "DEBUG: HeadTracking::ApplyHeadAngles - Setting Pan Deg: " << m_PanAngle
                 << " (Value: " << pan_goal_value << "), Tilt Deg: " << m_TiltAngle
