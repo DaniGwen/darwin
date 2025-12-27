@@ -35,6 +35,8 @@
 #include <thread> // Required for std::this_thread::sleep_for
 #include <chrono> // Required for std::chrono::milliseconds
 
+#define MOTION_FILE_PATH    "../../../../Data/motion_4096.bin"
+
 // Define socket path here (only once)
 const char *SOCKET_PATH = "/tmp/darwin_detector.sock";
 
@@ -185,7 +187,7 @@ namespace Robot
         LoadDistanceEstimationSettings(ini_);
 
         LinuxCamera::GetInstance()->LoadINISettings(ini_);
-
+        Action::GetInstance()->LoadFile((char*)MOTION_FILE_PATH);
         cm730_->WriteByte(JointData::ID_HEAD_PAN, MX28::P_TORQUE_ENABLE, 1, 0); // Enable torque for Pan
         cm730_->WriteByte(JointData::ID_HEAD_TILT, MX28::P_TORQUE_ENABLE, 1, 0);
 
