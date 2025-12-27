@@ -966,8 +966,8 @@ namespace Robot
             // Write the converted values to the motor goal position registers
             // cm730_->WriteWord(JointData::ID_HEAD_PAN, MX28::P_GOAL_POSITION_L, pan_goal_value, 0);
             // cm730_->WriteWord(JointData::ID_HEAD_TILT, MX28::P_GOAL_POSITION_L, tilt_goal_value, 0);
-            MotionManager::GetInstance()->m_Joint.SetValue(JointData::ID_HEAD_PAN, m_PanAngle);
-            MotionManager::GetInstance()->m_Joint.SetValue(JointData::ID_HEAD_TILT, m_TiltAngle);
+            Action::GetInstance()->m_joint.SetValue(JointData::ID_HEAD_PAN, m_PanAngle);
+            Action::GetInstance()->m_joint.SetValue(JointData::ID_HEAD_TILT, m_TiltAngle);
             std::cout
                 << "DEBUG: HeadTracking::ApplyHeadAngles - Setting Pan Deg: " << m_PanAngle
                 << " (Value: " << pan_goal_value << "), Tilt Deg: " << m_TiltAngle
