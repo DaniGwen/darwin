@@ -270,12 +270,12 @@ void handleGenericObjectDetected(const std::string &label, int action_page,
     if (label == "dog")
     {
         std::cout << "INFO: Dog detected, playing dog action." << std::endl;
-        LinuxActionScript::PlayMP3("/home/darwin/darwin/Data/mp3/such_a_nice_doggy.mp3");
+        LinuxActionScript::PlayMP3Wait("/home/darwin/darwin/Data/mp3/such_a_nice_doggy.mp3");
         run_action(action_page);
     }
     else if (label == "cat")
     {
-        LinuxActionScript::PlayMP3("/home/darwin/darwin/Data/mp3/kitty_kitty.mp3");
+        LinuxActionScript::PlayMP3Wait("/home/darwin/darwin/Data/mp3/kitty_kitty.mp3");
         std::cout << "INFO: Cat detected, playing cat action." << std::endl;
         run_action(action_page);
     }
