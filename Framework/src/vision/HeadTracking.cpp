@@ -230,7 +230,6 @@ namespace Robot
         while (1)
         {
             // --- Capture Frame ---
-            usleep(100000); // Sleep 10ms (~10 FPS)
             LinuxCamera::GetInstance()->CaptureFrame();
             Image *current_cam_rgb_frame = LinuxCamera::GetInstance()->fbuffer->m_RGBFrame;
 
