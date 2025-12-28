@@ -307,6 +307,10 @@ int main(void)
     srand(time(NULL));
     change_current_dir(); // Change current directory to executable's location //
 
+    std::cout << "Cleaning up stale processes..." << std::endl;
+    system("pkill -9 -f custom_detect_object.py");
+    system("pkill -9 mjpg_streamer");
+
     // Load INI settings
     minIni *ini = new minIni(INI_FILE_PATH);
     if (!ini)
@@ -368,24 +372,24 @@ int main(void)
     LinuxActionScript::PlayMP3Wait("/home/darwin/darwin/Data/mp3/cinematic-space-effect.mp3");
 
     pthread_t tracking_thread;
-    std::cout << "INFO: Creating HeadTracking thread..." << std::endl;                                   //
-    int thread_create_status = pthread_create(&tracking_thread, NULL, HeadTrackingThread, head_tracker); //
+    std::cout << "INFO: Creating HeadTracking thread..." << std::endl;                                  
+    int thread_create_status = pthread_create(&tracking_thread, NULL, HeadTrackingThread, head_tracker);
 
     if (thread_create_status != 0)
     {
         LinuxActionScript::PlayMP3Wait("/home/darwin/darwin/Data/mp3/sonic-boom-sound-effect.mp3");
-        std::cerr << "ERROR: Failed to create HeadTracking thread: " << strerror(thread_create_status) << std::endl; //
-        head_tracker->Cleanup();                                                                                     //
-        motion_timer->Stop();                                                                                        //
-        MotionManager::GetInstance()->SetEnable(false);                                                              //
-        MotionManager::GetInstance()->RemoveModule((MotionModule *)action_module);                                   //
-        delete ini;                                                                                                  //
-        delete motion_timer;                                                                                         //
+        std::cerr << "ERROR: Failed to create HeadTracking thread: " << strerror(thread_create_status) << std::endl;
+        head_tracker->Cleanup();                                                                                    
+        motion_timer->Stop();                                                                                       
+        MotionManager::GetInstance()->SetEnable(false);                                                              
+        MotionManager::GetInstance()->RemoveModule((MotionModule *)action_module);                                   
+        delete ini;                                                                                                  
+        delete motion_timer;                                                                                         
         return -1;
     }
-    std::cout << "INFO: HeadTracking thread created successfully." << std::endl; //
+    std::cout << "INFO: HeadTracking thread created successfully." << std::endl;
 
-    std::cout << "INFO: Main thread running, checking for detected objects to trigger actions. Press Ctrl+C to exit." << std::endl; //
+    std::cout << "INFO: Main thread running, checking for detected objects to trigger actions. Press Ctrl+C to exit." << std::endl;
 
     std::string current_action_label = "standby";
     auto last_action_time = std::chrono::steady_clock::now();

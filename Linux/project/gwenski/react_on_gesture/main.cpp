@@ -31,6 +31,11 @@ void performWaveAction() {
 }
 
 int main(int argc, char* argv[]) {
+
+    std::cout << "Cleaning up stale processes..." << std::endl;
+    system("pkill -9 -f gesture_detector.py");
+    system("pkill -9 mjpg_streamer");
+    
     signal(SIGPIPE, SIG_IGN); 
 
     std::cout << "\n=== Darwin-OP Gesture Mode (Timeout Fix Active) ===\n" << std::endl;
