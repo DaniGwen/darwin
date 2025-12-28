@@ -762,28 +762,41 @@ namespace Robot
     }
 
     std::string HeadTracking::ReceiveExact(int sock_fd, size_t num_bytes)
+{
+    std::string buffer(num_bytes, '\0');
+    size_t total_received = 0;
+    
+    struct timeval tv;
+    fd_set readfds;
+
+    while (total_received < num_bytes)
     {
-        std::string buffer(num_bytes, '\0');
-        size_t total_received = 0;
-        while (total_received < num_bytes)
-        {
-            ssize_t bytes_read = recv(sock_fd, &buffer[total_received], num_bytes - total_received, 0);
-            if (bytes_read <= 0)
-            {
-                if (bytes_read == 0)
-                {
-                    std::cerr << "ERROR: Socket connection closed by peer." << std::endl;
-                }
-                else
-                {
-                    std::cerr << "ERROR: Failed to receive data from socket: " << strerror(errno) << std::endl;
-                }
-                return "";
-            }
-            total_received += bytes_read;
+        // Setup select to wait for data
+        FD_ZERO(&readfds);
+        FD_SET(sock_fd, &readfds);
+        
+        tv.tv_sec = 0;
+        tv.tv_usec = 500000; // Wait up to 500ms for Python results
+
+        int retval = select(sock_fd + 1, &readfds, NULL, NULL, &tv);
+
+        if (retval == -1) {
+            std::cerr << "Select error in ReceiveExact" << std::endl;
+            return "";
+        } else if (retval == 0) {
+            // Here, we just return empty so the robot skips the frame instead of dying.
+            return ""; 
         }
-        return buffer;
+
+        ssize_t bytes_read = recv(sock_fd, &buffer[total_received], num_bytes - total_received, 0);
+        if (bytes_read <= 0)
+        {
+            return ""; // Connection lost
+        }
+        total_received += bytes_read;
     }
+    return buffer;
+}
 
     std::string HeadTracking::GetDetectedLabel()
     {
