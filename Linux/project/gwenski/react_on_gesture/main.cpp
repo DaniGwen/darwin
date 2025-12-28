@@ -88,7 +88,7 @@ int main(int argc, char* argv[]) {
 
         // HEAVY SLEEP: This is the primary fix for "select timeout". 
         // 200ms allows the Linux kernel to prioritize the serial port thread.
-        std::this_thread::sleep_for(std::chrono::milliseconds(200));
+        std::this_thread::sleep_for(std::chrono::milliseconds(300));
     }
 
     return 0;
