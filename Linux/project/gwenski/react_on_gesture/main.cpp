@@ -80,13 +80,12 @@ int main(int argc, char* argv[]) {
                 
                 // Return to ready
                 Action::GetInstance()->Start(ACTION_PAGE_READY); 
-                while (Action::GetInstance()->IsRunning()) usleep(10000);
+                while (Action::GetInstance()->IsRunning()) usleep(20000);
             }
         } else {
             if (wave_counter > 0) wave_counter--;
         }
 
-        // HEAVY SLEEP: This is the primary fix for "select timeout". 
         // 200ms allows the Linux kernel to prioritize the serial port thread.
         std::this_thread::sleep_for(std::chrono::milliseconds(300));
     }
