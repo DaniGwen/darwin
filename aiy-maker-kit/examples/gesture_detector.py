@@ -1,77 +1,104 @@
+#!/usr/bin/env python3
 import socket
 import struct
 import time
 import models
 import numpy as np
 from PIL import Image
-from pycoral.adapters import common
-from pycoral.adapters import detect
-from pycoral.utils.edgetpu import make_interpreter
-from pycoral.adapters import classify
 
-# --- Configuration ---
+from pycoral.adapters import common
+from pycoral.utils.edgetpu import make_interpreter
+
+# ==============================
+# Configuration
+# ==============================
 SOCKET_PATH = "/tmp/darwin_detector.sock"
 MODEL_PATH = models.MOVENET_MODEL
+
 CONFIDENCE_THRESHOLD = 0.4
 
-# Gesture Logic Variables
-WAVE_HISTORY_LEN = 5
+WAVE_HISTORY_LEN = 6
+WAVE_MOVEMENT_THRESH = 0.18
+WAVE_SIGN_CHANGES = 2
+WAVE_COOLDOWN = 1.5  # seconds between detections
+
+HEARTBEAT_INTERVAL = 1.0  # keep socket alive
+
+# ==============================
+# Gesture State
+# ==============================
 wrist_x_history = []
-last_wave_time = 0
+last_wave_time = 0.0
+last_heartbeat = 0.0
 
 
+# ==============================
+# Socket Handling
+# ==============================
 def connect_to_cpp_server():
-    """Connects to the Unix socket server created by HeadTracking.cpp."""
-    client_sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+    sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
     try:
-        client_sock.connect(SOCKET_PATH)
-        print(f"Connected to C++ server at {SOCKET_PATH}")
-        return client_sock
+        sock.connect(SOCKET_PATH)
+        print(f"[INFO] Connected to C++ server at {SOCKET_PATH}", flush=True)
+        return sock
     except Exception as e:
-        print(f"Waiting for C++ server... ({e})")
+        print(f"[INFO] Waiting for C++ server... ({e})", flush=True)
         return None
 
 
+# ==============================
+# Gesture Detection
+# ==============================
 def detect_wave_gesture(keypoints):
     """
-    Improved Wave Detection: 
-    Checks if the right wrist is significantly above the elbow 
-    and moving horizontally.
+    Robust right-hand wave detection using MoveNet keypoints.
+    keypoints: shape (17, 3) -> [y, x, score]
     """
     global wrist_x_history
-    
-    # Keypoint indices for MoveNet
-    # 8: R_Elbow, 10: R_Wrist
-    r_elbow = keypoints[8]
-    r_wrist = keypoints[10]
 
-    # 1. Basic Visibility: Only detect if confidence is high
-    if r_wrist[2] < 0.4 or r_elbow[2] < 0.4:
+    # MoveNet indices
+    R_ELBOW = 8
+    R_WRIST = 10
+
+    r_elbow = keypoints[R_ELBOW]
+    r_wrist = keypoints[R_WRIST]
+
+    # 1. Visibility check
+    if r_wrist[2] < CONFIDENCE_THRESHOLD or r_elbow[2] < CONFIDENCE_THRESHOLD:
+        wrist_x_history.clear()
         return None
 
-    # 2. Vertical Check: Wrist must be higher than elbow (smaller Y is higher in image)
-    if r_wrist[0] > r_elbow[0] - 0.05:
-        wrist_x_history = [] # Reset history if arm is dropped
+    # 2. Wrist must be clearly above elbow
+    if r_wrist[0] > r_elbow[0] - 0.10:
+        wrist_x_history.clear()
         return None
 
-    # 3. Movement Tracking
+    # 3. Track horizontal motion
     wrist_x_history.append(r_wrist[1])
-    if len(wrist_x_history) > 5: # Keep a small window for speed
-        wrist_x_history.pop(0)
+    wrist_x_history = wrist_x_history[-WAVE_HISTORY_LEN:]
 
-    # 4. Horizontal Velocity: Check for "Left-Right" delta
-    if len(wrist_x_history) >= 3:
-        # Calculate the total horizontal travel in the window
-        movement = np.abs(np.diff(wrist_x_history)).sum()
-        if movement > 0.15: # Threshold for "Active Waving"
+    # 4. Detect oscillation pattern
+    if len(wrist_x_history) >= 4:
+        deltas = np.diff(wrist_x_history)
+        sign_changes = np.sum(np.sign(deltas[:-1]) != np.sign(deltas[1:]))
+
+        if sign_changes >= WAVE_SIGN_CHANGES and np.abs(deltas).sum() > WAVE_MOVEMENT_THRESH:
+            wrist_x_history.clear()
             return "hand_wave"
 
     return None
 
 
+# ==============================
+# Main Loop
+# ==============================
 def main():
+    global last_wave_time, last_heartbeat
+
+    # Initialize TPU
     interpreter = make_interpreter(MODEL_PATH)
     interpreter.allocate_tensors()
+    input_size = common.input_size(interpreter)
 
     # Connect to C++
     sock = None
@@ -79,17 +106,19 @@ def main():
         sock = connect_to_cpp_server()
         time.sleep(1)
 
-    print("Gesture Detector Running...")
+    print("[INFO] Gesture Detector Running", flush=True)
 
     try:
         while True:
-            # 1. Receive Frame Dimensions (Width, Height)
-            header_data = sock.recv(8)
-            if not header_data:
+            # ---- Receive frame header ----
+            header = sock.recv(8)
+            if not header:
+                print("[WARN] C++ disconnected", flush=True)
                 break
-            width, height = struct.unpack("ii", header_data)
 
-            # 2. Receive Image Data
+            width, height = struct.unpack("ii", header)
+
+            # ---- Receive image ----
             frame_size = width * height * 3
             data = b""
             while len(data) < frame_size:
@@ -98,40 +127,47 @@ def main():
                     break
                 data += packet
 
-            # Convert to PIL Image for TPU
+            if len(data) != frame_size:
+                continue
+
+            # ---- Convert image ----
             img = Image.frombytes("RGB", (width, height), data)
+            resized = img.resize(input_size)
+            common.set_input(interpreter, resized)
 
-            # 3. Run Inference
-            resized_img = img.resize(common.input_size(interpreter), Image.ANTIALIAS)
-            common.set_input(interpreter, resized_img)
+            # ---- Inference ----
             interpreter.invoke()
+            pose = common.output_tensor(interpreter, 0).reshape(17, 3)
 
-            # Get Keypoints
-            pose = common.output_tensor(interpreter, 0).copy().reshape(17, 3)
+            # ---- Gesture detection ----
+            gesture = detect_wave_gesture(pose)
+            now = time.time()
 
-            # 4. Check for Gesture
-            detected_label = detect_wave_gesture(pose)
+            if gesture and (now - last_wave_time) > WAVE_COOLDOWN:
+                last_wave_time = now
 
-            # 5. Send Result back to C++
-            # Format: "label score xmin ymin xmax ymax\n"
-            # We fake a bounding box for the "wave" around the wrist
-            if detected_label:
-                # Create a small box around wrist for visualization
                 wrist = pose[10]  # Right wrist
-                msg = f"{detected_label} {wrist[2]:.2f} {wrist[1]-0.1:.2f} {wrist[0]-0.1:.2f} {wrist[1]+0.1:.2f} {wrist[0]+0.1:.2f}\n"
-                print(f"Sending: {msg.strip()}")
-            else:
-                msg = "\n"  # No detection
+                msg = (
+                    f"{gesture} {wrist[2]:.2f} "
+                    f"{wrist[1]-0.1:.2f} {wrist[0]-0.1:.2f} "
+                    f"{wrist[1]+0.1:.2f} {wrist[0]+0.1:.2f}\n"
+                )
 
-            # Send length first, then string
-            packet = msg.encode("utf-8")
-            sock.sendall(struct.pack("I", len(packet)) + packet)
+                payload = msg.encode("utf-8")
+                sock.sendall(struct.pack("I", len(payload)) + payload)
+                print(f"[SEND] {msg.strip()}", flush=True)
+
+            # ---- Heartbeat ----
+            if now - last_heartbeat > HEARTBEAT_INTERVAL:
+                sock.sendall(struct.pack("I", 0))
+                last_heartbeat = now
 
     except Exception as e:
-        print(f"Error: {e}")
+        print(f"[ERROR] {e}", flush=True)
+
     finally:
-        if sock:
-            sock.close()
+        sock.close()
+        print("[INFO] Gesture detector stopped", flush=True)
 
 
 if __name__ == "__main__":
