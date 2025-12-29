@@ -35,6 +35,9 @@
 #include <thread> // Required for std::this_thread::sleep_for
 #include <chrono> // Required for std::chrono::milliseconds
 
+#define MAX_MSG_SIZE 1024
+
+
 // Define socket path here (only once)
 const char *SOCKET_PATH = "/tmp/darwin_detector.sock";
 
@@ -1089,7 +1092,7 @@ namespace Robot
 
         listen(server_fd, 1);
 
-        cout << "[INFO] Waiting for Python detector..." << endl;
+        std::cout << "[INFO] Waiting for Python detector..." << std::endl;
         client_fd = accept(server_fd, nullptr, nullptr);
         if (client_fd < 0)
         {
@@ -1098,7 +1101,7 @@ namespace Robot
             return nullptr;
         }
 
-        cout << "[INFO] Python detector connected" << endl;
+        std::cout << "[INFO] Python detector connected" << std::endl;
 
         while (true)
         {
@@ -1128,7 +1131,7 @@ namespace Robot
 
             if (r <= 0)
             {
-                cout << "[WARN] Python disconnected" << endl;
+                std::cout << "[WARN] Python disconnected" << std::endl;
                 break;
             }
 
@@ -1146,7 +1149,7 @@ namespace Robot
 
             if (r <= 0)
             {
-                cout << "[WARN] Read failed" << endl;
+                std::cout << "[WARN] Read failed" << std::endl;
                 break;
             }
 
