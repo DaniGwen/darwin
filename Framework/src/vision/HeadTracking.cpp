@@ -1161,7 +1161,7 @@ namespace Robot
 
             {
                 std::lock_guard<std::mutex> lock(m_Mutex);
-                current_detected_label_ = label;
+                HeadTracking::GetInstance()->current_detected_label_ = label;
             }
 
             // Optional debug
