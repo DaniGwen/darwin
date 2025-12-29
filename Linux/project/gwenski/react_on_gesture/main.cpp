@@ -61,7 +61,7 @@ int main(int argc, char* argv[]) {
 
     // 3. Start Vision Thread
     pthread_t tracking_thread;
-    pthread_create(&tracking_thread, NULL, HeadTracking::AutoTrackingLoop, NULL);
+    pthread_create(&tracking_thread, NULL, HeadTracking::Run, NULL);
 
     // 4. Stand Up
     MotionManager::GetInstance()->SetEnable(true);
