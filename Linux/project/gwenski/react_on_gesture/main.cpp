@@ -26,7 +26,7 @@ void performWaveAction() {
     if (Action::GetInstance()->IsRunning() == 0) {
         Action::GetInstance()->m_Joint.SetEnableBody(true, true);
         Action::GetInstance()->Start(ACTION_PAGE_WAVE);
-        while (Action::GetInstance()->IsRunning()) usleep(20000); 
+        while (Action::GetInstance()->IsRunning()) usleep(10000); 
     }
 }
 
@@ -38,7 +38,7 @@ int main(int argc, char* argv[]) {
     
     signal(SIGPIPE, SIG_IGN); 
 
-    std::cout << "\n=== Darwin-OP Gesture Mode (Timeout Fix Active) ===\n" << std::endl;
+    std::cout << "\n=== Darwin-OP Gesture Mode ===\n" << std::endl;
 
     // 1. Hardware Init
     minIni* ini = new minIni(INI_FILE_PATH);
@@ -91,8 +91,7 @@ int main(int argc, char* argv[]) {
             if (wave_counter > 0) wave_counter--;
         }
 
-        // 200ms allows the Linux kernel to prioritize the serial port thread.
-        std::this_thread::sleep_for(std::chrono::milliseconds(300));
+        std::this_thread::sleep_for(std::chrono::milliseconds(50));
     }
 
     return 0;

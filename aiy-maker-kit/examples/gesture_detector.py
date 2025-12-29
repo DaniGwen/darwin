@@ -1,6 +1,7 @@
 import socket
 import struct
 import time
+import models
 import numpy as np
 from PIL import Image
 from pycoral.adapters import common
@@ -10,7 +11,7 @@ from pycoral.adapters import classify
 
 # --- Configuration ---
 SOCKET_PATH = "/tmp/darwin_detector.sock"
-MODEL_PATH = "/home/darwin/darwin/aiy-maker-kit/examples/models/movenet_single_pose_lightning_ptq_edgetpu.tflite"
+MODEL_PATH = models.MOVENET_MODEL
 CONFIDENCE_THRESHOLD = 0.4
 
 # Gesture Logic Variables
