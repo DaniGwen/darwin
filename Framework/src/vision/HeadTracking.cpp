@@ -42,7 +42,7 @@ const char *SOCKET_PATH = "/tmp/darwin_detector.sock";
 // const char *PYTHON_SCRIPT_PATH = "/home/darwin/darwin/aiy-maker-kit/examples/custom_detect_objects.py";
 
 // GESTURES
- const char *PYTHON_SCRIPT_PATH = "/home/darwin/darwin/aiy-maker-kit/examples/gesture_detector.py";
+const char *PYTHON_SCRIPT_PATH = "/home/darwin/darwin/aiy-maker-kit/examples/gesture_detector.py";
 
 // FACES
 // const char *PYTHON_SCRIPT_PATH = "/home/darwin/darwin/aiy-maker-kit/examples/custom_detect_faces.py";
@@ -762,45 +762,48 @@ namespace Robot
     }
 
     std::string HeadTracking::ReceiveExact(int sock_fd, size_t num_bytes)
-{
-    std::string buffer(num_bytes, '\0');
-    size_t total_received = 0;
-    
-    struct timeval tv;
-    fd_set readfds;
-
-    while (total_received < num_bytes)
     {
-        // Setup select to wait for data
-        FD_ZERO(&readfds);
-        FD_SET(sock_fd, &readfds);
-        
-        tv.tv_sec = 0;
-        tv.tv_usec = 500000; // Wait up to 500ms for Python results
+        std::string buffer(num_bytes, '\0');
+        size_t total_received = 0;
 
-        int retval = select(sock_fd + 1, &readfds, NULL, NULL, &tv);
+        struct timeval tv;
+        fd_set readfds;
 
-        if (retval == -1) {
-            std::cerr << "Select error in ReceiveExact" << std::endl;
-            return "";
-        } else if (retval == 0) {
-            // Here, we just return empty so the robot skips the frame instead of dying.
-            return ""; 
-        }
-
-        ssize_t bytes_read = recv(sock_fd, &buffer[total_received], num_bytes - total_received, 0);
-        if (bytes_read <= 0)
+        while (total_received < num_bytes)
         {
-            return ""; // Connection lost
+            // Setup select to wait for data
+            FD_ZERO(&readfds);
+            FD_SET(sock_fd, &readfds);
+
+            tv.tv_sec = 0;
+            tv.tv_usec = 500000; // Wait up to 500ms for Python results
+
+            int retval = select(sock_fd + 1, &readfds, NULL, NULL, &tv);
+
+            if (retval == -1)
+            {
+                std::cerr << "Select error in ReceiveExact" << std::endl;
+                return "";
+            }
+            else if (retval == 0)
+            {
+                // Here, we just return empty so the robot skips the frame instead of dying.
+                return "";
+            }
+
+            ssize_t bytes_read = recv(sock_fd, &buffer[total_received], num_bytes - total_received, 0);
+            if (bytes_read <= 0)
+            {
+                return ""; // Connection lost
+            }
+            total_received += bytes_read;
         }
-        total_received += bytes_read;
+        return buffer;
     }
-    return buffer;
-}
 
     std::string HeadTracking::GetDetectedLabel()
     {
-        std::lock_guard<std::mutex> lock(m_data_access_mutex);
+        std::lock_guard<std::mutex> lock(m_Mutex);
         return current_detected_label_;
     }
 
@@ -1057,10 +1060,113 @@ namespace Robot
         return camera_focal_length_px_;
     }
 
-    void *HeadTracking::AutoTrackingLoop(void *arg)
+    void *HeadTracking::AutoTrackingLoop(void *)
     {
-        // Get the singleton instance and start the main loop
-        HeadTracking::GetInstance()->Run();
-        return NULL;
+        struct sockaddr_un addr;
+        fd_set readfds;
+
+        unlink(SOCKET_PATH);
+
+        server_fd = socket(AF_UNIX, SOCK_STREAM, 0);
+        if (server_fd < 0)
+        {
+            perror("socket");
+            return nullptr;
+        }
+
+        memset(&addr, 0, sizeof(addr));
+        addr.sun_family = AF_UNIX;
+        strncpy(addr.sun_path, SOCKET_PATH, sizeof(addr.sun_path) - 1);
+
+        if (bind(server_fd, (struct sockaddr *)&addr, sizeof(addr)) < 0)
+        {
+            perror("bind");
+            close(server_fd);
+            return nullptr;
+        }
+
+        listen(server_fd, 1);
+
+        cout << "[INFO] Waiting for Python detector..." << endl;
+        client_fd = accept(server_fd, nullptr, nullptr);
+        if (client_fd < 0)
+        {
+            perror("accept");
+            close(server_fd);
+            return nullptr;
+        }
+
+        cout << "[INFO] Python detector connected" << endl;
+
+        while (true)
+        {
+            FD_ZERO(&readfds);
+            FD_SET(client_fd, &readfds);
+
+            struct timeval tv;
+            tv.tv_sec = 2;
+            tv.tv_usec = 0;
+
+            int ret = select(client_fd + 1, &readfds, nullptr, nullptr, &tv);
+
+            if (ret == 0)
+            {
+                // ⬅️ TIMEOUT IS NORMAL — DO NOT EXIT
+                continue;
+            }
+
+            if (ret < 0)
+            {
+                perror("select");
+                break;
+            }
+
+            uint32_t msg_len = 0;
+            ssize_t r = read(client_fd, &msg_len, sizeof(msg_len));
+
+            if (r <= 0)
+            {
+                cout << "[WARN] Python disconnected" << endl;
+                break;
+            }
+
+            // Heartbeat — ignore
+            if (msg_len == 0)
+            {
+                continue;
+            }
+
+            if (msg_len > MAX_MSG_SIZE - 1)
+                msg_len = MAX_MSG_SIZE - 1;
+
+            char buffer[MAX_MSG_SIZE] = {0};
+            r = read(client_fd, buffer, msg_len);
+
+            if (r <= 0)
+            {
+                cout << "[WARN] Read failed" << endl;
+                break;
+            }
+
+            buffer[msg_len] = '\0';
+
+            // Parse label (first token)
+            char label[64] = {0};
+            sscanf(buffer, "%63s", label);
+
+            {
+                std::lock_guard<std::mutex> lock(label_mutex);
+                current_detected_label_ = label;
+            }
+
+            // Optional debug
+            // cout << "[RECV] " << detected_label << endl;
+        }
+
+        close(client_fd);
+        close(server_fd);
+        unlink(SOCKET_PATH);
+
+        return nullptr;
     }
 }
