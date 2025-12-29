@@ -67,6 +67,8 @@ namespace Robot
     HeadTracking *HeadTracking::m_UniqueInstance = nullptr;
     std::mutex HeadTracking::m_Mutex;
     bool HeadTracking::m_TrackingEnabled = true; // Start enabled by default
+    static int server_fd = -1;
+    static int client_fd = -1;
 
     // Static member initialization (singleton instance)
     HeadTracking *HeadTracking::GetInstance()
@@ -1155,7 +1157,7 @@ namespace Robot
             sscanf(buffer, "%63s", label);
 
             {
-                std::lock_guard<std::mutex> lock(label_mutex);
+                std::lock_guard<std::mutex> lock(m_Mutex);
                 current_detected_label_ = label;
             }
 
