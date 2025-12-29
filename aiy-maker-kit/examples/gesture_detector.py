@@ -33,43 +33,37 @@ def connect_to_cpp_server():
 
 def detect_wave_gesture(keypoints):
     """
-    Simple logic: If wrist is above elbow and moving left-right.
-    Keypoint Indices (MoveNet): 5=L_Shoulder, 6=R_Shoulder, 7=L_Elbow, 8=R_Elbow, 9=L_Wrist, 10=R_Wrist
-    Returns: 'hand_wave' or None
+    Improved Wave Detection: 
+    Checks if the right wrist is significantly above the elbow 
+    and moving horizontally.
     """
-    global wrist_x_history, last_wave_time
-
-    # MoveNet Output is [1, 17, 3] -> (y, x, score)
-    # We check Right Arm (Index 6, 8, 10)
-    # Note: Coordinates are normalized 0.0 to 1.0
-    r_shoulder = keypoints[6]
+    global wrist_x_history
+    
+    # Keypoint indices for MoveNet
+    # 8: R_Elbow, 10: R_Wrist
     r_elbow = keypoints[8]
     r_wrist = keypoints[10]
 
-    # Check Confidence
-    if r_wrist[2] < CONFIDENCE_THRESHOLD or r_elbow[2] < CONFIDENCE_THRESHOLD:
-        wrist_x_history = []  # Lost tracking
+    # 1. Basic Visibility: Only detect if confidence is high
+    if r_wrist[2] < 0.4 or r_elbow[2] < 0.4:
         return None
 
-    # 1. Is Hand Up? (Wrist Y < Elbow Y) - Remember Y=0 is top
-    if r_wrist[0] > r_elbow[0]:
-        wrist_x_history = []  # Hand is down
+    # 2. Vertical Check: Wrist must be higher than elbow (smaller Y is higher in image)
+    if r_wrist[0] > r_elbow[0] - 0.05:
+        wrist_x_history = [] # Reset history if arm is dropped
         return None
 
-    # 2. Track lateral movement (Waving)
+    # 3. Movement Tracking
     wrist_x_history.append(r_wrist[1])
-    if len(wrist_x_history) > WAVE_HISTORY_LEN:
+    if len(wrist_x_history) > 5: # Keep a small window for speed
         wrist_x_history.pop(0)
 
-    # Calculate variance (how much X is changing)
-    if len(wrist_x_history) == WAVE_HISTORY_LEN:
-        variance = np.var(wrist_x_history)
-        # If variance is high enough, it means waving
-        if variance > 0.005:
-            # Debounce: Don't spam detection
-            if time.time() - last_wave_time > 2.0:
-                last_wave_time = time.time()
-                return "hand_wave"
+    # 4. Horizontal Velocity: Check for "Left-Right" delta
+    if len(wrist_x_history) >= 3:
+        # Calculate the total horizontal travel in the window
+        movement = np.abs(np.diff(wrist_x_history)).sum()
+        if movement > 0.15: # Threshold for "Active Waving"
+            return "hand_wave"
 
     return None
 
