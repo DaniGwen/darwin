@@ -17,15 +17,14 @@ MODEL_PATH = models.MOVENET_MODEL
 
 DEBUG_MODE = True
 
-# Lowered confidence to detect waves in varied lighting/angles
-CONFIDENCE_THRESHOLD = 0.25  
-WAVE_HISTORY_LEN = 6
-WAVE_MOVEMENT_THRESH = 0.15 
-WAVE_SIGN_CHANGES = 2
-WAVE_COOLDOWN = 2.0
+# --- Tuning Parameters ---
+CONFIDENCE_THRESHOLD = 0.15   # Much lower to detect distant/blurry hands
+WAVE_HISTORY_LEN = 10         # Look at last 10 frames
+WAVE_MOTION_THRESHOLD = 0.08  # How much X-movement constitutes a wave
+WAVE_COOLDOWN = 2.0           # Seconds to wait before detecting again
 
-# How many consecutive frames to send the signal to ensure C++ sees it
-SIGNAL_REPEAT_FRAMES = 15 
+# Number of frames to repeat the signal to C++ to ensure it's caught
+SIGNAL_REPEAT_FRAMES = 10 
 
 # ==============================
 # Global State
@@ -64,38 +63,46 @@ def recvall(sock, count):
 # Gesture Logic
 # ==============================
 def detect_wave_gesture(keypoints):
+    """
+    Simplified Wave Detection:
+    Just looks for high variance/movement in the X-axis of the right wrist
+    """
     global wrist_x_history
-    R_ELBOW, R_WRIST = 8, 10
-    r_elbow, r_wrist = keypoints[R_ELBOW], keypoints[R_WRIST]
+    
+    # Indices: 10 = Right Wrist, 8 = Right Elbow
+    R_WRIST_IDX = 10
+    wrist = keypoints[R_WRIST_IDX] # [y, x, score]
 
-    # Debug low confidence
-    if DEBUG_MODE and (time.time() % 1.0 < 0.1):
-        if r_wrist[2] < CONFIDENCE_THRESHOLD:
-            print(f"[DEBUG] Low Conf: Wrist {r_wrist[2]:.2f}", flush=True)
-
-    if r_wrist[2] < CONFIDENCE_THRESHOLD or r_elbow[2] < CONFIDENCE_THRESHOLD:
+    # 1. Check Confidence
+    if wrist[2] < CONFIDENCE_THRESHOLD:
+        if DEBUG_MODE and (time.time() % 1.0 < 0.1):
+            print(f"[DEBUG] Low Confidence: {wrist[2]:.2f}", flush=True)
         wrist_x_history.clear()
         return None
 
-    # Check height: Wrist should not be significantly below elbow
-    if r_wrist[0] > r_elbow[0] + 0.15: 
-        if DEBUG_MODE and len(wrist_x_history) > 0:
-            print("[DEBUG] Wrist too low", flush=True)
-        wrist_x_history.clear()
-        return None
-
-    wrist_x_history.append(r_wrist[1])
+    # 2. Track X-movement
+    wrist_x_history.append(wrist[1])
     wrist_x_history = wrist_x_history[-WAVE_HISTORY_LEN:]
 
-    if len(wrist_x_history) >= 4:
+    # 3. Analyze Motion
+    if len(wrist_x_history) >= WAVE_HISTORY_LEN:
+        # Calculate total distance traveled in X
         deltas = np.diff(wrist_x_history)
-        sign_changes = np.sum(np.sign(deltas[:-1]) != np.sign(deltas[1:]))
-        total_motion = np.abs(deltas).sum()
+        total_motion = np.sum(np.abs(deltas))
+        
+        # Calculate span (width) of the wave
+        span = np.max(wrist_x_history) - np.min(wrist_x_history)
 
-        if sign_changes >= WAVE_SIGN_CHANGES and total_motion > WAVE_MOVEMENT_THRESH:
-            wrist_x_history.clear()
+        # Debug print status every ~0.5s
+        if DEBUG_MODE and (time.time() % 0.5 < 0.05):
+            print(f"[DEBUG] Motion: {total_motion:.2f} (Thresh: {WAVE_MOTION_THRESHOLD}) Span: {span:.2f}", flush=True)
+
+        # TRIGGER CONDITION:
+        # Sufficient total motion AND the motion covers a wide enough area
+        if total_motion > WAVE_MOTION_THRESHOLD and span > 0.05:
+            wrist_x_history.clear() # Reset to avoid double counting
             return "hand_wave"
-            
+
     return None
 
 # ==============================
@@ -113,7 +120,7 @@ def main():
         sock = connect_to_cpp_server()
         time.sleep(1)
 
-    print("[INFO] Gesture Detector Running", flush=True)
+    print("[INFO] Gesture Detector Running (Sensitive Mode)", flush=True)
 
     try:
         while True:
@@ -122,7 +129,7 @@ def main():
             if not header: break
             width, height = struct.unpack("ii", header)
 
-            # 2. Receive Data
+            # 2. Receive Image Data
             frame_size = width * height * 3
             data = recvall(sock, frame_size)
             if not data: break
@@ -137,30 +144,31 @@ def main():
             now = time.time()
             gesture = detect_wave_gesture(pose)
             
-            # Start repeating signal if new wave detected
+            # State Machine for Signal Repeating
             if gesture and (now - last_wave_time) > WAVE_COOLDOWN:
                 last_wave_time = now
                 frames_remaining_to_send = SIGNAL_REPEAT_FRAMES
-                # Store coords to keep looking at hand while waving
+                
+                # Snapshot coords for the message
                 wrist = pose[10]
-                current_wrist_coords = (wrist[0], wrist[1], wrist[2]) 
-                print(f"[SEND] >>> WAVE DETECTED (Starting Sequence) <<<", flush=True)
+                current_wrist_coords = (wrist[0], wrist[1], wrist[2])
+                print(f"\n[SEND] >>> WAVE DETECTED! (Repeating signal {SIGNAL_REPEAT_FRAMES} times) <<<\n", flush=True)
 
-            # Send response if we are in a "sending" window
+            # Send response
             response_sent = False
             if frames_remaining_to_send > 0:
                 frames_remaining_to_send -= 1
                 
                 y, x, conf = current_wrist_coords
-                # Ensure box is valid (0-1 range)
-                msg = f"hand_wave {conf:.2f} {x-0.1:.2f} {y-0.1:.2f} {x+0.1:.2f} {y+0.1:.2f}\n"
+                # Construct message expected by C++ HeadTracking (label confidence x y w h)
+                # We send a dummy box around the wrist
+                msg = f"hand_wave {conf:.2f} {x-0.05:.2f} {y-0.05:.2f} {x+0.05:.2f} {y+0.05:.2f}\n"
                 
                 payload = msg.encode("utf-8")
                 sock.sendall(struct.pack("I", len(payload)) + payload)
                 response_sent = True
-                if frames_remaining_to_send == 0:
-                    print(f"[INFO] Wave sequence complete.", flush=True)
-
+            
+            # Always send size=0 if no detection (Keep-Alive for C++)
             if not response_sent:
                 sock.sendall(struct.pack("I", 0))
 
