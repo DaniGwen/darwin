@@ -1,5 +1,7 @@
 /*
  * main.cpp
+ *
+ * Modified for Robust Wave Detection
  */
 
 #include "ConsoleColors.h"
@@ -63,7 +65,7 @@ void *HeadTrackingThread(void *arg)
 
 int main(void)
 {
-    printf("\n===== Darwin-OP Gesture Mode (Sensitive) =====\n\n");
+    printf("\n===== Darwin-OP Gesture Mode (Robust) =====\n\n");
     
     signal(SIGPIPE, SIG_IGN);
     change_current_dir();
@@ -106,13 +108,16 @@ int main(void)
     std::cout << "\033[1;32mREADY: Waiting for hand_wave...\033[0m" << std::endl;
 
     int wave_counter = 0;
+    std::string last_label = "";
+
     while (true)
     {
         std::string label = head_tracker->GetDetectedLabel();
 
-        // Print label only when it's NOT empty/none to keep logs clean
-        if (!label.empty() && label != "none") {
-             std::cout << "\n[CPP Main] SAW GESTURE: " << label << " Counter: " << wave_counter << std::endl;
+        // Only print if the label CHANGES to prevent log spam
+        if (label != last_label) {
+             std::cout << "[CPP Main] Label changed: '" << label << "'" << std::endl;
+             last_label = label;
         }
 
         if (label == "hand_wave")
@@ -120,23 +125,22 @@ int main(void)
             wave_counter++;
             if (wave_counter >= DETECT_THRESHOLD)
             {
-                std::cout << "\n\033[1;35m>>> ACTION TRIGGERED! <<<\033[0m" << std::endl;
+                std::cout << "\n\033[1;35m>>> WAVE CONFIRMED! Action Start... \033[0m" << std::endl;
+                
                 run_action(ACTION_PAGE_WAVE);
                 
                 wave_counter = 0;
                 
-                std::cout << "INFO: Back to Ready." << std::endl;
+                std::cout << "INFO: Action Complete. Back to Ready." << std::endl;
                 run_action(ACTION_PAGE_READY);
                 std::cout << "\033[1;32mREADY: Waiting for hand_wave...\033[0m" << std::endl;
             }
         }
         else
         {
-            // Only decay counter slowly
-            if (wave_counter > 0) wave_counter--;
+            if (wave_counter > 0) wave_counter = 0; // Reset immediately if signal lost
         }
 
-        // Fast polling
         std::this_thread::sleep_for(std::chrono::milliseconds(20));
     }
 

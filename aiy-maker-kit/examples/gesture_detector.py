@@ -17,14 +17,14 @@ MODEL_PATH = models.MOVENET_MODEL
 
 DEBUG_MODE = True
 
-# --- Tuning Parameters ---
-CONFIDENCE_THRESHOLD = 0.15   # Much lower to detect distant/blurry hands
-WAVE_HISTORY_LEN = 10         # Look at last 10 frames
-WAVE_MOTION_THRESHOLD = 0.08  # How much X-movement constitutes a wave
-WAVE_COOLDOWN = 2.0           # Seconds to wait before detecting again
+# Gesture thresholds
+CONFIDENCE_THRESHOLD = 0.15   
+WAVE_HISTORY_LEN = 10         
+WAVE_MOTION_THRESHOLD = 0.08  
+WAVE_COOLDOWN = 3.0           # Long cooldown to prevent double triggers
 
-# Number of frames to repeat the signal to C++ to ensure it's caught
-SIGNAL_REPEAT_FRAMES = 10 
+# Send the signal for ~2 seconds (assuming ~20fps) to ensure C++ sees it
+SIGNAL_REPEAT_FRAMES = 40 
 
 # ==============================
 # Global State
@@ -63,20 +63,14 @@ def recvall(sock, count):
 # Gesture Logic
 # ==============================
 def detect_wave_gesture(keypoints):
-    """
-    Simplified Wave Detection:
-    Just looks for high variance/movement in the X-axis of the right wrist
-    """
     global wrist_x_history
     
-    # Indices: 10 = Right Wrist, 8 = Right Elbow
+    # Indices: 10 = Right Wrist
     R_WRIST_IDX = 10
     wrist = keypoints[R_WRIST_IDX] # [y, x, score]
 
     # 1. Check Confidence
     if wrist[2] < CONFIDENCE_THRESHOLD:
-        if DEBUG_MODE and (time.time() % 1.0 < 0.1):
-            print(f"[DEBUG] Low Confidence: {wrist[2]:.2f}", flush=True)
         wrist_x_history.clear()
         return None
 
@@ -86,21 +80,12 @@ def detect_wave_gesture(keypoints):
 
     # 3. Analyze Motion
     if len(wrist_x_history) >= WAVE_HISTORY_LEN:
-        # Calculate total distance traveled in X
         deltas = np.diff(wrist_x_history)
         total_motion = np.sum(np.abs(deltas))
-        
-        # Calculate span (width) of the wave
         span = np.max(wrist_x_history) - np.min(wrist_x_history)
 
-        # Debug print status every ~0.5s
-        if DEBUG_MODE and (time.time() % 0.5 < 0.05):
-            print(f"[DEBUG] Motion: {total_motion:.2f} (Thresh: {WAVE_MOTION_THRESHOLD}) Span: {span:.2f}", flush=True)
-
-        # TRIGGER CONDITION:
-        # Sufficient total motion AND the motion covers a wide enough area
         if total_motion > WAVE_MOTION_THRESHOLD and span > 0.05:
-            wrist_x_history.clear() # Reset to avoid double counting
+            wrist_x_history.clear()
             return "hand_wave"
 
     return None
@@ -120,7 +105,9 @@ def main():
         sock = connect_to_cpp_server()
         time.sleep(1)
 
-    print("[INFO] Gesture Detector Running (Sensitive Mode)", flush=True)
+    print("[INFO] Gesture Detector Running (Robust Mode)", flush=True)
+    
+    last_debug_time = time.time()
 
     try:
         while True:
@@ -144,31 +131,39 @@ def main():
             now = time.time()
             gesture = detect_wave_gesture(pose)
             
-            # State Machine for Signal Repeating
+            # If we detect a new wave, start the broadcast sequence
             if gesture and (now - last_wave_time) > WAVE_COOLDOWN:
                 last_wave_time = now
                 frames_remaining_to_send = SIGNAL_REPEAT_FRAMES
                 
-                # Snapshot coords for the message
+                # Snapshot coords
                 wrist = pose[10]
                 current_wrist_coords = (wrist[0], wrist[1], wrist[2])
-                print(f"\n[SEND] >>> WAVE DETECTED! (Repeating signal {SIGNAL_REPEAT_FRAMES} times) <<<\n", flush=True)
+                print(f"\n[SEND] >>> WAVE DETECTED! Broadcasting for {SIGNAL_REPEAT_FRAMES} frames... <<<\n", flush=True)
 
-            # Send response
+            # 5. Send Response
             response_sent = False
+            
             if frames_remaining_to_send > 0:
                 frames_remaining_to_send -= 1
                 
+                # Ensure we send valid coords
                 y, x, conf = current_wrist_coords
-                # Construct message expected by C++ HeadTracking (label confidence x y w h)
+                x = max(0.0, min(1.0, x))
+                y = max(0.0, min(1.0, y))
+                
+                # Protocol: Label Confidence X Y W H
                 # We send a dummy box around the wrist
-                msg = f"hand_wave {conf:.2f} {x-0.05:.2f} {y-0.05:.2f} {x+0.05:.2f} {y+0.05:.2f}\n"
+                msg = f"hand_wave {conf:.2f} {x:.2f} {y:.2f} 0.1 0.1\n"
                 
                 payload = msg.encode("utf-8")
                 sock.sendall(struct.pack("I", len(payload)) + payload)
                 response_sent = True
+                
+                if frames_remaining_to_send == 0:
+                    print(f"[INFO] Broadcast complete.", flush=True)
             
-            # Always send size=0 if no detection (Keep-Alive for C++)
+            # If not broadcasting wave, send empty (Keep-Alive)
             if not response_sent:
                 sock.sendall(struct.pack("I", 0))
 
