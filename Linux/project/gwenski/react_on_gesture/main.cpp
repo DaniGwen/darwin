@@ -4,6 +4,8 @@
 #include "HeadTracking.h"
 #include "LinuxDARwIn.h"
 
+#define INI_FILE_PATH "../../../../Data/config.ini"
+
 using namespace Robot;
 
 int main(int argc, char *argv[])
