@@ -15,19 +15,25 @@ from pycoral.utils.edgetpu import make_interpreter
 SOCKET_PATH = "/tmp/darwin_detector.sock"
 MODEL_PATH = models.MOVENET_MODEL
 
-DEBUG_MODE = True  # Set to True to see what the vision system sees
+DEBUG_MODE = True
 
-CONFIDENCE_THRESHOLD = 0.35  # Lowered slightly
+# Lowered confidence to detect waves in varied lighting/angles
+CONFIDENCE_THRESHOLD = 0.25  
 WAVE_HISTORY_LEN = 6
-WAVE_MOVEMENT_THRESH = 0.15 # Lowered slightly
+WAVE_MOVEMENT_THRESH = 0.15 
 WAVE_SIGN_CHANGES = 2
 WAVE_COOLDOWN = 2.0
+
+# How many consecutive frames to send the signal to ensure C++ sees it
+SIGNAL_REPEAT_FRAMES = 15 
 
 # ==============================
 # Global State
 # ==============================
 wrist_x_history = []
 last_wave_time = 0.0
+frames_remaining_to_send = 0
+current_wrist_coords = None
 
 # ==============================
 # Socket Utilities
@@ -62,8 +68,8 @@ def detect_wave_gesture(keypoints):
     R_ELBOW, R_WRIST = 8, 10
     r_elbow, r_wrist = keypoints[R_ELBOW], keypoints[R_WRIST]
 
-    # Debug print every 30 frames or so if tracking is lost
-    if DEBUG_MODE and (time.time() % 2.0 < 0.1): 
+    # Debug low confidence
+    if DEBUG_MODE and (time.time() % 1.0 < 0.1):
         if r_wrist[2] < CONFIDENCE_THRESHOLD:
             print(f"[DEBUG] Low Conf: Wrist {r_wrist[2]:.2f}", flush=True)
 
@@ -71,9 +77,8 @@ def detect_wave_gesture(keypoints):
         wrist_x_history.clear()
         return None
 
-    # Check height: Wrist should be higher (smaller Y) or roughly level with elbow
-    # r_wrist[0] is Y coordinate.
-    if r_wrist[0] > r_elbow[0] + 0.05: # Allow wrist to be slightly below elbow
+    # Check height: Wrist should not be significantly below elbow
+    if r_wrist[0] > r_elbow[0] + 0.15: 
         if DEBUG_MODE and len(wrist_x_history) > 0:
             print("[DEBUG] Wrist too low", flush=True)
         wrist_x_history.clear()
@@ -97,7 +102,8 @@ def detect_wave_gesture(keypoints):
 # Main Loop
 # ==============================
 def main():
-    global last_wave_time
+    global last_wave_time, frames_remaining_to_send, current_wrist_coords
+    
     interpreter = make_interpreter(MODEL_PATH)
     interpreter.allocate_tensors()
     input_size = common.input_size(interpreter)
@@ -111,32 +117,49 @@ def main():
 
     try:
         while True:
+            # 1. Receive Header
             header = recvall(sock, 8)
             if not header: break
             width, height = struct.unpack("ii", header)
 
+            # 2. Receive Data
             frame_size = width * height * 3
             data = recvall(sock, frame_size)
             if not data: break
 
+            # 3. Inference
             img = Image.frombytes("RGB", (width, height), data)
             common.set_input(interpreter, img.resize(input_size))
             interpreter.invoke()
             pose = common.output_tensor(interpreter, 0).copy().reshape(17, 3)
 
-            gesture = detect_wave_gesture(pose)
+            # 4. Logic
             now = time.time()
-            response_sent = False
-
+            gesture = detect_wave_gesture(pose)
+            
+            # Start repeating signal if new wave detected
             if gesture and (now - last_wave_time) > WAVE_COOLDOWN:
                 last_wave_time = now
+                frames_remaining_to_send = SIGNAL_REPEAT_FRAMES
+                # Store coords to keep looking at hand while waving
                 wrist = pose[10]
-                msg = f"{gesture} {wrist[2]:.2f} {wrist[1]-0.1:.2f} {wrist[0]-0.1:.2f} {wrist[1]+0.1:.2f} {wrist[0]+0.1:.2f}\n"
+                current_wrist_coords = (wrist[0], wrist[1], wrist[2]) 
+                print(f"[SEND] >>> WAVE DETECTED (Starting Sequence) <<<", flush=True)
+
+            # Send response if we are in a "sending" window
+            response_sent = False
+            if frames_remaining_to_send > 0:
+                frames_remaining_to_send -= 1
+                
+                y, x, conf = current_wrist_coords
+                # Ensure box is valid (0-1 range)
+                msg = f"hand_wave {conf:.2f} {x-0.1:.2f} {y-0.1:.2f} {x+0.1:.2f} {y+0.1:.2f}\n"
                 
                 payload = msg.encode("utf-8")
                 sock.sendall(struct.pack("I", len(payload)) + payload)
-                print(f"[SEND] >>> WAVE DETECTED <<<", flush=True)
                 response_sent = True
+                if frames_remaining_to_send == 0:
+                    print(f"[INFO] Wave sequence complete.", flush=True)
 
             if not response_sent:
                 sock.sendall(struct.pack("I", 0))

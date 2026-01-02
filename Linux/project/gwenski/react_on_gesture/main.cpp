@@ -52,10 +52,10 @@ void change_current_dir()
 void run_action(int action_page)
 {
     // Walking module must be removed before running Action to prevent conflict
-    MotionManager::GetInstance()->RemoveModule(static_cast<MotionModule *>(Walking::GetInstance())); 
+    MotionManager::GetInstance()->RemoveModule(static_cast<MotionModule *>(Walking::GetInstance()));
     MotionManager::GetInstance()->SetEnable(true); // Must be active to run Action
 
-    // Disable head joints in MotionManager so HeadTracking can control them if needed, 
+    // Disable head joints in MotionManager so HeadTracking can control them if needed,
     // or simply to prevent fighting during the action if the action doesn't use them.
     MotionManager::GetInstance()->SetJointEnableState(JointData::ID_HEAD_PAN, false);
     MotionManager::GetInstance()->SetJointEnableState(JointData::ID_HEAD_TILT, false);
@@ -92,7 +92,7 @@ void *HeadTrackingThread(void *arg)
 int main(void)
 {
     printf("\n===== Darwin-OP Gesture Mode (Initialized) =====\n\n");
-    
+
     signal(SIGPIPE, SIG_IGN);
     change_current_dir(); // Change current directory to executable's location
 
@@ -112,7 +112,7 @@ int main(void)
 
     // --- Camera Initialization ---
     std::cout << "INFO: Initializing camera..." << std::endl;
-    LinuxCamera::GetInstance()->Initialize(0);        // Initialize with device index 0
+    LinuxCamera::GetInstance()->Initialize(0); // Initialize with device index 0
     LinuxCamera::GetInstance()->LoadINISettings(ini);
     std::cout << "INFO: Camera initialized and settings loaded." << std::endl;
 
@@ -147,7 +147,7 @@ int main(void)
     HeadTracking *head_tracker = HeadTracking::GetInstance();
 
     // NOTE: passing '3' to Initialize generally signifies Gesture Mode/Script
-    if (!head_tracker->Initialize(ini, &cm730, 3)) 
+    if (!head_tracker->Initialize(ini, &cm730, 3))
     {
         std::cerr << "ERROR: HeadTracking initialization failed. Exiting." << std::endl;
         motion_timer->Stop();
@@ -188,21 +188,23 @@ int main(void)
     {
         std::string label = head_tracker->GetDetectedLabel();
 
+        if (!label.empty())
+        {
+            std::cout << "[CPP Main] Saw Label: " << label << std::endl;
+        }
+
         if (label == "hand_wave")
         {
             wave_counter++;
             if (wave_counter >= DETECT_THRESHOLD)
             {
-                std::cout << "\n\033[1;35m>>> WAVE DETECTED! \033[0m" << std::endl;
-                
-                // Perform Wave Action using the safe wrapper
+                std::cout << "\n\033[1;35m>>> WAVE CONFIRMED! Executing Action... \033[0m" << std::endl;
                 run_action(ACTION_PAGE_WAVE);
-                
                 wave_counter = 0;
 
-                // Return to ready position
-                std::cout << "INFO: Returning to Ready position." << std::endl;
+                std::cout << "INFO: Back to Ready." << std::endl;
                 run_action(ACTION_PAGE_READY);
+                std::cout << "\033[1;32mREADY: Waiting for hand_wave...\033[0m" << std::endl;
             }
         }
         else
@@ -211,7 +213,7 @@ int main(void)
                 wave_counter--;
         }
 
-        std::this_thread::sleep_for(std::chrono::milliseconds(50));
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
     }
 
     // (Unreachable in this infinite loop, but good for structure)
