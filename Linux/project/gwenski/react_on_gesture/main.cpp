@@ -12,6 +12,9 @@
 #include "HeadTracking.h"
 #include "LinuxDARwIn.h"
 #include "LinuxActionScript.h"
+#include "LeftArmController.h"
+#include "RightArmController.h"
+#include "LegsController.h"
 
 #define INI_FILE_PATH "../../../../Data/config.ini"
 #define MOTION_FILE_PATH "../../../../Data/motion_4096.bin"
