@@ -144,7 +144,7 @@ namespace Robot
     }
 
     // Modified Initialize signature to accept CM730* directly
-    bool HeadTracking::Initialize(minIni *ini, CM730 *cm730)
+    bool HeadTracking::Initialize(minIni *ini, CM730 *cm730, int mode)
     {
         ini_ = ini;
         cm730_ = cm730;
