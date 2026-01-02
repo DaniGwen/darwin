@@ -66,14 +66,22 @@ int main(int argc, char *argv[])
     // 1. Hardware Init
     minIni *ini = new minIni(INI_FILE_PATH);
     LinuxCamera::GetInstance()->Initialize(0);
+    LinuxCamera::GetInstance()->LoadINISettings(ini);
+    std::cout << "INFO: Camera initialized and settings loaded." << std::endl;
+
     LinuxCM730 linux_cm730("/dev/ttyUSB0");
     CM730 cm730(&linux_cm730);
 
-    if (MotionManager::GetInstance()->Initialize(&cm730) == false)
+    // Get MotionManager and Action singletons
+    MotionManager *motion_manager = MotionManager::GetInstance(); //
+    Action *action_module = Action::GetInstance();                // Get Action singleton //
+
+    if (motion_manager->Initialize(&cm730) == false)
     {
         std::cerr << "Fail to init Motion Manager!" << std::endl;
         return 0;
     }
+    motion_manager->LoadINISettings(ini);
 
     HeadTracking *head_tracker = HeadTracking::GetInstance();
     if (!head_tracker->Initialize(ini, &cm730, 3))
@@ -81,24 +89,27 @@ int main(int argc, char *argv[])
         return 0;
     }
 
-    Action::GetInstance()
-        ->LoadFile((char *)MOTION_FILE_PATH);
+    action_module->LoadFile((char *)MOTION_FILE_PATH);
 
     // 2. Start Motion Thread
-    MotionManager::GetInstance()->AddModule((MotionModule *)Action::GetInstance());
-    MotionManager::GetInstance()->AddModule((MotionModule *)Head::GetInstance());
-    LinuxMotionTimer *motion_timer = new LinuxMotionTimer(MotionManager::GetInstance());
+    motion_manager->AddModule((MotionModule *)action_module);
+    motion_manager->AddModule((MotionModule *)Head::GetInstance());
+    LinuxMotionTimer *motion_timer = new LinuxMotionTimer(motion_manager);
     motion_timer->Start();
+
+    LeftArmController left_arm_controller(&cm730);
+    RightArmController right_arm_controller(&cm730);
+    LegsController legs_controller(&cm730);
 
     // 3. Start Vision Thread
     pthread_t tracking_thread;
     pthread_create(&tracking_thread, NULL, HeadTrackingThread, head_tracker);
 
     // 4. Stand Up
-    MotionManager::GetInstance()->SetEnable(true);
-    Action::GetInstance()->m_Joint.SetEnableBody(true, true);
-    Action::GetInstance()->Start(ACTION_PAGE_READY);
-    while (Action::GetInstance()->IsRunning())
+    motion_manager->SetEnable(true);
+    action_module->m_Joint.SetEnableBody(true, true);
+    action_module->Start(ACTION_PAGE_READY);
+    while (action_module->IsRunning())
         usleep(10000);
 
     std::cout << "\033[1;32mREADY: Waiting for hand_wave...\033[0m" << std::endl;
@@ -118,8 +129,8 @@ int main(int argc, char *argv[])
                 wave_counter = 0;
 
                 // Return to ready
-                Action::GetInstance()->Start(ACTION_PAGE_READY);
-                while (Action::GetInstance()->IsRunning())
+                action_module->Start(ACTION_PAGE_READY);
+                while (action_module->IsRunning())
                     usleep(20000);
             }
         }

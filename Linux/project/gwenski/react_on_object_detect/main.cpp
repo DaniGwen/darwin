@@ -324,7 +324,7 @@ int main(void)
     // --- Camera Initialization ---
     std::cout << "INFO: Initializing camera..." << std::endl;
     LinuxCamera::GetInstance()->Initialize(0);        // Initialize with device index 0
-    LinuxCamera::GetInstance()->LoadINISettings(ini); //
+    LinuxCamera::GetInstance()->LoadINISettings(ini);
     std::cout << "INFO: Camera initialized and settings loaded." << std::endl;
 
     // --- Initialize Motion Framework Components ---
