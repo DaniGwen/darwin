@@ -36,7 +36,7 @@
 // Define action page numbers for gesture demo
 #define ACTION_PAGE_WAVE 15
 #define ACTION_PAGE_READY 1
-#define DETECT_THRESHOLD 2
+#define DETECT_THRESHOLD 1
 
 using namespace Robot;
 

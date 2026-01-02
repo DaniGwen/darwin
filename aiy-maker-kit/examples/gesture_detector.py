@@ -15,11 +15,13 @@ from pycoral.utils.edgetpu import make_interpreter
 SOCKET_PATH = "/tmp/darwin_detector.sock"
 MODEL_PATH = models.MOVENET_MODEL
 
-CONFIDENCE_THRESHOLD = 0.4
+DEBUG_MODE = True  # Set to True to see what the vision system sees
+
+CONFIDENCE_THRESHOLD = 0.35  # Lowered slightly
 WAVE_HISTORY_LEN = 6
-WAVE_MOVEMENT_THRESH = 0.18
+WAVE_MOVEMENT_THRESH = 0.15 # Lowered slightly
 WAVE_SIGN_CHANGES = 2
-WAVE_COOLDOWN = 1.5
+WAVE_COOLDOWN = 2.0
 
 # ==============================
 # Global State
@@ -41,10 +43,6 @@ def connect_to_cpp_server():
         return None
 
 def recvall(sock, count):
-    """
-    Robustly receive exactly 'count' bytes from the socket.
-    Returns None if the connection is closed.
-    """
     buf = b''
     while count:
         try:
@@ -64,10 +62,22 @@ def detect_wave_gesture(keypoints):
     R_ELBOW, R_WRIST = 8, 10
     r_elbow, r_wrist = keypoints[R_ELBOW], keypoints[R_WRIST]
 
+    # Debug print every 30 frames or so if tracking is lost
+    if DEBUG_MODE and (time.time() % 2.0 < 0.1): 
+        if r_wrist[2] < CONFIDENCE_THRESHOLD:
+            print(f"[DEBUG] Low Conf: Wrist {r_wrist[2]:.2f}", flush=True)
+
     if r_wrist[2] < CONFIDENCE_THRESHOLD or r_elbow[2] < CONFIDENCE_THRESHOLD:
-        wrist_x_history.clear(); return None
-    if r_wrist[0] > r_elbow[0] - 0.10: # Wrist below elbow
-        wrist_x_history.clear(); return None
+        wrist_x_history.clear()
+        return None
+
+    # Check height: Wrist should be higher (smaller Y) or roughly level with elbow
+    # r_wrist[0] is Y coordinate.
+    if r_wrist[0] > r_elbow[0] + 0.05: # Allow wrist to be slightly below elbow
+        if DEBUG_MODE and len(wrist_x_history) > 0:
+            print("[DEBUG] Wrist too low", flush=True)
+        wrist_x_history.clear()
+        return None
 
     wrist_x_history.append(r_wrist[1])
     wrist_x_history = wrist_x_history[-WAVE_HISTORY_LEN:]
@@ -75,9 +85,12 @@ def detect_wave_gesture(keypoints):
     if len(wrist_x_history) >= 4:
         deltas = np.diff(wrist_x_history)
         sign_changes = np.sum(np.sign(deltas[:-1]) != np.sign(deltas[1:]))
-        if sign_changes >= WAVE_SIGN_CHANGES and np.abs(deltas).sum() > WAVE_MOVEMENT_THRESH:
+        total_motion = np.abs(deltas).sum()
+
+        if sign_changes >= WAVE_SIGN_CHANGES and total_motion > WAVE_MOVEMENT_THRESH:
             wrist_x_history.clear()
             return "hand_wave"
+            
     return None
 
 # ==============================
@@ -98,28 +111,19 @@ def main():
 
     try:
         while True:
-            # 1. Receive Header (8 bytes: width, height)
             header = recvall(sock, 8)
-            if not header:
-                print("[WARN] C++ disconnected", flush=True)
-                break
-
+            if not header: break
             width, height = struct.unpack("ii", header)
 
-            # 2. Receive Image Data
             frame_size = width * height * 3
             data = recvall(sock, frame_size)
-            if not data:
-                print("[WARN] Incomplete frame data", flush=True)
-                break
+            if not data: break
 
-            # 3. Process Image
             img = Image.frombytes("RGB", (width, height), data)
             common.set_input(interpreter, img.resize(input_size))
             interpreter.invoke()
             pose = common.output_tensor(interpreter, 0).copy().reshape(17, 3)
 
-            # 4. Detect & Respond
             gesture = detect_wave_gesture(pose)
             now = time.time()
             response_sent = False
@@ -127,15 +131,13 @@ def main():
             if gesture and (now - last_wave_time) > WAVE_COOLDOWN:
                 last_wave_time = now
                 wrist = pose[10]
-                # Format: Label Score Top Left Bottom Right
                 msg = f"{gesture} {wrist[2]:.2f} {wrist[1]-0.1:.2f} {wrist[0]-0.1:.2f} {wrist[1]+0.1:.2f} {wrist[0]+0.1:.2f}\n"
                 
                 payload = msg.encode("utf-8")
                 sock.sendall(struct.pack("I", len(payload)) + payload)
-                print(f"[SEND] {msg.strip()}", flush=True)
+                print(f"[SEND] >>> WAVE DETECTED <<<", flush=True)
                 response_sent = True
 
-            # ALWAYS send a response (even if empty) to keep C++ synchronized
             if not response_sent:
                 sock.sendall(struct.pack("I", 0))
 
