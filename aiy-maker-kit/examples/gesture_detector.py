@@ -140,7 +140,7 @@ def main():
 
             # ---- Inference ----
             interpreter.invoke()
-            pose = np.copy(common.output_tensor(interpreter, 0)).reshape(17, 3)
+            pose = common.output_tensor(interpreter, 0).copy().reshape(17, 3)
 
             # ---- Gesture detection ----
             gesture = detect_wave_gesture(pose)
