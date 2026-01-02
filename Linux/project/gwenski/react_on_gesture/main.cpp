@@ -65,6 +65,7 @@ int main(int argc, char *argv[])
 
     // 1. Hardware Init
     minIni *ini = new minIni(INI_FILE_PATH);
+    LinuxCamera::GetInstance()->Initialize(0);
     LinuxCM730 linux_cm730("/dev/ttyUSB0");
     CM730 cm730(&linux_cm730);
 
