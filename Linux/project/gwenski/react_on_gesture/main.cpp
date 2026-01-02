@@ -1,7 +1,7 @@
 /*
  * main.cpp
  *
- * Modified for Robust Wave Detection
+ * Debug Mode: Prints every detection state.
  */
 
 #include "ConsoleColors.h"
@@ -65,7 +65,7 @@ void *HeadTrackingThread(void *arg)
 
 int main(void)
 {
-    printf("\n===== Darwin-OP Gesture Mode (Robust) =====\n\n");
+    printf("\n===== Darwin-OP Gesture Mode (Pixel Fix) =====\n\n");
     
     signal(SIGPIPE, SIG_IGN);
     change_current_dir();
@@ -108,16 +108,14 @@ int main(void)
     std::cout << "\033[1;32mREADY: Waiting for hand_wave...\033[0m" << std::endl;
 
     int wave_counter = 0;
-    std::string last_label = "";
-
+    
     while (true)
     {
         std::string label = head_tracker->GetDetectedLabel();
 
-        // Only print if the label CHANGES to prevent log spam
-        if (label != last_label) {
-             std::cout << "[CPP Main] Label changed: '" << label << "'" << std::endl;
-             last_label = label;
+        // DEBUG: Print current status if it's not none, to verify we see ANY input
+        if (label != "none" && !label.empty()) {
+             std::cout << "DEBUG: Main loop sees: " << label << std::endl;
         }
 
         if (label == "hand_wave")
@@ -125,20 +123,18 @@ int main(void)
             wave_counter++;
             if (wave_counter >= DETECT_THRESHOLD)
             {
-                std::cout << "\n\033[1;35m>>> WAVE CONFIRMED! Action Start... \033[0m" << std::endl;
-                
+                std::cout << "\n\033[1;35m>>> WAVE ACTION TRIGGERED! <<<\033[0m" << std::endl;
                 run_action(ACTION_PAGE_WAVE);
-                
                 wave_counter = 0;
                 
-                std::cout << "INFO: Action Complete. Back to Ready." << std::endl;
+                std::cout << "INFO: Back to Ready." << std::endl;
                 run_action(ACTION_PAGE_READY);
                 std::cout << "\033[1;32mREADY: Waiting for hand_wave...\033[0m" << std::endl;
             }
         }
         else
         {
-            if (wave_counter > 0) wave_counter = 0; // Reset immediately if signal lost
+             if (wave_counter > 0) wave_counter--;
         }
 
         std::this_thread::sleep_for(std::chrono::milliseconds(20));

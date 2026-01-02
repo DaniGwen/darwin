@@ -17,14 +17,17 @@ MODEL_PATH = models.MOVENET_MODEL
 
 DEBUG_MODE = True
 
-# Gesture thresholds
+# Tuning
 CONFIDENCE_THRESHOLD = 0.15   
 WAVE_HISTORY_LEN = 10         
 WAVE_MOTION_THRESHOLD = 0.08  
-WAVE_COOLDOWN = 3.0           # Long cooldown to prevent double triggers
+WAVE_COOLDOWN = 3.0           
 
-# Send the signal for ~2 seconds (assuming ~20fps) to ensure C++ sees it
-SIGNAL_REPEAT_FRAMES = 40 
+SIGNAL_REPEAT_FRAMES = 30  # Send for ~1.5 seconds
+
+# Camera Resolution (Must match what C++ expects)
+CAM_WIDTH = 320
+CAM_HEIGHT = 240
 
 # ==============================
 # Global State
@@ -64,21 +67,16 @@ def recvall(sock, count):
 # ==============================
 def detect_wave_gesture(keypoints):
     global wrist_x_history
-    
-    # Indices: 10 = Right Wrist
     R_WRIST_IDX = 10
-    wrist = keypoints[R_WRIST_IDX] # [y, x, score]
+    wrist = keypoints[R_WRIST_IDX] 
 
-    # 1. Check Confidence
     if wrist[2] < CONFIDENCE_THRESHOLD:
         wrist_x_history.clear()
         return None
 
-    # 2. Track X-movement
     wrist_x_history.append(wrist[1])
     wrist_x_history = wrist_x_history[-WAVE_HISTORY_LEN:]
 
-    # 3. Analyze Motion
     if len(wrist_x_history) >= WAVE_HISTORY_LEN:
         deltas = np.diff(wrist_x_history)
         total_motion = np.sum(np.abs(deltas))
@@ -105,9 +103,7 @@ def main():
         sock = connect_to_cpp_server()
         time.sleep(1)
 
-    print("[INFO] Gesture Detector Running (Robust Mode)", flush=True)
-    
-    last_debug_time = time.time()
+    print("[INFO] Gesture Detector Running (Pixels Mode)", flush=True)
 
     try:
         while True:
@@ -131,15 +127,14 @@ def main():
             now = time.time()
             gesture = detect_wave_gesture(pose)
             
-            # If we detect a new wave, start the broadcast sequence
             if gesture and (now - last_wave_time) > WAVE_COOLDOWN:
                 last_wave_time = now
                 frames_remaining_to_send = SIGNAL_REPEAT_FRAMES
                 
                 # Snapshot coords
-                wrist = pose[10]
+                wrist = pose[10] # y, x, score
                 current_wrist_coords = (wrist[0], wrist[1], wrist[2])
-                print(f"\n[SEND] >>> WAVE DETECTED! Broadcasting for {SIGNAL_REPEAT_FRAMES} frames... <<<\n", flush=True)
+                print(f"\n[SEND] >>> WAVE DETECTED! <<<\n", flush=True)
 
             # 5. Send Response
             response_sent = False
@@ -147,23 +142,31 @@ def main():
             if frames_remaining_to_send > 0:
                 frames_remaining_to_send -= 1
                 
-                # Ensure we send valid coords
+                # Normalize and Scale to Pixels
                 y, x, conf = current_wrist_coords
-                x = max(0.0, min(1.0, x))
-                y = max(0.0, min(1.0, y))
                 
-                # Protocol: Label Confidence X Y W H
-                # We send a dummy box around the wrist
-                msg = f"hand_wave {conf:.2f} {x:.2f} {y:.2f} 0.1 0.1\n"
+                # MoveNet output is 0.0-1.0, we map to 0-320 and 0-240
+                pixel_x = int(x * CAM_WIDTH)
+                pixel_y = int(y * CAM_HEIGHT)
+                
+                # Bounds check
+                pixel_x = max(0, min(CAM_WIDTH, pixel_x))
+                pixel_y = max(0, min(CAM_HEIGHT, pixel_y))
+
+                # Dummy width/height in pixels
+                pixel_w = 40
+                pixel_h = 40
+                
+                # Protocol: Label Confidence X Y W H (space separated)
+                msg = f"hand_wave {conf:.2f} {pixel_x} {pixel_y} {pixel_w} {pixel_h}"
                 
                 payload = msg.encode("utf-8")
                 sock.sendall(struct.pack("I", len(payload)) + payload)
                 response_sent = True
                 
                 if frames_remaining_to_send == 0:
-                    print(f"[INFO] Broadcast complete.", flush=True)
+                    print(f"[INFO] Wave signal end.", flush=True)
             
-            # If not broadcasting wave, send empty (Keep-Alive)
             if not response_sent:
                 sock.sendall(struct.pack("I", 0))
 
