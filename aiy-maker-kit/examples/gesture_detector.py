@@ -22,15 +22,11 @@ WAVE_MOVEMENT_THRESH = 0.18
 WAVE_SIGN_CHANGES = 2
 WAVE_COOLDOWN = 1.5  # seconds between detections
 
-HEARTBEAT_INTERVAL = 1.0  # keep socket alive
-
 # ==============================
 # Gesture State
 # ==============================
 wrist_x_history = []
 last_wave_time = 0.0
-last_heartbeat = 0.0
-
 
 # ==============================
 # Socket Handling
@@ -44,7 +40,6 @@ def connect_to_cpp_server():
     except Exception as e:
         print(f"[INFO] Waiting for C++ server... ({e})", flush=True)
         return None
-
 
 # ==============================
 # Gesture Detection
@@ -91,12 +86,11 @@ def detect_wave_gesture(keypoints):
 
     return None
 
-
 # ==============================
 # Main Loop
 # ==============================
 def main():
-    global last_wave_time, last_heartbeat
+    global last_wave_time
 
     # Initialize TPU
     interpreter = make_interpreter(MODEL_PATH)
@@ -145,6 +139,8 @@ def main():
             # ---- Gesture detection ----
             gesture = detect_wave_gesture(pose)
             now = time.time()
+            
+            response_sent = False
 
             if gesture and (now - last_wave_time) > WAVE_COOLDOWN:
                 last_wave_time = now
@@ -157,13 +153,16 @@ def main():
                 )
 
                 payload = msg.encode("utf-8")
+                # Send size + payload
                 sock.sendall(struct.pack("I", len(payload)) + payload)
                 print(f"[SEND] {msg.strip()}", flush=True)
+                response_sent = True
 
-            # ---- Heartbeat ----
-            if now - last_heartbeat > HEARTBEAT_INTERVAL:
+            # ---- Always send a response! ----
+            # If we didn't send a detection, we MUST send a 0-length packet 
+            # so the C++ code knows we finished processing the frame.
+            if not response_sent:
                 sock.sendall(struct.pack("I", 0))
-                last_heartbeat = now
 
     except Exception as e:
         print(f"[ERROR] {e}", flush=True)
@@ -171,7 +170,6 @@ def main():
     finally:
         sock.close()
         print("[INFO] Gesture detector stopped", flush=True)
-
 
 if __name__ == "__main__":
     main()
