@@ -76,7 +76,11 @@ int main(int argc, char *argv[])
     }
 
     HeadTracking *head_tracker = HeadTracking::GetInstance();
-    head_tracker->Initialize(ini, &cm730);
+    if (!head_tracker->Initialize(ini, &cm730, 3))
+    {
+        return 0;
+    }
+
     Action::GetInstance()
         ->LoadFile((char *)MOTION_FILE_PATH);
 
@@ -101,7 +105,6 @@ int main(int argc, char *argv[])
 
     // 5. Main Loop
     int wave_counter = 0;
-
     while (true)
     {
         std::string label = HeadTracking::GetInstance()->GetDetectedLabel();

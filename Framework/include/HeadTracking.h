@@ -56,7 +56,7 @@ namespace Robot
         static HeadTracking *GetInstance();
         static void DestroyInstance();
 
-        bool Initialize(minIni *ini, CM730 *cm730);
+        bool Initialize(minIni *ini, CM730 *cm730, int mode = 1); // mode: 1=Object, 2=Face, 3=Gesture
 
         // Main tracking loop
         void Run();
@@ -69,7 +69,6 @@ namespace Robot
         int GetDetectionScore();
         double GetDetectedObjectDistance() const;
         std::string GetDetectedLabel();
-        static void* AutoTrackingLoop(void* arg);
 
         // Static methods to control tracking state
         static void SetTrackingEnabled(bool enable);
@@ -101,6 +100,7 @@ namespace Robot
         minIni *ini_;                     // Pointer to loaded INI settings (owned by main)
         CM730 *cm730_;                    // Pointer to CM730 instance (direct motor control)
         Robot::Image *rgb_display_frame_; // Image buffer for the output frame with detections
+        std::string m_PythonScriptPath;
 
         // Head control state variables (moved from Head.h)
         double m_PanAngle;

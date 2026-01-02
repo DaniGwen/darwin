@@ -37,7 +37,6 @@
 
 #define MAX_MSG_SIZE 1024
 
-
 // Define socket path here (only once)
 const char *SOCKET_PATH = "/tmp/darwin_detector.sock";
 
@@ -150,6 +149,22 @@ namespace Robot
         ini_ = ini;
         cm730_ = cm730;
 
+        switch (mode)
+        {
+        case 1:
+            m_PythonScriptPath = "/home/darwin/darwin/aiy-maker-kit/examples/custom_detect_objects.py";
+            break;
+        case 2:
+            m_PythonScriptPath = "/home/darwin/darwin/aiy-maker-kit/examples/custom_detect_faces.py";
+            break;
+        case 3:
+            m_PythonScriptPath = "/home/darwin/darwin/aiy-maker-kit/examples/gesture_detector.py";
+            break;
+        default:
+            std::cerr << "Invalid mode, defaulting to objects." << std::endl;
+            m_PythonScriptPath = "/home/darwin/darwin/aiy-maker-kit/examples/custom_detect_objects.py";
+        }
+
         // Basic check if CM730 pointer is valid
         if (!cm730_)
         {
@@ -158,17 +173,10 @@ namespace Robot
         }
 
         // 0. Auto-start the Python detector script
-        std::string command = "nice -n 10 python3 ";
-        command += PYTHON_SCRIPT_PATH;
-        command += " &"; // Run in background
+        std::string command = "nice -n 10 python3 " + m_PythonScriptPath + " &";
         std::cout << "INFO: Starting Python detector script: " << command << std::endl;
-        int system_return = system(command.c_str());
-
-        if (system_return != 0)
-        {
-            std::cerr << "WARNING: Failed to start Python script using system(). Make sure the path is correct and python3 is in PATH." << std::endl;
-        }
-        usleep(1000000); // 1 second delay (adjust if needed) to allow script to start and create socket
+        system(command.c_str());
+        usleep(1500000);
 
         // 1. Initialize Socket Server and wait for Python connection
         client_socket_ = InitializeSocketServer();
@@ -1063,115 +1071,5 @@ namespace Robot
     double HeadTracking::GetFocalLengthPx() const
     {
         return camera_focal_length_px_;
-    }
-
-    void *HeadTracking::AutoTrackingLoop(void *)
-    {
-        struct sockaddr_un addr;
-        fd_set readfds;
-
-        unlink(SOCKET_PATH);
-
-        server_fd = socket(AF_UNIX, SOCK_STREAM, 0);
-        if (server_fd < 0)
-        {
-            perror("socket");
-            return nullptr;
-        }
-
-        memset(&addr, 0, sizeof(addr));
-        addr.sun_family = AF_UNIX;
-        strncpy(addr.sun_path, SOCKET_PATH, sizeof(addr.sun_path) - 1);
-
-        if (bind(server_fd, (struct sockaddr *)&addr, sizeof(addr)) < 0)
-        {
-            perror("bind");
-            close(server_fd);
-            return nullptr;
-        }
-
-        listen(server_fd, 1);
-
-        std::cout << "[INFO] Waiting for Python detector..." << std::endl;
-        client_fd = accept(server_fd, nullptr, nullptr);
-        if (client_fd < 0)
-        {
-            perror("accept");
-            close(server_fd);
-            return nullptr;
-        }
-
-        std::cout << "[INFO] Python detector connected" << std::endl;
-
-        while (true)
-        {
-            FD_ZERO(&readfds);
-            FD_SET(client_fd, &readfds);
-
-            struct timeval tv;
-            tv.tv_sec = 2;
-            tv.tv_usec = 0;
-
-            int ret = select(client_fd + 1, &readfds, nullptr, nullptr, &tv);
-
-            if (ret == 0)
-            {
-                // ⬅️ TIMEOUT IS NORMAL — DO NOT EXIT
-                continue;
-            }
-
-            if (ret < 0)
-            {
-                perror("select");
-                break;
-            }
-
-            uint32_t msg_len = 0;
-            ssize_t r = read(client_fd, &msg_len, sizeof(msg_len));
-
-            if (r <= 0)
-            {
-                std::cout << "[WARN] Python disconnected" << std::endl;
-                break;
-            }
-
-            // Heartbeat — ignore
-            if (msg_len == 0)
-            {
-                continue;
-            }
-
-            if (msg_len > MAX_MSG_SIZE - 1)
-                msg_len = MAX_MSG_SIZE - 1;
-
-            char buffer[MAX_MSG_SIZE] = {0};
-            r = read(client_fd, buffer, msg_len);
-
-            if (r <= 0)
-            {
-                std::cout << "[WARN] Read failed" << std::endl;
-                break;
-            }
-
-            buffer[msg_len] = '\0';
-
-            // Parse label (first token)
-            char label[64] = {0};
-            sscanf(buffer, "%63s", label);
-
-            {
-                std::lock_guard<std::mutex> lock(m_Mutex);
-                HeadTracking::GetInstance()->current_detected_label_ = label;
-            }
-
-            // Optional debug
-            // cout << "[RECV] " << detected_label << endl;
-        }
-
-        close(client_fd);
-        close(server_fd);
-        unlink(SOCKET_PATH);
-
-        return nullptr;
     }
 }

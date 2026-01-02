@@ -82,7 +82,10 @@ def detect_wave_gesture(keypoints):
         deltas = np.diff(wrist_x_history)
         sign_changes = np.sum(np.sign(deltas[:-1]) != np.sign(deltas[1:]))
 
-        if sign_changes >= WAVE_SIGN_CHANGES and np.abs(deltas).sum() > WAVE_MOVEMENT_THRESH:
+        if (
+            sign_changes >= WAVE_SIGN_CHANGES
+            and np.abs(deltas).sum() > WAVE_MOVEMENT_THRESH
+        ):
             wrist_x_history.clear()
             return "hand_wave"
 
@@ -137,7 +140,7 @@ def main():
 
             # ---- Inference ----
             interpreter.invoke()
-            pose = common.output_tensor(interpreter, 0).reshape(17, 3)
+            pose = np.copy(common.output_tensor(interpreter, 0)).reshape(17, 3)
 
             # ---- Gesture detection ----
             gesture = detect_wave_gesture(pose)
