@@ -145,7 +145,7 @@ int main(void)
                 std::cout << "\033[1;32mREADY: Waiting for hand_wave...\033[0m" << std::endl;
             }
         } 
-        else
+        else 
         {
              if (wave_counter > 0) wave_counter--; 
         } 
