@@ -4,9 +4,20 @@ on:
   push:
     branches:
       - main
+    # ONLY run this workflow if files in these specific core directories change
+    paths:
+      - 'Framework/**'
+      - 'Linux/build/**'
+      - 'Linux/include/**'
+      - 'Linux/lib/**'
   pull_request:
     branches:
       - main
+    paths:
+      - 'Framework/**'
+      - 'Linux/build/**'
+      - 'Linux/include/**'
+      - 'Linux/lib/**'
 
 jobs:
   build_linux:
@@ -23,14 +34,14 @@ jobs:
       working-directory: ./
       run: find . -name "*.o" -type f -delete
 
+    # Only compiles the main framework
     - name: Build Project with Make
-      working-directory: ./Linux/build # Ensure we are in the correct build directory
+      working-directory: ./Linux/build
       run: make clean && make
-      
+
+    # Only uploads the main framework artifact
     - name: Create and Upload Main Project Artifact
       uses: actions/upload-artifact@v4
       with:
         name: darwin-main-build-linux
         path: ./Linux/build/
-
-  
