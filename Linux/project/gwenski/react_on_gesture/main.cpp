@@ -35,6 +35,14 @@
 
 using namespace Robot;
 
+volatile bool is_running = true;
+
+void sighandler(int sig)
+{
+    std::cout << "\n[INFO] Caught signal " << sig << ", shutting down gracefully..." << std::endl;
+    is_running = false;
+}
+
 void change_current_dir()
 {
     char exepath[1024] = {0};
@@ -102,6 +110,11 @@ int main(void)
     std::cout << "INFO: Initial Pose..." << std::endl;
     run_action(ACTION_PAGE_READY);
 
+    signal(SIGABRT, &sighandler);
+    signal(SIGTERM, &sighandler);
+    signal(SIGQUIT, &sighandler);
+    signal(SIGINT, &sighandler);
+
     pthread_t tracking_thread;
     pthread_create(&tracking_thread, NULL, HeadTrackingThread, head_tracker);
 
@@ -109,7 +122,7 @@ int main(void)
 
     int wave_counter = 0;
     
-    while (true)
+    while (is_running)
     {
         std::string label = head_tracker->GetDetectedLabel();
 
