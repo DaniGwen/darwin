@@ -144,7 +144,7 @@ int main(void)
                 run_action(ACTION_PAGE_READY);
                 std::cout << "\033[1;32mREADY: Waiting for hand_wave...\033[0m" << std::endl;
             }
-        }
+        } 
         else
         {
              if (wave_counter > 0) wave_counter--; 
