@@ -26,21 +26,11 @@ jobs:
     - name: Build Project with Make
       working-directory: ./Linux/build # Ensure we are in the correct build directory
       run: make clean && make
-
-    - name: Build react_on_object_detect
-      working-directory: ./Linux/project/gwenski/react_on_object_detect
-      run: make clean && make
       
     - name: Create and Upload Main Project Artifact
       uses: actions/upload-artifact@v4
       with:
         name: darwin-main-build-linux
         path: ./Linux/build/
-
-    - name: Create and Upload react_on_object_detect Artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: react-on-object-detect-build-linux
-        path: ./Linux/project/gwenski/react_on_object_detect/
 
   
