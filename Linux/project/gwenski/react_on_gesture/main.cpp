@@ -147,7 +147,7 @@ int main(void)
         }
         else
         {
-             if (wave_counter > 0) wave_counter--;
+             if (wave_counter > 0) wave_counter--; 
         }
 
         std::this_thread::sleep_for(std::chrono::milliseconds(20));
