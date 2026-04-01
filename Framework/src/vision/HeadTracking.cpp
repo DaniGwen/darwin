@@ -647,6 +647,8 @@ namespace Robot
             }
         }
 
+        std::lock_guard<std::mutex> lock(m_data_access_mutex);
+
         current_detected_label_ = primary_detected_label;
         current_tracked_object_center_ = tracked_object_center_for_head;
         detection_score_ = current_detection_score_val;
@@ -739,7 +741,6 @@ namespace Robot
                 P_err.Y *= tilt_error_scale_;
             }
 
-            std::lock_guard<std::mutex> lock(m_data_access_mutex);
             if (target_found_in_frame && (primary_detected_label == "bottle" || primary_detected_label == "dog" || primary_detected_label == "cat"))
             {
                 m_last_object_angular_error.X = P_err.X;
@@ -816,7 +817,7 @@ namespace Robot
 
     std::string HeadTracking::GetDetectedLabel()
     {
-        std::lock_guard<std::mutex> lock(m_Mutex);
+        std::lock_guard<std::mutex> lock(m_data_access_mutex);
         return current_detected_label_;
     }
 
@@ -1037,6 +1038,7 @@ namespace Robot
 
     double HeadTracking::GetDetectedObjectDistance() const
     {
+        std::lock_guard<std::mutex> lock(m_data_access_mutex);
         return current_object_distance_m_;
     }
 
