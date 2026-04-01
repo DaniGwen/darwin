@@ -75,7 +75,7 @@ namespace Robot
     // Static member initialization (singleton instance)
     HeadTracking *HeadTracking::GetInstance()
     {
-        std::lock_guard<std::mutex> lock(m_data_access_mutex); // Protect singleton instance access
+        std::lock_guard<std::mutex> lock(m_Mutex); // Protect singleton instance access
         if (m_UniqueInstance == nullptr)
         {
             m_UniqueInstance = new HeadTracking();
@@ -85,7 +85,7 @@ namespace Robot
 
     void HeadTracking::DestroyInstance()
     {
-        std::lock_guard<std::mutex> lock(m_data_access_mutex); // Protect singleton instance access
+        std::lock_guard<std::mutex> lock(m_Mutex); // Protect singleton instance access
         if (m_UniqueInstance != nullptr)
         {
             delete m_UniqueInstance;
@@ -647,7 +647,7 @@ namespace Robot
             }
         }
 
-        std::lock_guard<std::mutex> lock(m_data_access_mutex);
+        std::lock_guard<std::mutex> lock(m_Mutex);
 
         current_detected_label_ = primary_detected_label;
         current_tracked_object_center_ = tracked_object_center_for_head;
@@ -817,7 +817,7 @@ namespace Robot
 
     std::string HeadTracking::GetDetectedLabel()
     {
-        std::lock_guard<std::mutex> lock(m_data_access_mutex);
+        std::lock_guard<std::mutex> lock(m_Mutex);
         return current_detected_label_;
     }
 
@@ -998,27 +998,27 @@ namespace Robot
 
     void HeadTracking::SetTrackingEnabled(bool enable)
     {
-        std::lock_guard<std::mutex> lock(m_data_access_mutex); // Protect access to m_TrackingEnabled
+        std::lock_guard<std::mutex> lock(m_Mutex); // Protect access to m_TrackingEnabled
         m_TrackingEnabled = enable;
         std::cout << "DEBUG: HeadTracking::m_TrackingEnabled set to " << (enable ? "true" : "false") << std::endl;
     }
 
     bool HeadTracking::IsTrackingEnabled()
     {
-        std::lock_guard<std::mutex> lock(m_data_access_mutex); // Protect access
+        std::lock_guard<std::mutex> lock(m_Mutex); // Protect access
         return m_TrackingEnabled;
     }
 
     void HeadTracking::SetMotorCommandInterval(int interval_ms)
     {
-        std::lock_guard<std::mutex> lock(m_data_access_mutex);
+        std::lock_guard<std::mutex> lock(m_Mutex);
         motor_command_interval_ms_ = std::max(10, std::min(500, interval_ms)); // Clamp between 10-500ms
         std::cout << "INFO: HeadTracking motor command interval set to " << motor_command_interval_ms_ << "ms" << std::endl;
     }
 
     int HeadTracking::GetMotorCommandInterval() const
     {
-        std::lock_guard<std::mutex> lock(m_data_access_mutex);
+        std::lock_guard<std::mutex> lock(m_Mutex);
         return motor_command_interval_ms_;
     }
 
@@ -1038,7 +1038,7 @@ namespace Robot
 
     double HeadTracking::GetDetectedObjectDistance() const
     {
-        std::lock_guard<std::mutex> lock(m_data_access_mutex);
+        std::lock_guard<std::mutex> lock(m_Mutex);
         return current_object_distance_m_;
     }
 
@@ -1066,7 +1066,7 @@ namespace Robot
 
     Point2D HeadTracking::GetLastDetectedObjectAngularError()
     {
-        std::lock_guard<std::mutex> lock(m_data_access_mutex);
+        std::lock_guard<std::mutex> lock(m_Mutex);
         return m_last_object_angular_error;
     }
 
