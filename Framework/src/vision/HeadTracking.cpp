@@ -41,13 +41,13 @@
 const char *SOCKET_PATH = "/tmp/darwin_detector.sock";
 
 // OBJECTS
-// const char *PYTHON_SCRIPT_PATH = "/home/darwin/darwin/aiy-maker-kit/examples/custom_detect_objects.py";
+// const char *PYTHON_SCRIPT_PATH = "/home/darwin/darwin/aiy-maker-kit/python/custom_detect_objects.py";
 
 // GESTURES
-const char *PYTHON_SCRIPT_PATH = "/home/darwin/darwin/aiy-maker-kit/examples/gesture_detector.py";
+const char *PYTHON_SCRIPT_PATH = "/home/darwin/darwin/aiy-maker-kit/python/gesture_detector.py";
 
 // FACES
-// const char *PYTHON_SCRIPT_PATH = "/home/darwin/darwin/aiy-maker-kit/examples/custom_detect_faces.py";
+// const char *PYTHON_SCRIPT_PATH = "/home/darwin/darwin/aiy-maker-kit/python/custom_detect_faces.py";
 
 // --- MX-28 Motor Conversion Constants ---
 // These constants are crucial for converting between degrees and the raw motor position values (0-4095).
@@ -152,17 +152,17 @@ namespace Robot
         switch (mode)
         {
         case 1:
-            m_PythonScriptPath = "/home/darwin/darwin/aiy-maker-kit/examples/custom_detect_objects.py";
+            m_PythonScriptPath = "/home/darwin/darwin/aiy-maker-kit/python/custom_detect_objects.py";
             break;
         case 2:
-            m_PythonScriptPath = "/home/darwin/darwin/aiy-maker-kit/examples/custom_detect_faces.py";
+            m_PythonScriptPath = "/home/darwin/darwin/aiy-maker-kit/python/custom_detect_faces.py";
             break;
         case 3:
-            m_PythonScriptPath = "/home/darwin/darwin/aiy-maker-kit/examples/gesture_detector.py";
+            m_PythonScriptPath = "/home/darwin/darwin/aiy-maker-kit/python/gesture_detector.py";
             break;
         default:
             std::cerr << "Invalid mode, defaulting to objects." << std::endl;
-            m_PythonScriptPath = "/home/darwin/darwin/aiy-maker-kit/examples/custom_detect_objects.py";
+            m_PythonScriptPath = "/home/darwin/darwin/aiy-maker-kit/python/custom_detect_objects.py";
         }
 
         // Basic check if CM730 pointer is valid

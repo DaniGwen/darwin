@@ -46,7 +46,7 @@ SOCKET_RETRY_DELAY_SEC = 0.8  # Delay between socket connection retries in secon
 # Use the model path from models.py
 MODEL_PATH = models.OBJECT_DETECTION_MODEL
 # Labels path is often MODEL_PATH with .tflite replaced by .txt
-LABELS_PATH = "/home/darwin/darwin/aiy-maker-kit/examples/models/coco_labels.txt"
+LABELS_PATH = "/home/darwin/darwin/aiy-maker-kit/python/models/coco_labels.txt"
 DETECTION_THRESHOLD = 0.5  # Use the threshold you want
 # MAX_DETECTIONS = 10 # The model outputs a fixed number, we'll filter by threshold
 
