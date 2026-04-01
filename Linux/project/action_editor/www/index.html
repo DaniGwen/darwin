@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DARwIn-OP Action Editor</title>
+    <style>
+        :root {
+            --bg-color: #121212;
+            --panel-bg: #1e1e1e;
+            --text-main: #ffffff;
+            --text-muted: #a0a0a0;
+            --accent: #00e5ff;
+            --accent-hover: #00b8cc;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+
+        /* Top Navigation Bar */
+        header {
+            background-color: var(--panel-bg);
+            padding: 15px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #333;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        }
+
+        header h1 {
+            margin: 0;
+            font-size: 1.5rem;
+            letter-spacing: 1px;
+        }
+
+        .status-badge {
+            font-size: 1rem;
+            color: var(--text-muted);
+        }
+
+        .btn-play {
+            background-color: var(--accent);
+            color: #000;
+            border: none;
+            padding: 10px 25px;
+            font-size: 1rem;
+            font-weight: bold;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .btn-play:hover {
+            background-color: var(--accent-hover);
+        }
+
+        /* Main Grid Layout */
+        .container {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        .main-content {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            align-items: start;
+        }
+
+        /* Joint Control Panels */
+        .joint-group {
+            background-color: var(--panel-bg);
+            border-radius: 8px;
+            padding: 15px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+        }
+
+        .joint-group h3 {
+            margin-top: 0;
+            border-bottom: 1px solid #333;
+            padding-bottom: 10px;
+            color: var(--accent);
+        }
+
+        .slider-row {
+            display: flex;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .slider-row label {
+            width: 120px;
+            font-size: 0.9rem;
+            color: var(--text-muted);
+        }
+
+        .slider-row input[type="range"] {
+            flex: 1;
+            margin: 0 15px;
+            cursor: pointer;
+        }
+
+        .slider-row .val-display {
+            width: 50px;
+            text-align: right;
+            font-family: monospace;
+            font-size: 1.1rem;
+            background: #000;
+            padding: 3px 6px;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>🤖 DARwIn-OP Action Editor</h1>
+        <div class="status-badge" id="status-display">Page: -- | Step: --</div>
+        <button class="btn-play" onclick="playAction()">▶ Play Action</button>
+    </header>
+
+    <div class="container">
+        <div class="main-content" id="sliders-container"></div>
+    </div>
+
+    <script src="functions.js"></script>
+</body>
+</html>

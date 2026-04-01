@@ -15,7 +15,8 @@ CXXFLAGS +=	-O2 -DLINUX -g -Wall -fmessage-length=0 $(INCLUDE_DIRS)
 LIBS += -lpthread -lncurses -lrt
 
 OBJS =	./cmd_process.o	\
-		./main.o
+		./main.o \
+		./web_server.o
 
 
 all: darwin.a $(TARGET)
