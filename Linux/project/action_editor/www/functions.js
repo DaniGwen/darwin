@@ -18,6 +18,10 @@ window.onload = () => {
 let currentStep = 7; // Start in Live mode
 
 // --- UPDATED UI GENERATOR ---
+// --- NEW: The Clipboard Memory ---
+const groupClipboard = {};
+
+// --- UPDATED UI GENERATOR ---
 function buildUI() {
     const container = document.getElementById("sliders-container");
     container.innerHTML = ""; 
@@ -26,29 +30,30 @@ function buildUI() {
         const groupDiv = document.createElement("div");
         groupDiv.className = "joint-group";
         
-        // 1. Generate the Group-Level Controls (ON, OFF, Mirror)
         const isLeftLimb = groupName.includes("Left");
         const isRightLimb = groupName.includes("Right");
         let mirrorBtn = "";
         
         if (isLeftLimb) {
-            mirrorBtn = `<button onclick="mirrorGroup('${groupName}')" style="font-size:0.75rem; background:var(--accent); color:#000; padding:2px 8px;">🪞 Mirror to Right</button>`;
+            mirrorBtn = `<button onclick="mirrorGroup('${groupName}')" style="font-size:0.75rem; background:var(--accent); color:#000; padding:2px 8px; border:none; border-radius:3px; cursor:pointer;">🪞 Mirror Right</button>`;
         } else if (isRightLimb) {
-            mirrorBtn = `<button onclick="mirrorGroup('${groupName}')" style="font-size:0.75rem; background:var(--accent); color:#000; padding:2px 8px;">🪞 Mirror to Left</button>`;
+            mirrorBtn = `<button onclick="mirrorGroup('${groupName}')" style="font-size:0.75rem; background:var(--accent); color:#000; padding:2px 8px; border:none; border-radius:3px; cursor:pointer;">🪞 Mirror Left</button>`;
         }
 
+        // ADDED: Copy and Paste buttons, plus flex-wrap so they fit nicely
         groupDiv.innerHTML = `
             <div style="display:flex; justify-content:space-between; align-items:center; border-bottom: 1px solid #333; padding-bottom: 8px; margin-bottom: 12px;">
                 <h3 style="margin:0; border:none; padding:0; color:var(--accent);">${groupName}</h3>
-                <div style="display:flex; gap:5px;">
-                    <button onclick="toggleGroupTorque('${groupName}', 1)" style="font-size:0.75rem; background:var(--success); color:#000; padding:2px 8px;">ON</button>
-                    <button onclick="toggleGroupTorque('${groupName}', 0)" style="font-size:0.75rem; background:var(--danger); color:#fff; padding:2px 8px;">OFF</button>
+                <div style="display:flex; gap:5px; flex-wrap:wrap; justify-content:flex-end;">
+                    <button onclick="toggleGroupTorque('${groupName}', 1)" style="font-size:0.75rem; background:var(--success); color:#000; padding:2px 8px; border:none; border-radius:3px; cursor:pointer;">ON</button>
+                    <button onclick="toggleGroupTorque('${groupName}', 0)" style="font-size:0.75rem; background:var(--danger); color:#fff; padding:2px 8px; border:none; border-radius:3px; cursor:pointer;">OFF</button>
+                    <button onclick="copyGroup('${groupName}', this)" style="font-size:0.75rem; background:#444; color:#fff; padding:2px 8px; border:none; border-radius:3px; cursor:pointer;">📄 Copy</button>
+                    <button onclick="pasteGroup('${groupName}', this)" style="font-size:0.75rem; background:#444; color:#fff; padding:2px 8px; border:none; border-radius:3px; cursor:pointer;">📋 Paste</button>
                     ${mirrorBtn}
                 </div>
             </div>
         `;
 
-        // 2. Generate the individual sliders (Same as before)
         joints.forEach(joint => {
             const row = document.createElement("div");
             row.className = "slider-row";
@@ -323,5 +328,68 @@ async function newPage() {
         await fetch('/api/new_page', { method: 'POST' });
         fetchPageList(); 
         fetchRobotState();
+    }
+}
+
+// --- NEW: Copy Group Pose to Memory ---
+function copyGroup(groupName, btnElement) {
+    const joints = jointConfiguration[groupName];
+    if (!joints) return;
+
+    groupClipboard[groupName] = {};
+    
+    // Read the current slider values directly from the UI
+    joints.forEach(j => {
+        const slider = document.getElementById(`slider-${j.id}`);
+        // Only copy the value if the joint is actually valid/enabled (not ---- or ????)
+        if (slider && !slider.disabled) {
+            groupClipboard[groupName][j.id] = slider.value;
+        }
+    });
+
+    // Visual feedback
+    const oldText = btnElement.innerText;
+    btnElement.innerText = "✅ Copied!";
+    btnElement.style.background = "var(--success)";
+    btnElement.style.color = "#000";
+    setTimeout(() => {
+        btnElement.innerText = oldText;
+        btnElement.style.background = "#444";
+        btnElement.style.color = "#fff";
+    }, 1000);
+}
+
+// --- NEW: Paste Group Pose from Memory ---
+async function pasteGroup(groupName, btnElement) {
+    const clipData = groupClipboard[groupName];
+    
+    // Safety check
+    if (!clipData || Object.keys(clipData).length === 0) {
+        alert(`⚠️ You haven't copied anything for the ${groupName} yet!`);
+        return;
+    }
+
+    try {
+        // Shoot off the individual joint updates to the server simultaneously
+        const promises = Object.entries(clipData).map(([id, val]) => {
+            return fetch(`/api/joint/${id}/${val}`, { method: 'POST' });
+        });
+        await Promise.all(promises);
+
+        // Visual feedback
+        const oldText = btnElement.innerText;
+        btnElement.innerText = "✅ Pasted!";
+        btnElement.style.background = "var(--success)";
+        btnElement.style.color = "#000";
+        setTimeout(() => {
+            btnElement.innerText = oldText;
+            btnElement.style.background = "#444";
+            btnElement.style.color = "#fff";
+        }, 1000);
+
+        // Give the backend a split second to process, then refresh the sliders
+        setTimeout(fetchRobotState, 200);
+    } catch (error) {
+        console.error("Paste failed:", error);
     }
 }
