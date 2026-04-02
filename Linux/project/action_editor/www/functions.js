@@ -162,6 +162,16 @@ async function setStep(stepNum) {
     document.getElementById(`btn-step-${stepNum}`).classList.add('active');
     currentStep = stepNum;
 
+    // --- NEW: Update the prominent label ---
+    const label = document.getElementById('current-step-label');
+    if (stepNum === 7) {
+        label.innerText = "MODE: LIVE (STP 7)";
+        label.style.color = "var(--danger)"; // Make Live mode red/warning color
+    } else {
+        label.innerText = `EDITING: STP ${stepNum}`;
+        label.style.color = "var(--accent)"; // Make Offline mode cyan
+    }
+
     // Show step tools only if we aren't looking at STP 7 (Live Robot)
     const isEditMode = (stepNum !== 7);
     document.getElementById('btn-save-step').style.display = isEditMode ? 'block' : 'none';
