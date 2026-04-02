@@ -63,7 +63,7 @@ async function setStep(stepNum) {
     document.querySelectorAll('.step-btn').forEach(btn => btn.classList.remove('active'));
     document.getElementById(`btn-step-${stepNum}`).classList.add('active');
     currentStep = stepNum;
-
+    document.getElementById('btn-save-step').style.display = (stepNum === 7) ? 'none' : 'block';
     await fetch(`/api/step/${stepNum}`, { method: 'POST' });
     fetchRobotState();
 }
