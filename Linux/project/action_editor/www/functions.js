@@ -124,3 +124,12 @@ window.onload = () => {
     // Refresh every 1.5s to keep in sync with terminal usage
     setInterval(fetchRobotState, 1500);
 };
+
+async function toggleAllTorque(state) {
+    try {
+        await fetch(`/api/torque_all/${state}`, { method: 'POST' });
+        fetchRobotState(); // Refresh UI instantly
+    } catch (error) {
+        console.error("Failed to toggle all torque:", error);
+    }
+}
