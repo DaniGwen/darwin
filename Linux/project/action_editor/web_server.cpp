@@ -311,6 +311,32 @@ void RunWebServer() {
         res.set_content("{\"status\":\"ok\"}", "application/json");
     });
 
+    // --- Mirror Joint Position ---
+    svr.Post(R"(/api/mirror/(\d+)/(\d+))", [](const httplib::Request &req, httplib::Response &res) {
+        int src = std::stoi(req.matches[1]);
+        int tgt = std::stoi(req.matches[2]);
+
+        int src_val = 0;
+        // Read the true physical position of the source, regardless of whether Torque is ON or OFF!
+        if (cm730.ReadWord(src, MX28::P_PRESENT_POSITION_L, &src_val, 0) == CM730::SUCCESS) {
+            
+            // DARwIn-OP perfect symmetry formula
+            int mirrored_val = 4096 - src_val; 
+
+            if (webCurrentStep == 7) {
+                // In Live Mode: Turn the target's torque ON so it can physically move, then move it!
+                cm730.WriteByte(tgt, MX28::P_TORQUE_ENABLE, 1, 0);
+                cm730.WriteWord(tgt, MX28::P_GOAL_POSITION_L, mirrored_val, 0);
+                Step.position[tgt] = mirrored_val; 
+            } else {
+                // In Offline Mode: Just update the memory
+                Page.step[webCurrentStep].position[tgt] = mirrored_val;
+            }
+            bEdited = true;
+        }
+        res.set_content("{\"status\":\"ok\"}", "application/json");
+    });
+
     std::cout << "\n[INFO] Full Web Editor running on port 8080\n" << std::endl;
     svr.listen("0.0.0.0", 8080);
 }

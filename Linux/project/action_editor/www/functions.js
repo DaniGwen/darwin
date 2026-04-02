@@ -17,15 +17,38 @@ window.onload = () => {
 
 let currentStep = 7; // Start in Live mode
 
+// --- UPDATED UI GENERATOR ---
 function buildUI() {
     const container = document.getElementById("sliders-container");
-    container.innerHTML = ""; // clear
+    container.innerHTML = ""; 
 
     for (const [groupName, joints] of Object.entries(jointConfiguration)) {
         const groupDiv = document.createElement("div");
         groupDiv.className = "joint-group";
-        groupDiv.innerHTML = `<h3>${groupName}</h3>`;
+        
+        // 1. Generate the Group-Level Controls (ON, OFF, Mirror)
+        const isLeftLimb = groupName.includes("Left");
+        const isRightLimb = groupName.includes("Right");
+        let mirrorBtn = "";
+        
+        if (isLeftLimb) {
+            mirrorBtn = `<button onclick="mirrorGroup('${groupName}')" style="font-size:0.75rem; background:var(--accent); color:#000; padding:2px 8px;">🪞 Mirror to Right</button>`;
+        } else if (isRightLimb) {
+            mirrorBtn = `<button onclick="mirrorGroup('${groupName}')" style="font-size:0.75rem; background:var(--accent); color:#000; padding:2px 8px;">🪞 Mirror to Left</button>`;
+        }
 
+        groupDiv.innerHTML = `
+            <div style="display:flex; justify-content:space-between; align-items:center; border-bottom: 1px solid #333; padding-bottom: 8px; margin-bottom: 12px;">
+                <h3 style="margin:0; border:none; padding:0; color:var(--accent);">${groupName}</h3>
+                <div style="display:flex; gap:5px;">
+                    <button onclick="toggleGroupTorque('${groupName}', 1)" style="font-size:0.75rem; background:var(--success); color:#000; padding:2px 8px;">ON</button>
+                    <button onclick="toggleGroupTorque('${groupName}', 0)" style="font-size:0.75rem; background:var(--danger); color:#fff; padding:2px 8px;">OFF</button>
+                    ${mirrorBtn}
+                </div>
+            </div>
+        `;
+
+        // 2. Generate the individual sliders (Same as before)
         joints.forEach(joint => {
             const row = document.createElement("div");
             row.className = "slider-row";
@@ -40,6 +63,46 @@ function buildUI() {
             groupDiv.appendChild(row);
         });
         container.appendChild(groupDiv);
+    }
+}
+
+// --- NEW: Group Torque Logic ---
+async function toggleGroupTorque(groupName, state) {
+    if (currentStep !== 7) {
+        alert("⚠️ Please switch to 'STP 7 (Live Robot)' to turn physical motors ON and OFF.");
+        return;
+    }
+    const joints = jointConfiguration[groupName];
+    if (!joints) return;
+
+    // Send the toggle command for every joint in the group simultaneously
+    const promises = joints.map(j => fetch(`/api/torque/${j.id}/${state}`, { method: 'POST' }));
+    await Promise.all(promises);
+    fetchRobotState();
+}
+
+// --- NEW: Mirroring Logic ---
+// Maps the [Source ID, Target ID] pairs for each limb
+const mirrorPairs = {
+    "Right Arm": [ [1,2], [3,4], [5,6] ],
+    "Left Arm":  [ [2,1], [4,3], [6,5] ],
+    "Right Leg": [ [7,8], [9,10], [11,12], [13,14], [15,16], [17,18] ],
+    "Left Leg":  [ [8,7], [10,9], [12,11], [14,13], [16,15], [18,17] ]
+};
+
+async function mirrorGroup(sourceName) {
+    const pairs = mirrorPairs[sourceName];
+    if (!pairs) return;
+
+    try {
+        // Send the mirror command for every joint in the limb simultaneously
+        const promises = pairs.map(pair => fetch(`/api/mirror/${pair[0]}/${pair[1]}`, { method: 'POST' }));
+        await Promise.all(promises);
+        
+        // Wait a tiny bit for the hardware to finish moving, then refresh UI
+        setTimeout(fetchRobotState, 200); 
+    } catch (error) {
+        console.error("Mirroring failed:", error);
     }
 }
 
