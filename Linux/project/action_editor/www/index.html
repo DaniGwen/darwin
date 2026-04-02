@@ -45,9 +45,16 @@
         <div class="top-controls">
             <div class="control-group">
                 <label>Page:</label>
-                <input type="number" id="inp-page" value="1">
-                <button onclick="loadPage()">Load</button>
+                <select id="select-page" onchange="loadPage(this.value)" style="background:#111; color:var(--accent); border:1px solid #333; padding:4px; font-weight:bold;"></select>
             </div>
+            
+            <div class="control-group">
+                <label>Name:</label>
+                <input type="text" id="inp-name" maxlength="14" style="width:120px;">
+                <button onclick="renamePage()" style="background:#444;">Rename</button>
+                <button onclick="newPage()" style="background:var(--danger);">New/Clear</button>
+            </div>
+
             <div class="control-group">
                 <label>Speed:</label>
                 <input type="number" id="inp-speed" onchange="updatePageParam('speed', this.value)">
@@ -56,9 +63,8 @@
                 <label>Accel:</label>
                 <input type="number" id="inp-accel" onchange="updatePageParam('accel', this.value)">
             </div>
-            <button onclick="saveToFile()" style="background:#f39c12; color:#000; font-weight:bold;">💾 Save changes</button>
-            <button onclick="toggleAllTorque(1)" style="background:var(--success); color:#000;">Torque ALL ON</button>
-            <button onclick="toggleAllTorque(0)" style="background:var(--danger); color:#fff;">Torque ALL OFF</button>
+
+            <button onclick="saveToFile()" style="background:#f39c12; color:#000; font-weight:bold;">💾 Save</button>
             <button class="btn-play" onclick="playAction()">▶ Play Action</button>
         </div>
     </header>

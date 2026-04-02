@@ -7,6 +7,14 @@ const jointConfiguration = {
     "Extras": [{ id: 21, name: "Wrist (21)" }, { id: 22, name: "Gripper (22)" }]
 };
 
+window.onload = () => {
+    buildUI();
+    fetchPageList();
+    fetchRobotState();
+    // Refresh every 1.5s to keep in sync with terminal usage
+    setInterval(fetchRobotState, 1500);
+};
+
 let currentStep = 7; // Start in Live mode
 
 function buildUI() {
@@ -35,6 +43,24 @@ function buildUI() {
     }
 }
 
+async function fetchPageList() {
+    try {
+        const res = await fetch('/api/pages_list');
+        const pages = await res.json();
+        
+        const select = document.getElementById("select-page");
+        select.innerHTML = ""; // Clear existing options
+        
+        pages.forEach(p => {
+            const opt = document.createElement("option");
+            opt.value = p.id;
+            const dispName = p.name.trim() === "" ? "(Empty/Uninitialized)" : p.name;
+            opt.innerText = `Pg ${p.id}: ${dispName}`;
+            select.appendChild(opt);
+        });
+    } catch(e) { console.error("Failed to load page list", e); }
+}
+
 function updateJointDisplay(id, value) {
     document.getElementById(`val-${id}`).innerText = value;
 }
@@ -58,8 +84,7 @@ async function toggleTorque(id) {
     fetchRobotState(); 
 }
 
-async function loadPage() {
-    const pageNum = document.getElementById("inp-page").value;
+async function loadPage(pageNum) {
     await fetch(`/api/page/${pageNum}`, { method: 'POST' });
     fetchRobotState();
 }
@@ -94,9 +119,21 @@ async function fetchRobotState() {
         const res = await fetch('/api/state');
         const data = await res.json();
         
-        document.getElementById("inp-page").value = data.page;
-        document.getElementById("inp-speed").value = data.speed;
-        document.getElementById("inp-accel").value = data.accel;
+       const selectPage = document.getElementById("select-page");
+        if (selectPage.value != data.page && selectPage.options.length > 0) {
+            selectPage.value = data.page;
+        }
+
+        // UPDATE INPUTS SAFELY: Only overwrite them if the user IS NOT currently clicking/typing inside them
+        if (document.activeElement !== document.getElementById("inp-name")) {
+            document.getElementById("inp-name").value = data.name;
+        }
+        if (document.activeElement !== document.getElementById("inp-speed")) {
+            document.getElementById("inp-speed").value = data.speed;
+        }
+        if (document.activeElement !== document.getElementById("inp-accel")) {
+            document.getElementById("inp-accel").value = data.accel;
+        }
 
         for (let id = 1; id <= 22; id++) {
             let val = data.joints[id];
@@ -128,13 +165,6 @@ async function fetchRobotState() {
         }
     } catch (error) { console.error("Server offline."); }
 }
-
-window.onload = () => {
-    buildUI();
-    fetchRobotState();
-    // Refresh every 1.5s to keep in sync with terminal usage
-    setInterval(fetchRobotState, 1500);
-};
 
 async function toggleAllTorque(state) {
     // Prevent toggling physical hardware if viewing an offline step
@@ -212,5 +242,23 @@ async function playSingleStep() {
         // The robot will physically move to this step's position!
     } catch (error) {
         console.error("Failed to play step:", error);
+    }
+}
+
+// --- NEW: Rename Page ---
+async function renamePage() {
+    const newName = document.getElementById("inp-name").value;
+    await fetch('/api/rename_page', { method: 'POST', body: newName });
+    fetchPageList(); // Refresh dropdown names
+    fetchRobotState(); // Update UI
+    alert(`Page renamed to: ${newName}. Don't forget to Save to File!`);
+}
+
+// --- NEW: Clear/Initialize Page ---
+async function newPage() {
+    if(confirm("⚠️ Are you sure? This will instantly delete the name and ALL steps of the current page!")) {
+        await fetch('/api/new_page', { method: 'POST' });
+        fetchPageList(); 
+        fetchRobotState();
     }
 }

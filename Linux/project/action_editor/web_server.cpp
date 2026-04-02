@@ -26,6 +26,12 @@ void RunWebServer() {
     svr.Get("/api/state", [](const httplib::Request &, httplib::Response &res) {
         std::string json = "{";
         json += "\"page\": " + std::to_string(indexPage) + ",";
+        std::string pName = "";
+        for(int n=0; n<Action::MAXNUM_NAME; n++) {
+            char c = Page.header.name[n];
+            if(c >= ' ' && c <= '~') pName += c; // Only grab printable characters
+        }
+        json += "\"name\": \"" + pName + "\",";
         json += "\"step\": " + std::to_string(webCurrentStep) + ",";
         json += "\"speed\": " + std::to_string(Page.header.speed) + ",";
         json += "\"accel\": " + std::to_string(Page.header.accel) + ",";
@@ -258,6 +264,50 @@ void RunWebServer() {
             }
             bEdited = true;
         }
+        res.set_content("{\"status\":\"ok\"}", "application/json");
+    });
+
+    // --- NEW: Get a list of ALL maximum pages and their names ---
+    svr.Get("/api/pages_list", [](const httplib::Request &, httplib::Response &res) {
+        std::string json = "[";
+        Action::PAGE tempPage;
+        
+        // DARwIn-OP Action limits max pages to MAXNUM_PAGE (usually 256)
+        for(int i = 1; i < Action::MAXNUM_PAGE; i++) {
+            std::string pName = "";
+            if (Action::GetInstance()->LoadPage(i, &tempPage)) {
+                for(int n=0; n<Action::MAXNUM_NAME; n++) {
+                    char c = tempPage.header.name[n];
+                    if(c >= ' ' && c <= '~') pName += c;
+                }
+            }
+            json += "{\"id\":" + std::to_string(i) + ",\"name\":\"" + pName + "\"}";
+            if (i < Action::MAXNUM_PAGE - 1) json += ",";
+        }
+        json += "]";
+        res.set_content(json, "application/json");
+    });
+
+    // --- NEW: Rename Current Page ---
+    svr.Post("/api/rename_page", [](const httplib::Request &req, httplib::Response &res) {
+        std::string new_name = req.body; // Read from raw text body
+        
+        // Clear old name with zeros
+        for(int i=0; i<Action::MAXNUM_NAME; i++) Page.header.name[i] = 0; 
+        
+        // Write new name
+        for(size_t i=0; i < new_name.length() && i < Action::MAXNUM_NAME; i++) {
+            Page.header.name[i] = new_name[i];
+        }
+        
+        bEdited = true;
+        res.set_content("{\"status\":\"ok\"}", "application/json");
+    });
+
+    // --- NEW: Clear/Initialize a New Page ---
+    svr.Post("/api/new_page", [](const httplib::Request &, httplib::Response &res) {
+        Action::GetInstance()->ResetPage(&Page); // Wipes all steps and name
+        bEdited = true;
         res.set_content("{\"status\":\"ok\"}", "application/json");
     });
 
