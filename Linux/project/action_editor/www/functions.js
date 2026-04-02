@@ -44,12 +44,18 @@ async function sendJointCommand(id, value) {
 }
 
 async function toggleTorque(id) {
+    // Prevent toggling physical hardware if viewing an offline step
+    if (currentStep !== 7) {
+        alert("⚠️ Please switch to 'STP 7 (Live Robot)' to turn physical motors ON and OFF.");
+        return;
+    }
+    
     const btn = document.getElementById(`tq-${id}`);
     const isOff = btn.classList.contains("off");
-    const newState = isOff ? 1 : 0; // Turn on if currently off
+    const newState = isOff ? 1 : 0; 
     
     await fetch(`/api/torque/${id}/${newState}`, { method: 'POST' });
-    fetchRobotState(); // Refresh UI instantly
+    fetchRobotState(); 
 }
 
 async function loadPage() {
@@ -131,9 +137,15 @@ window.onload = () => {
 };
 
 async function toggleAllTorque(state) {
+    // Prevent toggling physical hardware if viewing an offline step
+    if (currentStep !== 7) {
+        alert("⚠️ Please switch to 'STP 7 (Live Robot)' to turn physical motors ON and OFF.");
+        return;
+    }
+
     try {
         await fetch(`/api/torque_all/${state}`, { method: 'POST' });
-        fetchRobotState(); // Refresh UI instantly
+        fetchRobotState(); 
     } catch (error) {
         console.error("Failed to toggle all torque:", error);
     }

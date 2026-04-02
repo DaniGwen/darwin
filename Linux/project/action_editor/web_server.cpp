@@ -60,16 +60,19 @@ void RunWebServer() {
     });
 
     // 3. Toggle Torque
-   svr.Post(R"(/api/torque/(\d+)/(\d+))", [](const httplib::Request &req, httplib::Response &res) {
+  svr.Post(R"(/api/torque/(\d+)/(\d+))", [](const httplib::Request &req, httplib::Response &res) {
         int id = std::stoi(req.matches[1]);
         int state = std::stoi(req.matches[2]); // 1 or 0
         
         cm730.WriteByte(id, MX28::P_TORQUE_ENABLE, state, 0);
         
         if (state == 1) {
-            int val;
-            cm730.ReadWord(id, MX28::P_PRESENT_POSITION_L, &val, 0);
-            Step.position[id] = val; // Store current physical angle
+            int val = 2048; // Safe fallback in case the read fails!
+            if (cm730.ReadWord(id, MX28::P_PRESENT_POSITION_L, &val, 0) == CM730::SUCCESS) {
+                Step.position[id] = val; // Store current physical angle
+            } else {
+                Step.position[id] = val; // Store the safe fallback
+            }
         } else {
             Step.position[id] = Action::TORQUE_OFF_BIT_MASK; // Mark as ????
         }
@@ -83,7 +86,7 @@ void RunWebServer() {
         for(int id = 1; id <= 22; id++) {
             cm730.WriteByte(id, MX28::P_TORQUE_ENABLE, state, 0);
             if (state == 1) {
-                int val;
+                int val = 2048; 
                 if (cm730.ReadWord(id, MX28::P_PRESENT_POSITION_L, &val, 0) == CM730::SUCCESS) {
                     Step.position[id] = val;
                 }
