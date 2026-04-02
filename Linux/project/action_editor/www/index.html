@@ -2,139 +2,79 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DARwIn-OP Action Editor</title>
+    <title>DARwIn-OP Action Editor Pro</title>
     <style>
         :root {
-            --bg-color: #121212;
-            --panel-bg: #1e1e1e;
-            --text-main: #ffffff;
-            --text-muted: #a0a0a0;
-            --accent: #00e5ff;
-            --accent-hover: #00b8cc;
+            --bg-color: #121212; --panel-bg: #1e1e1e;
+            --text-main: #ffffff; --text-muted: #a0a0a0;
+            --accent: #00e5ff; --accent-hover: #00b8cc;
+            --danger: #ff4444; --success: #00C851;
         }
+        body { font-family: 'Segoe UI', Tahoma, sans-serif; background: var(--bg-color); color: var(--text-main); margin: 0; display: flex; flex-direction: column; height: 100vh; }
+        
+        header { background: var(--panel-bg); padding: 10px 20px; border-bottom: 1px solid #333; display: flex; align-items: center; justify-content: space-between;}
+        .top-controls { display: flex; gap: 15px; align-items: center;}
+        .control-group { display: flex; align-items: center; gap: 5px; background: #000; padding: 5px 10px; border-radius: 4px; }
+        .control-group input { width: 50px; background: transparent; color: var(--accent); border: none; font-weight: bold; text-align: center; font-size: 1.1rem; }
+        button { background: #333; color: #fff; border: 1px solid #555; padding: 5px 15px; border-radius: 4px; cursor: pointer; transition: 0.2s; font-weight: bold; }
+        button:hover { background: #444; }
+        .btn-play { background: var(--accent); color: #000; }
+        .btn-play:hover { background: var(--accent-hover); }
 
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: var(--bg-color);
-            color: var(--text-main);
-            margin: 0;
-            padding: 0;
-            display: flex;
-            flex-direction: column;
-            height: 100vh;
-        }
-
-        /* Top Navigation Bar */
-        header {
-            background-color: var(--panel-bg);
-            padding: 15px 30px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            border-bottom: 1px solid #333;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
-        }
-
-        header h1 {
-            margin: 0;
-            font-size: 1.5rem;
-            letter-spacing: 1px;
-        }
-
-        .status-badge {
-            font-size: 1rem;
-            color: var(--text-muted);
-        }
-
-        .btn-play {
-            background-color: var(--accent);
-            color: #000;
-            border: none;
-            padding: 10px 25px;
-            font-size: 1rem;
-            font-weight: bold;
-            border-radius: 5px;
-            cursor: pointer;
-            transition: background 0.2s;
-        }
-
-        .btn-play:hover {
-            background-color: var(--accent-hover);
-        }
-
-        /* Main Grid Layout */
-        .container {
-            display: flex;
-            flex: 1;
-            overflow: hidden;
-        }
-
-        .main-content {
-            flex: 1;
-            padding: 20px;
-            overflow-y: auto;
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 20px;
-            align-items: start;
-        }
-
-        /* Joint Control Panels */
-        .joint-group {
-            background-color: var(--panel-bg);
-            border-radius: 8px;
-            padding: 15px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.2);
-        }
-
-        .joint-group h3 {
-            margin-top: 0;
-            border-bottom: 1px solid #333;
-            padding-bottom: 10px;
-            color: var(--accent);
-        }
-
-        .slider-row {
-            display: flex;
-            align-items: center;
-            margin-bottom: 15px;
-        }
-
-        .slider-row label {
-            width: 120px;
-            font-size: 0.9rem;
-            color: var(--text-muted);
-        }
-
-        .slider-row input[type="range"] {
-            flex: 1;
-            margin: 0 15px;
-            cursor: pointer;
-        }
-
-        .slider-row .val-display {
-            width: 50px;
-            text-align: right;
-            font-family: monospace;
-            font-size: 1.1rem;
-            background: #000;
-            padding: 3px 6px;
-            border-radius: 4px;
-        }
+        .step-bar { background: #222; padding: 10px 20px; display: flex; gap: 10px; align-items: center; border-bottom: 1px solid #333; }
+        .step-btn { padding: 8px 20px; background: #111; color: var(--text-muted); border: 1px solid #333; }
+        .step-btn.active { background: var(--accent); color: #000; }
+        
+        .main-content { flex: 1; padding: 20px; overflow-y: auto; display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 20px; align-items: start; }
+        .joint-group { background: var(--panel-bg); border-radius: 8px; padding: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.2); }
+        .joint-group h3 { margin-top: 0; color: var(--accent); border-bottom: 1px solid #333; padding-bottom: 10px; }
+        
+        .slider-row { display: flex; align-items: center; margin-bottom: 12px; gap: 10px; }
+        .slider-row label { width: 110px; font-size: 0.85rem; color: var(--text-muted); }
+        .slider-row input[type="range"] { flex: 1; cursor: pointer; }
+        .val-display { width: 45px; text-align: right; font-family: monospace; background: #000; padding: 3px; border-radius: 4px; color: var(--text-main); }
+        .val-invalid { color: var(--danger); }
+        .btn-torque { font-size: 0.7rem; padding: 3px 6px; background: var(--success); }
+        .btn-torque.off { background: var(--danger); }
     </style>
 </head>
 <body>
 
     <header>
-        <h1>🤖 DARwIn-OP Action Editor</h1>
-        <div class="status-badge" id="status-display">Page: -- | Step: --</div>
-        <button class="btn-play" onclick="playAction()">▶ Play Action</button>
+        <h2>🤖 Action Editor</h2>
+        <div class="top-controls">
+            <div class="control-group">
+                <label>Page:</label>
+                <input type="number" id="inp-page" value="1">
+                <button onclick="loadPage()">Load</button>
+            </div>
+            <div class="control-group">
+                <label>Speed:</label>
+                <input type="number" id="inp-speed" readonly>
+            </div>
+            <div class="control-group">
+                <label>Accel:</label>
+                <input type="number" id="inp-accel" readonly>
+            </div>
+            <button class="btn-play" onclick="playAction()">▶ Play Action</button>
+        </div>
     </header>
 
-    <div class="container">
-        <div class="main-content" id="sliders-container"></div>
+    <div class="step-bar">
+        <span>Editing:</span>
+        <button class="step-btn" id="btn-step-0" onclick="setStep(0)">STP 0</button>
+        <button class="step-btn" id="btn-step-1" onclick="setStep(1)">STP 1</button>
+        <button class="step-btn" id="btn-step-2" onclick="setStep(2)">STP 2</button>
+        <button class="step-btn" id="btn-step-3" onclick="setStep(3)">STP 3</button>
+        <button class="step-btn" id="btn-step-4" onclick="setStep(4)">STP 4</button>
+        <button class="step-btn" id="btn-step-5" onclick="setStep(5)">STP 5</button>
+        <button class="step-btn" id="btn-step-6" onclick="setStep(6)">STP 6</button>
+        <button class="step-btn active" id="btn-step-7" onclick="setStep(7)">STP 7 (Live Robot)</button>
+        <div style="flex:1"></div>
+        <button onclick="readRobot()" style="background:#444;">Read Physical Position to STP 7</button>
     </div>
+
+    <div class="main-content" id="sliders-container"></div>
 
     <script src="functions.js"></script>
 </body>

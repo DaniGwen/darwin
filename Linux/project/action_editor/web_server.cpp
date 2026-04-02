@@ -5,58 +5,107 @@
 
 using namespace Robot;
 
-// Grab the existing globals from your original code
+// Expose the existing terminal globals
 extern Action::PAGE Page;
+extern Action::STEP Step; // This is STP7 (Live Robot State)
 extern int indexPage;
 extern bool bEdited;
 extern CM730 cm730;
 
-// Track which step the Web UI is currently looking at
-int webCurrentStep = 0;
+// Expose the ReadStep function from cmd_process.cpp
+extern void ReadStep(CM730 *cm730);
+
+// Default to viewing STP7 (Live Robot)
+int webCurrentStep = 7; 
 
 void RunWebServer() {
     httplib::Server svr;
-
-    // Tell the server to host your HTML/JS files from the "www" folder
     svr.set_mount_point("/", "./www");
 
-    // API 1: Get the current page and joint data
+    // 1. Get complete state
     svr.Get("/api/state", [](const httplib::Request &, httplib::Response &res) {
-        std::string json = "{ \"page\": " + std::to_string(indexPage) + 
-                           ", \"step\": " + std::to_string(webCurrentStep) + 
-                           ", \"joints\": {";
+        std::string json = "{";
+        json += "\"page\": " + std::to_string(indexPage) + ",";
+        json += "\"step\": " + std::to_string(webCurrentStep) + ",";
+        json += "\"speed\": " + std::to_string(Page.header.speed) + ",";
+        json += "\"accel\": " + std::to_string(Page.header.accel) + ",";
+        json += "\"stepnum\": " + std::to_string(Page.header.stepnum) + ",";
         
-        // Loop through the 20 Dynamixel IDs
-        for(int id = 1; id <= 20; id++) { 
-            json += "\"" + std::to_string(id) + "\": " + std::to_string(Page.step[webCurrentStep].position[id]);
-            if(id < 20) json += ", ";
+        json += "\"joints\": {";
+        // ID 21 and 22 are Wrist/Gripper
+        for(int id = 1; id <= 22; id++) { 
+            // If viewing Step 7, show Live memory. Otherwise show Page Step memory.
+            int val = (webCurrentStep == 7) ? Step.position[id] : Page.step[webCurrentStep].position[id];
+            json += "\"" + std::to_string(id) + "\": " + std::to_string(val);
+            if(id < 22) json += ", ";
         }
         json += "} }";
         
         res.set_content(json, "application/json");
     });
 
-    // API 2: Update a specific joint (e.g., /api/joint/1/2048)
+    // 2. Move Joint
     svr.Post(R"(/api/joint/(\d+)/(\d+))", [](const httplib::Request &req, httplib::Response &res) {
         int id = std::stoi(req.matches[1]);
         int value = std::stoi(req.matches[2]);
-
-        // 1. Update the Action Editor memory
-        Page.step[webCurrentStep].position[id] = value;
+        
+        if (webCurrentStep == 7) {
+            Step.position[id] = value;
+            cm730.WriteWord(id, MX28::P_GOAL_POSITION_L, value, 0); // Move hardware
+        } else {
+            Page.step[webCurrentStep].position[id] = value; // Edit memory only
+        }
         bEdited = true;
-
-        // 2. Move the physical hardware instantly
-        cm730.WriteWord(id, MX28::P_GOAL_POSITION_L, value, 0);
-
         res.set_content("{\"status\":\"ok\"}", "application/json");
     });
 
-    // API 3: Play the current page
+    // 3. Toggle Torque
+    svr.Post(R"(/api/torque/(\d+)/(\d+))", [](const httplib::Request &req, httplib::Response &res) {
+        int id = std::stoi(req.matches[1]);
+        int state = std::stoi(req.matches[2]); // 1 or 0
+        
+        cm730.WriteByte(id, MX28::P_TORQUE_ENABLE, state, 0);
+        
+        if (state == 1) {
+            int val;
+            cm730.ReadWord(id, MX28::P_PRESENT_POSITION_L, &val, 0);
+            Step.position[id] = val; // Store current physical angle
+        } else {
+            Step.position[id] = Action::TORQUE_OFF_BIT_MASK; // Mark as ????
+        }
+        bEdited = true;
+        res.set_content("{\"status\":\"ok\"}", "application/json");
+    });
+
+    // 4. Change Page
+    svr.Post(R"(/api/page/(\d+))", [](const httplib::Request &req, httplib::Response &res) {
+        int p = std::stoi(req.matches[1]);
+        if(p > 0 && p < Action::MAXNUM_PAGE) {
+            indexPage = p;
+            Action::GetInstance()->LoadPage(indexPage, &Page);
+            ReadStep(&cm730); // Refresh live hardware state
+        }
+        res.set_content("{\"status\":\"ok\"}", "application/json");
+    });
+
+    // 5. Change Viewing Step
+    svr.Post(R"(/api/step/(\d+))", [](const httplib::Request &req, httplib::Response &res) {
+        webCurrentStep = std::stoi(req.matches[1]);
+        res.set_content("{\"status\":\"ok\"}", "application/json");
+    });
+
+    // 6. Read physical robot state
+    svr.Post("/api/read_robot", [](const httplib::Request &, httplib::Response &res) {
+        ReadStep(&cm730); // Pulls physical data into Step (STP7)
+        res.set_content("{\"status\":\"ok\"}", "application/json");
+    });
+
+    // 7. Play Action
     svr.Post("/api/play", [](const httplib::Request &, httplib::Response &res) {
         Action::GetInstance()->Start(indexPage);
         res.set_content("{\"status\":\"playing\"}", "application/json");
     });
 
-    std::cout << "\n[INFO] Web UI Server running on http://<RaspberryPi_IP>:8080\n" << std::endl;
+    std::cout << "\n[INFO] Full Web Editor running on port 8080\n" << std::endl;
     svr.listen("0.0.0.0", 8080);
 }
