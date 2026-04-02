@@ -59,11 +59,16 @@ async function loadPage() {
 }
 
 async function setStep(stepNum) {
-    // Update active tab visuals
     document.querySelectorAll('.step-btn').forEach(btn => btn.classList.remove('active'));
     document.getElementById(`btn-step-${stepNum}`).classList.add('active');
     currentStep = stepNum;
-    document.getElementById('btn-save-step').style.display = (stepNum === 7) ? 'none' : 'block';
+
+    // Show step tools only if we aren't looking at STP 7 (Live Robot)
+    const isEditMode = (stepNum !== 7);
+    document.getElementById('btn-save-step').style.display = isEditMode ? 'block' : 'none';
+    document.getElementById('btn-delete-step').style.display = isEditMode ? 'block' : 'none';
+    document.getElementById('btn-play-step').style.display = isEditMode ? 'block' : 'none';
+
     await fetch(`/api/step/${stepNum}`, { method: 'POST' });
     fetchRobotState();
 }
@@ -156,5 +161,44 @@ async function saveLiveToCurrentStep() {
         } catch (error) {
             console.error("Failed to save step:", error);
         }
+    }
+}
+
+// --- NEW: Save to motion.bin file ---
+async function saveToFile() {
+    try {
+        const res = await fetch('/api/save_file', { method: 'POST' });
+        const data = await res.json();
+        if (data.status === "saved") {
+            alert("✅ Successfully saved changes to motion.bin!");
+        } else {
+            alert("No unsaved changes detected.");
+        }
+    } catch (error) {
+        console.error("Failed to save file:", error);
+    }
+}
+
+// --- NEW: Delete Current Step ---
+async function deleteCurrentStep() {
+    if (currentStep === 7) return; 
+    if(confirm(`Are you sure you want to completely delete STP ${currentStep}? This will shift all following steps down.`)) {
+        try {
+            await fetch(`/api/delete_step/${currentStep}`, { method: 'POST' });
+            fetchRobotState(); 
+        } catch (error) {
+            console.error("Failed to delete step:", error);
+        }
+    }
+}
+
+// --- NEW: Play Single Step ---
+async function playSingleStep() {
+    if (currentStep === 7) return; 
+    try {
+        await fetch(`/api/play_step/${currentStep}`, { method: 'POST' });
+        // The robot will physically move to this step's position!
+    } catch (error) {
+        console.error("Failed to play step:", error);
     }
 }

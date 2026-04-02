@@ -185,7 +185,79 @@ void RunWebServer() {
         }
         res.set_content("{\"status\":\"ok\"}", "application/json");
     });
-    
+
+    // --- NEW: Save Page to File (motion_4096.bin) ---
+    svr.Post("/api/save_file", [](const httplib::Request &, httplib::Response &res) {
+        if (bEdited) {
+            Action::GetInstance()->SavePage(indexPage, &Page);
+            bEdited = false;
+            res.set_content("{\"status\":\"saved\"}", "application/json");
+        } else {
+            res.set_content("{\"status\":\"no_changes\"}", "application/json");
+        }
+    });
+
+    // --- NEW: Play a Single Step ---
+    svr.Post(R"(/api/play_step/(\d+))", [](const httplib::Request &req, httplib::Response &res) {
+        int index = std::stoi(req.matches[1]);
+        if (index >= 0 && index < Action::MAXNUM_STEP) {
+            int param[JointData::NUMBER_OF_JOINTS * 5];
+            int n = 0;
+            int wGoalPosition, wStartPosition, wDistance;
+
+            // Build the SyncWrite packet for smooth, synchronized movement
+            for (int id = JointData::ID_R_SHOULDER_PITCH; id < JointData::NUMBER_OF_JOINTS; id++) {
+                if (Page.step[index].position[id] & Action::INVALID_BIT_MASK) continue;
+                if (Page.step[index].position[id] & Action::TORQUE_OFF_BIT_MASK) continue;
+                if (cm730.ReadWord(id, MX28::P_PRESENT_POSITION_L, &wStartPosition, 0) != CM730::SUCCESS) continue;
+
+                wGoalPosition = Page.step[index].position[id];
+                wDistance = (wStartPosition > wGoalPosition) ? wStartPosition - wGoalPosition : wGoalPosition - wStartPosition;
+                wDistance >>= 2;
+                if (wDistance < 8) wDistance = 8;
+
+                param[n++] = id;
+                param[n++] = CM730::GetLowByte(wGoalPosition);
+                param[n++] = CM730::GetHighByte(wGoalPosition);
+                param[n++] = CM730::GetLowByte(wDistance);
+                param[n++] = CM730::GetHighByte(wDistance);
+            }
+
+            // Move the robot!
+            if (n > 0) {
+                cm730.SyncWrite(MX28::P_GOAL_POSITION_L, 5, n / 5, param);
+                Step = Page.step[index]; // Update live memory to match the new pose
+            }
+        }
+        res.set_content("{\"status\":\"ok\"}", "application/json");
+    });
+
+    // --- NEW: Delete a Step ---
+    svr.Post(R"(/api/delete_step/(\d+))", [](const httplib::Request &req, httplib::Response &res) {
+        int index = std::stoi(req.matches[1]);
+        if (index >= 0 && index < Action::MAXNUM_STEP) {
+            
+            // Shift all steps down to fill the gap
+            for (int i = index; i < Action::MAXNUM_STEP - 1; i++) {
+                Page.step[i] = Page.step[i + 1];
+            }
+            
+            // Wipe the very last step clean
+            for (int id = 1; id < JointData::NUMBER_OF_JOINTS; id++) {
+                Page.step[Action::MAXNUM_STEP - 1].position[id] = Action::INVALID_BIT_MASK;
+            }
+            Page.step[Action::MAXNUM_STEP - 1].pause = 0;
+            Page.step[Action::MAXNUM_STEP - 1].time = 0;
+
+            // Reduce the total step count
+            if (index < Page.header.stepnum && Page.header.stepnum > 0) {
+                Page.header.stepnum--;
+            }
+            bEdited = true;
+        }
+        res.set_content("{\"status\":\"ok\"}", "application/json");
+    });
+
     std::cout << "\n[INFO] Full Web Editor running on port 8080\n" << std::endl;
     svr.listen("0.0.0.0", 8080);
 }
