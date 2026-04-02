@@ -157,19 +157,45 @@ async function loadPage(pageNum) {
     fetchRobotState();
 }
 
+// --- NEW: Track the last offline step ---
+let lastOfflineStep = -1;
+
 async function setStep(stepNum) {
-    document.querySelectorAll('.step-btn').forEach(btn => btn.classList.remove('active'));
-    document.getElementById(`btn-step-${stepNum}`).classList.add('active');
+    // 1. Clean up all buttons first (remove active class and reset borders)
+    document.querySelectorAll('.step-btn').forEach(btn => {
+        btn.classList.remove('active');
+        btn.style.border = "1px solid #333"; 
+    });
+
+    // 2. Track the last offline step we were looking at
+    if (stepNum !== 7) {
+        lastOfflineStep = stepNum;
+    }
+
+    // 3. Highlight the currently clicked button
+    const activeBtn = document.getElementById(`btn-step-${stepNum}`);
+    if (activeBtn) activeBtn.classList.add('active');
+
+    // 4. THE BREADCRUMB: If we switch to Live, outline the last step we were editing!
+    if (stepNum === 7 && lastOfflineStep !== -1) {
+        const lastBtn = document.getElementById(`btn-step-${lastOfflineStep}`);
+        if (lastBtn) {
+            lastBtn.style.border = "2px dashed var(--accent)";
+            lastBtn.style.boxSizing = "border-box";
+        }
+    }
+
     currentStep = stepNum;
 
-    // --- NEW: Update the prominent label ---
+    // --- Update the prominent label ---
     const label = document.getElementById('current-step-label');
     if (stepNum === 7) {
-        label.innerText = "MODE: LIVE (STP 7)";
-        label.style.color = "var(--danger)"; // Make Live mode red/warning color
+        let reminder = lastOfflineStep !== -1 ? ` (Came from STP ${lastOfflineStep})` : "";
+        label.innerText = `MODE: LIVE${reminder}`;
+        label.style.color = "var(--danger)";
     } else {
         label.innerText = `EDITING: STP ${stepNum}`;
-        label.style.color = "var(--accent)"; // Make Offline mode cyan
+        label.style.color = "var(--accent)";
     }
 
     // Show step tools only if we aren't looking at STP 7 (Live Robot)
