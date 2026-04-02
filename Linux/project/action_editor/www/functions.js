@@ -133,3 +133,28 @@ async function toggleAllTorque(state) {
         console.error("Failed to toggle all torque:", error);
     }
 }
+
+// --- Send Speed/Accel updates to the server ---
+async function updatePageParam(param, value) {
+    try {
+        await fetch(`/api/page_param/${param}/${value}`, { method: 'POST' });
+        console.log(`Updated ${param} to ${value}`);
+    } catch (error) {
+        console.error("Failed to update parameter:", error);
+    }
+}
+
+// --- Save the live pose ---
+async function saveLiveToCurrentStep() {
+    if (currentStep === 7) return; // Cannot save STP7 to STP7
+
+    if(confirm(`Are you sure you want to overwrite STP ${currentStep} with the robot's physical pose right now?`)) {
+        try {
+            await fetch(`/api/save_live_step/${currentStep}`, { method: 'POST' });
+            fetchRobotState(); // Refresh sliders to show the newly saved data
+            alert(`✅ Saved live pose to Step ${currentStep}`);
+        } catch (error) {
+            console.error("Failed to save step:", error);
+        }
+    }
+}

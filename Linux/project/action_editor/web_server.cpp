@@ -147,6 +147,45 @@ void RunWebServer() {
         res.set_content("{\"status\":\"playing\"}", "application/json");
     });
 
+    svr.Post(R"(/api/page_param/(speed|accel)/(\d+))", [](const httplib::Request &req, httplib::Response &res) {
+        std::string param = req.matches[1];
+        int val = std::stoi(req.matches[2]);
+        
+        if (param == "speed") Page.header.speed = val;
+        if (param == "accel") Page.header.accel = val;
+        
+        bEdited = true;
+        res.set_content("{\"status\":\"ok\"}", "application/json");
+    });
+
+    // --- NEW: Save Live Robot Pose to a Specific Step ---
+    svr.Post(R"(/api/save_live_step/(\d+))", [](const httplib::Request &req, httplib::Response &res) {
+        int target_step = std::stoi(req.matches[1]);
+        
+        if (target_step >= 0 && target_step <= 6) {
+            // 1. Refresh STP7 with the exact current physical hardware angles
+            ReadStep(&cm730); 
+            
+            // 2. Copy the live data into the target step memory
+            for(int id = 1; id <= 22; id++) {
+                // Only copy valid, torque-on joints
+                if (!(Step.position[id] & Action::INVALID_BIT_MASK) && !(Step.position[id] & Action::TORQUE_OFF_BIT_MASK)) {
+                    Page.step[target_step].position[id] = Step.position[id];
+                }
+            }
+            Page.step[target_step].pause = Step.pause;
+            Page.step[target_step].time = Step.time;
+            
+            // 3. Automatically increase the total step count if appending a new step
+            if (target_step >= Page.header.stepnum) {
+                Page.header.stepnum = target_step + 1;
+            }
+            
+            bEdited = true;
+        }
+        res.set_content("{\"status\":\"ok\"}", "application/json");
+    });
+    
     std::cout << "\n[INFO] Full Web Editor running on port 8080\n" << std::endl;
     svr.listen("0.0.0.0", 8080);
 }
