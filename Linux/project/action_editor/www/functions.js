@@ -40,15 +40,14 @@ function buildUI() {
             mirrorBtn = `<button onclick="mirrorGroup('${groupName}')" style="font-size:0.75rem; background:var(--accent); color:#000; padding:2px 8px; border:none; border-radius:3px; cursor:pointer;">🪞 Mirror Left</button>`;
         }
 
-        // ADDED: Copy and Paste buttons, plus flex-wrap so they fit nicely
-        groupDiv.innerHTML = `
-            <div style="display:flex; justify-content:space-between; align-items:center; border-bottom: 1px solid #333; padding-bottom: 8px; margin-bottom: 12px;">
-                <h3 style="margin:0; border:none; padding:0; color:var(--accent);">${groupName}</h3>
-                <div style="display:flex; gap:5px; flex-wrap:wrap; justify-content:flex-end;">
-                    <button onclick="toggleGroupTorque('${groupName}', 1)" style="font-size:0.75rem; background:var(--success); color:#000; padding:2px 8px; border:none; border-radius:3px; cursor:pointer;">ON</button>
-                    <button onclick="toggleGroupTorque('${groupName}', 0)" style="font-size:0.75rem; background:var(--danger); color:#fff; padding:2px 8px; border:none; border-radius:3px; cursor:pointer;">OFF</button>
-                    <button onclick="copyGroup('${groupName}', this)" style="font-size:0.75rem; background:#444; color:#fff; padding:2px 8px; border:none; border-radius:3px; cursor:pointer;">📄 Copy</button>
-                    <button onclick="pasteGroup('${groupName}', this)" style="font-size:0.75rem; background:#444; color:#fff; padding:2px 8px; border:none; border-radius:3px; cursor:pointer;">📋 Paste</button>
+      groupDiv.innerHTML = `
+            <div style="display:flex; justify-content:space-between; align-items:center; border-bottom: 1px solid #333; padding-bottom: 4px; margin-bottom: 8px;">
+                <h3 style="margin:0; border:none; padding:0; color:var(--accent); font-size: 1rem;">${groupName}</h3>
+                <div style="display:flex; gap:3px; flex-wrap:nowrap; justify-content:flex-end;">
+                    <button onclick="toggleGroupTorque('${groupName}', 1)" style="font-size:0.7rem; background:var(--success); color:#000; padding:2px 5px; border:none; border-radius:3px; cursor:pointer;">ON</button>
+                    <button onclick="toggleGroupTorque('${groupName}', 0)" style="font-size:0.7rem; background:var(--danger); color:#fff; padding:2px 5px; border:none; border-radius:3px; cursor:pointer;">OFF</button>
+                    <button onclick="copyGroup('${groupName}', this)" style="font-size:0.7rem; background:#444; color:#fff; padding:2px 5px; border:none; border-radius:3px; cursor:pointer;">📄 Copy</button>
+                    <button onclick="pasteGroup('${groupName}', this)" style="font-size:0.7rem; background:#444; color:#fff; padding:2px 5px; border:none; border-radius:3px; cursor:pointer;">📋 Paste</button>
                     ${mirrorBtn}
                 </div>
             </div>
