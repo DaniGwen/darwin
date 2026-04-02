@@ -2,20 +2,20 @@
 #include "cmd_process.h"
 #include "Action.h"
 #include "CM730.h"
+#include <thread> // Required for background playback
 
 using namespace Robot;
 
-// Expose the existing terminal globals
 extern Action::PAGE Page;
-extern Action::STEP Step; // This is STP7 (Live Robot State)
+extern Action::STEP Step; 
 extern int indexPage;
 extern bool bEdited;
 extern CM730 cm730;
-
-// Expose the ReadStep function from cmd_process.cpp
 extern void ReadStep(CM730 *cm730);
 
-// Default to viewing STP7 (Live Robot)
+// Grab the timer from main.cpp
+extern LinuxMotionTimer *motion_timer_ptr;
+
 int webCurrentStep = 7; 
 
 void RunWebServer() {
@@ -33,7 +33,7 @@ void RunWebServer() {
         
         json += "\"joints\": {";
         // ID 21 and 22 are Wrist/Gripper
-        for(int id = 1; id <= 22; id++) { 
+        for(int id = 1; id <= 22; id++) {
             // If viewing Step 7, show Live memory. Otherwise show Page Step memory.
             int val = (webCurrentStep == 7) ? Step.position[id] : Page.step[webCurrentStep].position[id];
             json += "\"" + std::to_string(id) + "\": " + std::to_string(val);
@@ -64,14 +64,33 @@ void RunWebServer() {
         int id = std::stoi(req.matches[1]);
         int state = std::stoi(req.matches[2]); // 1 or 0
         
-        cm730.WriteByte(id, MX28::P_TORQUE_ENABLE, state, 0);
+            cm730.WriteByte(id, MX28::P_TORQUE_ENABLE, state, 0);
+            if (state == 1) {
+                int val;
+                if (cm730.ReadWord(id, MX28::P_PRESENT_POSITION_L, &val, 0) == CM730::SUCCESS) {
+                    Step.position[id] = val;
+                }
+            } else {
+                Step.position[id] = Action::TORQUE_OFF_BIT_MASK;
+            }
+        }
+        bEdited = true;
+        res.set_content("{\"status\":\"ok\"}", "application/json");
+    });
+
+    svr.Post(R"(/api/torque_all/(\d+))", [](const httplib::Request &req, httplib::Response &res) {
+        int state = std::stoi(req.matches[1]); // 1 or 0
         
-        if (state == 1) {
-            int val;
-            cm730.ReadWord(id, MX28::P_PRESENT_POSITION_L, &val, 0);
-            Step.position[id] = val; // Store current physical angle
-        } else {
-            Step.position[id] = Action::TORQUE_OFF_BIT_MASK; // Mark as ????
+        for(int id = 1; id <= 22; id++) {
+            cm730.WriteByte(id, MX28::P_TORQUE_ENABLE, state, 0);
+            if (state == 1) {
+                int val;
+                if (cm730.ReadWord(id, MX28::P_PRESENT_POSITION_L, &val, 0) == CM730::SUCCESS) {
+                    Step.position[id] = val;
+                }
+            } else {
+                Step.position[id] = Action::TORQUE_OFF_BIT_MASK;
+            }
         }
         bEdited = true;
         res.set_content("{\"status\":\"ok\"}", "application/json");
@@ -102,7 +121,30 @@ void RunWebServer() {
 
     // 7. Play Action
     svr.Post("/api/play", [](const httplib::Request &, httplib::Response &res) {
-        Action::GetInstance()->Start(indexPage);
+        if (Action::GetInstance()->IsRunning()) {
+            res.set_content("{\"status\":\"already_playing\"}", "application/json");
+            return;
+        }
+
+        // Run the motion loop in a detached thread so the browser doesn't freeze
+        std::thread play_thread([]() {
+            Action::GetInstance()->m_Joint.SetEnableBody(true, true);
+            MotionManager::GetInstance()->SetEnable(true);
+            if (motion_timer_ptr) motion_timer_ptr->Start();
+
+            if (Action::GetInstance()->Start(indexPage, &Page)) {
+                // Keep the thread alive while the robot moves
+                while (Action::GetInstance()->IsRunning()) {
+                    usleep(10000);
+                }
+            }
+
+            // Clean up and stop the heartbeat when finished
+            MotionManager::GetInstance()->SetEnable(false);
+            if (motion_timer_ptr) motion_timer_ptr->Stop();
+        });
+        play_thread.detach();
+
         res.set_content("{\"status\":\"playing\"}", "application/json");
     });
 

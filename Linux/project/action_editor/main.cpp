@@ -21,6 +21,7 @@ using namespace Robot;
 
 LinuxCM730 linux_cm730("/dev/ttyUSB0");
 CM730 cm730(&linux_cm730);
+LinuxMotionTimer *motion_timer_ptr = nullptr;
 
 void RunWebServer();
 
@@ -90,6 +91,7 @@ int main(int argc, char *argv[])
     LinuxMotionTimer *motion_timer = new LinuxMotionTimer(MotionManager::GetInstance());
     motion_timer->Stop();
     /////////////////////////////////////////////////////////////////////
+    motion_timer_ptr = motion_timer;
 
     std::thread web_thread(RunWebServer);
     web_thread.detach(); // Let it run in the background
