@@ -203,6 +203,8 @@ async function setStep(stepNum) {
     document.getElementById('btn-save-step').style.display = isEditMode ? 'block' : 'none';
     document.getElementById('btn-delete-step').style.display = isEditMode ? 'block' : 'none';
     document.getElementById('btn-play-step').style.display = isEditMode ? 'block' : 'none';
+    document.getElementById('btn-copy-step').style.display = isEditMode ? 'block' : 'none';
+    document.getElementById('btn-paste-step').style.display = isEditMode ? 'block' : 'none';
 
     await fetch(`/api/step/${stepNum}`, { method: 'POST' });
     fetchRobotState();
@@ -427,5 +429,64 @@ async function pasteGroup(groupName, btnElement) {
         setTimeout(fetchRobotState, 200);
     } catch (error) {
         console.error("Paste failed:", error);
+    }
+}
+
+// --- NEW: Whole Step Clipboard ---
+let stepClipboard = null;
+
+async function copyWholeStep() {
+    if (currentStep === 7) return;
+    
+    try {
+        // Fetch the exact state of the step we are currently looking at
+        const res = await fetch('/api/state');
+        const data = await res.json();
+        
+        stepClipboard = data.joints; // Save all 22 joints to memory
+        
+        // Visual feedback
+        const btn = document.getElementById('btn-copy-step');
+        const oldText = btn.innerText;
+        btn.innerText = "✅ Copied!";
+        btn.style.background = "var(--success)";
+        setTimeout(() => {
+            btn.innerText = oldText;
+            btn.style.background = "#444";
+        }, 1000);
+        
+    } catch (error) {
+        console.error("Failed to copy step:", error);
+    }
+}
+
+async function pasteWholeStep() {
+    if (currentStep === 7) return;
+    if (!stepClipboard) {
+        alert("⚠️ You haven't copied a step yet!");
+        return;
+    }
+    
+    try {
+        // Send all 22 joint values to the server simultaneously
+        const promises = Object.entries(stepClipboard).map(([id, val]) => {
+            return fetch(`/api/joint/${id}/${val}`, { method: 'POST' });
+        });
+        await Promise.all(promises);
+        
+        // Visual feedback
+        const btn = document.getElementById('btn-paste-step');
+        const oldText = btn.innerText;
+        btn.innerText = "✅ Pasted!";
+        btn.style.background = "var(--success)";
+        setTimeout(() => {
+            btn.innerText = oldText;
+            btn.style.background = "#444";
+        }, 1000);
+
+        // Refresh UI
+        setTimeout(fetchRobotState, 200);
+    } catch (error) {
+        console.error("Failed to paste step:", error);
     }
 }
