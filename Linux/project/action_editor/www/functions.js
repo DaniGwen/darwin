@@ -16,6 +16,7 @@ window.onload = () => {
 };
 
 let pendingEditsNotPlayed = false;
+let pendingSave = false; // NEW: Tracks when Play is clicked so Save can glow
 
 function updateSyncUI() {
     const btnSave = document.getElementById('btn-save-step');
@@ -24,23 +25,34 @@ function updateSyncUI() {
     if (!btnSave || !btnPlay) return;
 
     if (pendingEditsNotPlayed && currentStep !== 7) {
-        // Disable Save Button
+        // State 1: User edited sliders -> Play Step glows
         btnSave.disabled = true;
         btnSave.style.opacity = "0.3";
         btnSave.style.cursor = "not-allowed";
         btnSave.innerText = "⚠️ Play Step to Unlock Save";
         
-        // Highlight Play Button
-        btnPlay.classList.add('needs-play');
-    } else {
-        // Enable Save Button
+        btnPlay.classList.add('needs-action');
+        btnSave.classList.remove('needs-action');
+
+    } else if (pendingSave && currentStep !== 7) {
+        // State 2: User clicked Play Step -> Save Step glows
         btnSave.disabled = false;
         btnSave.style.opacity = "1";
         btnSave.style.cursor = "pointer";
         btnSave.innerText = "📸 Save Live Pose Here";
         
-        // Remove Highlight
-        btnPlay.classList.remove('needs-play');
+        btnPlay.classList.remove('needs-action');
+        btnSave.classList.add('needs-action');
+
+    } else {
+        // State 3: Normal state (Everything is saved and synced)
+        btnSave.disabled = false;
+        btnSave.style.opacity = "1";
+        btnSave.style.cursor = "pointer";
+        btnSave.innerText = "📸 Save Live Pose Here";
+        
+        btnPlay.classList.remove('needs-action');
+        btnSave.classList.remove('needs-action');
     }
 }
 
@@ -222,8 +234,9 @@ async function setStep(stepNum) {
     currentStep = stepNum;
 
     pendingEditsNotPlayed = false;
+    pendingSave = false;
     updateSyncUI();
-    
+
     // --- Update the prominent label ---
     const label = document.getElementById('current-step-label');
     if (stepNum === 7) {
@@ -342,13 +355,17 @@ async function updatePageParam(param, value) {
 
 // --- Save the live pose ---
 async function saveLiveToCurrentStep() {
-    if (currentStep === 7) return; // Cannot save STP7 to STP7
+    if (currentStep === 7) return;
 
+    // The confirmation box remains, but the alert is gone!
     if(confirm(`Are you sure you want to overwrite STP ${currentStep} with the robot's physical pose right now?`)) {
         try {
             await fetch(`/api/save_live_step/${currentStep}`, { method: 'POST' });
-            fetchRobotState(); // Refresh sliders to show the newly saved data
-            alert(`✅ Saved live pose to Step ${currentStep}`);
+            fetchRobotState(); 
+            
+            pendingSave = false; // NEW: Turn off the Save button glow!
+            updateSyncUI();
+            
         } catch (error) {
             console.error("Failed to save step:", error);
         }
@@ -391,6 +408,7 @@ async function playSingleStep() {
         // The robot will physically move to this step's position!
 
         pendingEditsNotPlayed = false;
+        pendingSave = true;
         updateSyncUI();
     } catch (error) {
         console.error("Failed to play step:", error);

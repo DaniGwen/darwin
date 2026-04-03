@@ -171,6 +171,7 @@ void RunWebServer() {
     });
 
     // --- NEW: Save Live Robot Pose to a Specific Step ---
+    // --- UPDATED: Save Live Robot Pose to a Specific Step ---
     svr.Post(R"(/api/save_live_step/(\d+))", [](const httplib::Request &req, httplib::Response &res) {
         int target_step = std::stoi(req.matches[1]);
         
@@ -185,9 +186,6 @@ void RunWebServer() {
                     Page.step[target_step].position[id] = Step.position[id];
                 }
             }
-            Page.step[target_step].pause = Step.pause;
-            Page.step[target_step].time = Step.time;
-            
             // 3. Automatically increase the total step count if appending a new step
             if (target_step >= Page.header.stepnum) {
                 Page.header.stepnum = target_step + 1;
@@ -357,7 +355,7 @@ void RunWebServer() {
         bEdited = true;
         res.set_content("{\"status\":\"ok\"}", "application/json");
     });
-    
+
     std::cout << "\n[INFO] Full Web Editor running on port 8080\n" << std::endl;
     svr.listen("0.0.0.0", 8080);
 }
