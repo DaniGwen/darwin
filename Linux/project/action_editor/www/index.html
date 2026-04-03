@@ -98,7 +98,22 @@
         </button>
         <button onclick="readRobot()" style="background:#444;">Read Physical Position to STP 7</button>
     </div>
-
+    <div style="background: #0a0a0a; padding: 6px 15px; border-bottom: 1px solid #333; display: flex; gap: 20px; align-items: center;">
+        <span style="color: var(--accent); font-weight: bold; font-size: 0.85rem; letter-spacing: 1px;">⚙️ STEP SETTINGS:</span>
+        
+        <div class="control-group" style="background: #1a1a1a;">
+            <label style="color: var(--text-muted); font-size: 0.8rem;">Move Time (x8ms):</label>
+            <input type="number" id="inp-step-time" min="0" max="255" onchange="updateStepParam('time', this.value)" style="width:50px;">
+        </div>
+        
+        <div class="control-group" style="background: #1a1a1a;">
+            <label style="color: var(--text-muted); font-size: 0.8rem;">Pause Time (x8ms):</label>
+            <input type="number" id="inp-step-pause" min="0" max="255" onchange="updateStepParam('pause', this.value)" style="width:50px;">
+        </div>
+        
+        <span style="font-size: 0.75rem; color: #555;">(Tip: Value of 125 = 1.0 second)</span>
+    </div>
+    
     <div class="main-content" id="sliders-container"></div>
 
     <script src="functions.js"></script>

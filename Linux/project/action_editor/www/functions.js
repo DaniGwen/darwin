@@ -239,6 +239,12 @@ async function fetchRobotState() {
         if (document.activeElement !== document.getElementById("inp-accel")) {
             document.getElementById("inp-accel").value = data.accel;
         }
+        if (document.activeElement !== document.getElementById("inp-step-time")) {
+            document.getElementById("inp-step-time").value = data.step_time;
+        }
+        if (document.activeElement !== document.getElementById("inp-step-pause")) {
+            document.getElementById("inp-step-pause").value = data.step_pause;
+        }
 
         for (let id = 1; id <= 22; id++) {
             let val = data.joints[id];
@@ -487,5 +493,17 @@ async function pasteWholeStep() {
         setTimeout(fetchRobotState, 200);
     } catch (error) {
         console.error("Failed to paste step:", error);
+    }
+}
+
+// --- NEW: Update Step Time/Pause ---
+async function updateStepParam(param, value) {
+    try {
+        // Clamp the value between 0 and 255 (the max the DARwIn framework allows)
+        let safeVal = Math.max(0, Math.min(255, parseInt(value)));
+        await fetch(`/api/step_param/${param}/${safeVal}`, { method: 'POST' });
+        console.log(`Updated Step ${param} to ${safeVal}`);
+    } catch (error) {
+        console.error("Failed to update step parameter:", error);
     }
 }

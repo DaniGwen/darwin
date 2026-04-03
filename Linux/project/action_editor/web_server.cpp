@@ -36,7 +36,10 @@ void RunWebServer() {
         json += "\"speed\": " + std::to_string(Page.header.speed) + ",";
         json += "\"accel\": " + std::to_string(Page.header.accel) + ",";
         json += "\"stepnum\": " + std::to_string(Page.header.stepnum) + ",";
-        
+        int stepTime = (webCurrentStep == 7) ? Step.time : Page.step[webCurrentStep].time;
+        int stepPause = (webCurrentStep == 7) ? Step.pause : Page.step[webCurrentStep].pause;
+        json += "\"step_time\": " + std::to_string(stepTime) + ",";
+        json += "\"step_pause\": " + std::to_string(stepPause) + ",";
         json += "\"joints\": {";
         // ID 21 and 22 are Wrist/Gripper
         for(int id = 1; id <= 22; id++) {
@@ -336,7 +339,25 @@ void RunWebServer() {
         }
         res.set_content("{\"status\":\"ok\"}", "application/json");
     });
+    
+    svr.Post(R"(/api/step_param/(time|pause)/(\d+))", [](const httplib::Request &req, httplib::Response &res) {
+        std::string param = req.matches[1];
+        int val = std::stoi(req.matches[2]);
 
+        if (webCurrentStep == 7) {
+            // Update Live Memory
+            if (param == "time") Step.time = val;
+            if (param == "pause") Step.pause = val;
+        } else {
+            // Update Offline Step Memory
+            if (param == "time") Page.step[webCurrentStep].time = val;
+            if (param == "pause") Page.step[webCurrentStep].pause = val;
+        }
+        
+        bEdited = true;
+        res.set_content("{\"status\":\"ok\"}", "application/json");
+    });
+    
     std::cout << "\n[INFO] Full Web Editor running on port 8080\n" << std::endl;
     svr.listen("0.0.0.0", 8080);
 }
