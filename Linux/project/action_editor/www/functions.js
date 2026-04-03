@@ -15,6 +15,35 @@ window.onload = () => {
     setInterval(fetchRobotState, 1500);
 };
 
+let pendingEditsNotPlayed = false;
+
+function updateSyncUI() {
+    const btnSave = document.getElementById('btn-save-step');
+    const btnPlay = document.getElementById('btn-play-step');
+
+    if (!btnSave || !btnPlay) return;
+
+    if (pendingEditsNotPlayed && currentStep !== 7) {
+        // Disable Save Button
+        btnSave.disabled = true;
+        btnSave.style.opacity = "0.3";
+        btnSave.style.cursor = "not-allowed";
+        btnSave.innerText = "⚠️ Play Step to Unlock Save";
+        
+        // Highlight Play Button
+        btnPlay.classList.add('needs-play');
+    } else {
+        // Enable Save Button
+        btnSave.disabled = false;
+        btnSave.style.opacity = "1";
+        btnSave.style.cursor = "pointer";
+        btnSave.innerText = "📸 Save Live Pose Here";
+        
+        // Remove Highlight
+        btnPlay.classList.remove('needs-play');
+    }
+}
+
 let currentStep = 7; // Start in Live mode
 
 // --- UPDATED UI GENERATOR ---
@@ -103,6 +132,9 @@ async function mirrorGroup(sourceName) {
         const promises = pairs.map(pair => fetch(`/api/mirror/${pair[0]}/${pair[1]}`, { method: 'POST' }));
         await Promise.all(promises);
         
+        pendingEditsNotPlayed = true;
+        updateSyncUI();
+
         // Wait a tiny bit for the hardware to finish moving, then refresh UI
         setTimeout(fetchRobotState, 200); 
     } catch (error) {
@@ -134,6 +166,9 @@ function updateJointDisplay(id, value) {
 
 async function sendJointCommand(id, value) {
     await fetch(`/api/joint/${id}/${value}`, { method: 'POST' });
+
+    pendingEditsNotPlayed = true; 
+    updateSyncUI();
 }
 
 async function toggleTorque(id) {
@@ -186,6 +221,9 @@ async function setStep(stepNum) {
 
     currentStep = stepNum;
 
+    pendingEditsNotPlayed = false;
+    updateSyncUI();
+    
     // --- Update the prominent label ---
     const label = document.getElementById('current-step-label');
     if (stepNum === 7) {
@@ -351,6 +389,9 @@ async function playSingleStep() {
     try {
         await fetch(`/api/play_step/${currentStep}`, { method: 'POST' });
         // The robot will physically move to this step's position!
+
+        pendingEditsNotPlayed = false;
+        updateSyncUI();
     } catch (error) {
         console.error("Failed to play step:", error);
     }
@@ -419,6 +460,9 @@ async function pasteGroup(groupName, btnElement) {
         });
         await Promise.all(promises);
 
+        pendingEditsNotPlayed = true;
+        updateSyncUI();
+
         // Visual feedback
         const oldText = btnElement.innerText;
         btnElement.innerText = "✅ Pasted!";
@@ -479,6 +523,9 @@ async function pasteWholeStep() {
         });
         await Promise.all(promises);
         
+        pendingEditsNotPlayed = true;
+        updateSyncUI();
+
         // Visual feedback
         const btn = document.getElementById('btn-paste-step');
         const oldText = btn.innerText;

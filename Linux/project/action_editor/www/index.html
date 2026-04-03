@@ -42,6 +42,17 @@
         .val-invalid { color: var(--danger); }
         .btn-torque { font-size: 0.65rem; padding: 2px 4px; background: var(--success); }
         .btn-torque.off { background: var(--danger); }
+        
+        /* NEW: Glowing Animation for the Play Step button */
+        @keyframes pulse-glow {
+            0% { box-shadow: 0 0 0 0 rgba(0, 229, 255, 0.8); }
+            70% { box-shadow: 0 0 0 12px rgba(0, 229, 255, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(0, 229, 255, 0); }
+        }
+        .needs-play {
+            animation: pulse-glow 1.5s infinite;
+            border: 2px solid #fff !important;
+        }
     </style>
 </head>
 <body>
@@ -113,7 +124,7 @@
         
         <span style="font-size: 0.75rem; color: #555;">(Tip: Value of 125 = 1.0 second)</span>
     </div>
-    
+
     <div class="main-content" id="sliders-container"></div>
 
     <script src="functions.js"></script>
