@@ -421,16 +421,21 @@ async function deleteCurrentStep() {
     }
 }
 
-// --- NEW: Play Single Step ---
 async function playSingleStep() {
     if (currentStep === 7) return; 
     try {
         await fetch(`/api/play_step/${currentStep}`, { method: 'POST' });
-        // The robot will physically move to this step's position!
-
+        
+        // THE FIX: Only turn on the Save glow if we actually had unplayed edits!
+        if (pendingEditsNotPlayed) {
+            pendingSave = true; 
+        }
+        
+        // Clear the edits flag because we just played them
         pendingEditsNotPlayed = false;
-        pendingSave = true;
+        
         updateSyncUI();
+        
     } catch (error) {
         console.error("Failed to play step:", error);
     }
