@@ -133,15 +133,28 @@ void RunWebServer()
         res.set_content("{\"status\":\"ok\"}", "application/json"); });
 
     // 7. Play Action
-    svr.Post("/api/play", [](const httplib::Request &, httplib::Response &res)
-             {
+    // --- UPDATED: Play Action (With Anti-Jerk Safety) ---
+    svr.Post("/api/play", [](const httplib::Request &, httplib::Response &res) {
         if (Action::GetInstance()->IsRunning()) {
             res.set_content("{\"status\":\"already_playing\"}", "application/json");
             return;
         }
 
-        // Run the motion loop in a detached thread so the browser doesn't freeze
+        // Run the motion loop in a detached thread
         std::thread play_thread([]() {
+            
+            // --- THE ANTI-JERK SAFETY FIX ---
+            // Read the exact physical position of every single motor and feed it to the 
+            // Action Engine's internal memory BEFORE waking it up. This forces a smooth
+            // transition from the current physical pose to Step 0!
+            for (int id = 1; id <= 22; id++) {
+                int val;
+                if (cm730.ReadWord(id, MX28::P_PRESENT_POSITION_L, &val, 0) == CM730::SUCCESS) {
+                    Action::GetInstance()->m_Joint.SetValue(id, val);
+                }
+            }
+            // --------------------------------
+
             Action::GetInstance()->m_Joint.SetEnableBody(true, true);
             MotionManager::GetInstance()->SetEnable(true);
             if (motion_timer_ptr) motion_timer_ptr->Start();
@@ -159,7 +172,8 @@ void RunWebServer()
         });
         play_thread.detach();
 
-        res.set_content("{\"status\":\"playing\"}", "application/json"); });
+        res.set_content("{\"status\":\"playing\"}", "application/json");
+    });
 
     svr.Post(R"(/api/page_param/(speed|accel)/(\d+))", [](const httplib::Request &req, httplib::Response &res)
              {
