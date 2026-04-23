@@ -7,7 +7,7 @@
 using namespace Robot;
 
 extern Action::PAGE Page;
-extern Action::STEP Step; 
+extern Action::STEP Step;
 extern int indexPage;
 extern bool bEdited;
 extern CM730 cm730;
@@ -16,14 +16,16 @@ extern void ReadStep(CM730 *cm730);
 // Grab the timer from main.cpp
 extern LinuxMotionTimer *motion_timer_ptr;
 
-int webCurrentStep = 7; 
+int webCurrentStep = 7;
 
-void RunWebServer() {
+void RunWebServer()
+{
     httplib::Server svr;
     svr.set_mount_point("/", "./www");
 
     // 1. Get complete state
-    svr.Get("/api/state", [](const httplib::Request &, httplib::Response &res) {
+    svr.Get("/api/state", [](const httplib::Request &, httplib::Response &res)
+            {
         std::string json = "{";
         json += "\"page\": " + std::to_string(indexPage) + ",";
         std::string pName = "";
@@ -40,6 +42,7 @@ void RunWebServer() {
         int stepPause = (webCurrentStep == 7) ? Step.pause : Page.step[webCurrentStep].pause;
         json += "\"step_time\": " + std::to_string(stepTime) + ",";
         json += "\"step_pause\": " + std::to_string(stepPause) + ",";
+        json += "\"is_edited\": " + std::string(bEdited ? "true" : "false") + ",";
         json += "\"joints\": {";
         // ID 21 and 22 are Wrist/Gripper
         for(int id = 1; id <= 22; id++) {
@@ -50,11 +53,11 @@ void RunWebServer() {
         }
         json += "} }";
         
-        res.set_content(json, "application/json");
-    });
+        res.set_content(json, "application/json"); });
 
     // 2. Move Joint
-    svr.Post(R"(/api/joint/(\d+)/(\d+))", [](const httplib::Request &req, httplib::Response &res) {
+    svr.Post(R"(/api/joint/(\d+)/(\d+))", [](const httplib::Request &req, httplib::Response &res)
+             {
         int id = std::stoi(req.matches[1]);
         int value = std::stoi(req.matches[2]);
         
@@ -65,11 +68,11 @@ void RunWebServer() {
             Page.step[webCurrentStep].position[id] = value; // Edit memory only
         }
         bEdited = true;
-        res.set_content("{\"status\":\"ok\"}", "application/json");
-    });
+        res.set_content("{\"status\":\"ok\"}", "application/json"); });
 
     // 3. Toggle Torque
-  svr.Post(R"(/api/torque/(\d+)/(\d+))", [](const httplib::Request &req, httplib::Response &res) {
+    svr.Post(R"(/api/torque/(\d+)/(\d+))", [](const httplib::Request &req, httplib::Response &res)
+             {
         int id = std::stoi(req.matches[1]);
         int state = std::stoi(req.matches[2]); // 1 or 0
         
@@ -86,10 +89,10 @@ void RunWebServer() {
             Step.position[id] = Action::TORQUE_OFF_BIT_MASK; // Mark as ????
         }
         bEdited = true;
-        res.set_content("{\"status\":\"ok\"}", "application/json");
-    });
+        res.set_content("{\"status\":\"ok\"}", "application/json"); });
 
-    svr.Post(R"(/api/torque_all/(\d+))", [](const httplib::Request &req, httplib::Response &res) {
+    svr.Post(R"(/api/torque_all/(\d+))", [](const httplib::Request &req, httplib::Response &res)
+             {
         int state = std::stoi(req.matches[1]); // 1 or 0
         
         for(int id = 1; id <= 22; id++) {
@@ -104,34 +107,34 @@ void RunWebServer() {
             }
         }
         bEdited = true;
-        res.set_content("{\"status\":\"ok\"}", "application/json");
-    });
+        res.set_content("{\"status\":\"ok\"}", "application/json"); });
 
     // 4. Change Page
-    svr.Post(R"(/api/page/(\d+))", [](const httplib::Request &req, httplib::Response &res) {
+    svr.Post(R"(/api/page/(\d+))", [](const httplib::Request &req, httplib::Response &res)
+             {
         int p = std::stoi(req.matches[1]);
         if(p > 0 && p < Action::MAXNUM_PAGE) {
             indexPage = p;
             Action::GetInstance()->LoadPage(indexPage, &Page);
             ReadStep(&cm730); // Refresh live hardware state
         }
-        res.set_content("{\"status\":\"ok\"}", "application/json");
-    });
+        res.set_content("{\"status\":\"ok\"}", "application/json"); });
 
     // 5. Change Viewing Step
-    svr.Post(R"(/api/step/(\d+))", [](const httplib::Request &req, httplib::Response &res) {
+    svr.Post(R"(/api/step/(\d+))", [](const httplib::Request &req, httplib::Response &res)
+             {
         webCurrentStep = std::stoi(req.matches[1]);
-        res.set_content("{\"status\":\"ok\"}", "application/json");
-    });
+        res.set_content("{\"status\":\"ok\"}", "application/json"); });
 
     // 6. Read physical robot state
-    svr.Post("/api/read_robot", [](const httplib::Request &, httplib::Response &res) {
+    svr.Post("/api/read_robot", [](const httplib::Request &, httplib::Response &res)
+             {
         ReadStep(&cm730); // Pulls physical data into Step (STP7)
-        res.set_content("{\"status\":\"ok\"}", "application/json");
-    });
+        res.set_content("{\"status\":\"ok\"}", "application/json"); });
 
     // 7. Play Action
-    svr.Post("/api/play", [](const httplib::Request &, httplib::Response &res) {
+    svr.Post("/api/play", [](const httplib::Request &, httplib::Response &res)
+             {
         if (Action::GetInstance()->IsRunning()) {
             res.set_content("{\"status\":\"already_playing\"}", "application/json");
             return;
@@ -156,10 +159,10 @@ void RunWebServer() {
         });
         play_thread.detach();
 
-        res.set_content("{\"status\":\"playing\"}", "application/json");
-    });
+        res.set_content("{\"status\":\"playing\"}", "application/json"); });
 
-    svr.Post(R"(/api/page_param/(speed|accel)/(\d+))", [](const httplib::Request &req, httplib::Response &res) {
+    svr.Post(R"(/api/page_param/(speed|accel)/(\d+))", [](const httplib::Request &req, httplib::Response &res)
+             {
         std::string param = req.matches[1];
         int val = std::stoi(req.matches[2]);
         
@@ -167,12 +170,12 @@ void RunWebServer() {
         if (param == "accel") Page.header.accel = val;
         
         bEdited = true;
-        res.set_content("{\"status\":\"ok\"}", "application/json");
-    });
+        res.set_content("{\"status\":\"ok\"}", "application/json"); });
 
     // --- NEW: Save Live Robot Pose to a Specific Step ---
     // --- UPDATED: Save Live Robot Pose to a Specific Step ---
-    svr.Post(R"(/api/save_live_step/(\d+))", [](const httplib::Request &req, httplib::Response &res) {
+    svr.Post(R"(/api/save_live_step/(\d+))", [](const httplib::Request &req, httplib::Response &res)
+             {
         int target_step = std::stoi(req.matches[1]);
         
         if (target_step >= 0 && target_step <= 6) {
@@ -193,22 +196,22 @@ void RunWebServer() {
             
             bEdited = true;
         }
-        res.set_content("{\"status\":\"ok\"}", "application/json");
-    });
+        res.set_content("{\"status\":\"ok\"}", "application/json"); });
 
     // --- NEW: Save Page to File (motion_4096.bin) ---
-    svr.Post("/api/save_file", [](const httplib::Request &, httplib::Response &res) {
+    svr.Post("/api/save_file", [](const httplib::Request &, httplib::Response &res)
+             {
         if (bEdited) {
             Action::GetInstance()->SavePage(indexPage, &Page);
             bEdited = false;
             res.set_content("{\"status\":\"saved\"}", "application/json");
         } else {
             res.set_content("{\"status\":\"no_changes\"}", "application/json");
-        }
-    });
+        } });
 
     // --- NEW: Play a Single Step ---
-    svr.Post(R"(/api/play_step/(\d+))", [](const httplib::Request &req, httplib::Response &res) {
+    svr.Post(R"(/api/play_step/(\d+))", [](const httplib::Request &req, httplib::Response &res)
+             {
         int index = std::stoi(req.matches[1]);
         if (index >= 0 && index < Action::MAXNUM_STEP) {
             int param[JointData::NUMBER_OF_JOINTS * 5];
@@ -239,11 +242,11 @@ void RunWebServer() {
                 Step = Page.step[index]; // Update live memory to match the new pose
             }
         }
-        res.set_content("{\"status\":\"ok\"}", "application/json");
-    });
+        res.set_content("{\"status\":\"ok\"}", "application/json"); });
 
     // --- NEW: Delete a Step ---
-    svr.Post(R"(/api/delete_step/(\d+))", [](const httplib::Request &req, httplib::Response &res) {
+    svr.Post(R"(/api/delete_step/(\d+))", [](const httplib::Request &req, httplib::Response &res)
+             {
         int index = std::stoi(req.matches[1]);
         if (index >= 0 && index < Action::MAXNUM_STEP) {
             
@@ -265,11 +268,11 @@ void RunWebServer() {
             }
             bEdited = true;
         }
-        res.set_content("{\"status\":\"ok\"}", "application/json");
-    });
+        res.set_content("{\"status\":\"ok\"}", "application/json"); });
 
     // --- NEW: Get a list of ALL maximum pages and their names ---
-    svr.Get("/api/pages_list", [](const httplib::Request &, httplib::Response &res) {
+    svr.Get("/api/pages_list", [](const httplib::Request &, httplib::Response &res)
+            {
         std::string json = "[";
         Action::PAGE tempPage;
         
@@ -286,11 +289,11 @@ void RunWebServer() {
             if (i < Action::MAXNUM_PAGE - 1) json += ",";
         }
         json += "]";
-        res.set_content(json, "application/json");
-    });
+        res.set_content(json, "application/json"); });
 
     // --- NEW: Rename Current Page ---
-    svr.Post("/api/rename_page", [](const httplib::Request &req, httplib::Response &res) {
+    svr.Post("/api/rename_page", [](const httplib::Request &req, httplib::Response &res)
+             {
         std::string new_name = req.body; // Read from raw text body
         
         // Clear old name with zeros
@@ -302,18 +305,18 @@ void RunWebServer() {
         }
         
         bEdited = true;
-        res.set_content("{\"status\":\"ok\"}", "application/json");
-    });
+        res.set_content("{\"status\":\"ok\"}", "application/json"); });
 
     // --- NEW: Clear/Initialize a New Page ---
-    svr.Post("/api/new_page", [](const httplib::Request &, httplib::Response &res) {
+    svr.Post("/api/new_page", [](const httplib::Request &, httplib::Response &res)
+             {
         Action::GetInstance()->ResetPage(&Page); // Wipes all steps and name
         bEdited = true;
-        res.set_content("{\"status\":\"ok\"}", "application/json");
-    });
+        res.set_content("{\"status\":\"ok\"}", "application/json"); });
 
     // --- Mirror Joint Position ---
-    svr.Post(R"(/api/mirror/(\d+)/(\d+))", [](const httplib::Request &req, httplib::Response &res) {
+    svr.Post(R"(/api/mirror/(\d+)/(\d+))", [](const httplib::Request &req, httplib::Response &res)
+             {
         int src = std::stoi(req.matches[1]);
         int tgt = std::stoi(req.matches[2]);
 
@@ -335,10 +338,10 @@ void RunWebServer() {
             }
             bEdited = true;
         }
-        res.set_content("{\"status\":\"ok\"}", "application/json");
-    });
-    
-    svr.Post(R"(/api/step_param/(time|pause)/(\d+))", [](const httplib::Request &req, httplib::Response &res) {
+        res.set_content("{\"status\":\"ok\"}", "application/json"); });
+
+    svr.Post(R"(/api/step_param/(time|pause)/(\d+))", [](const httplib::Request &req, httplib::Response &res)
+             {
         std::string param = req.matches[1];
         int val = std::stoi(req.matches[2]);
 
@@ -353,9 +356,9 @@ void RunWebServer() {
         }
         
         bEdited = true;
-        res.set_content("{\"status\":\"ok\"}", "application/json");
-    });
+        res.set_content("{\"status\":\"ok\"}", "application/json"); });
 
-    std::cout << "\n[INFO] Full Web Editor running on port 8080\n" << std::endl;
+    std::cout << "\n[INFO] Full Web Editor running on port 8080\n"
+              << std::endl;
     svr.listen("0.0.0.0", 8080);
 }

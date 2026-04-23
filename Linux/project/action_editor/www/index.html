@@ -53,6 +53,19 @@
             animation: pulse-glow 1.5s infinite;
             border: 2px solid #fff !important;
         }
+
+        /* Glowing Animation for the Main File Save Button */
+        @keyframes pulse-orange {
+            0% { box-shadow: 0 0 0 0 rgba(243, 156, 18, 0.8); }
+            70% { box-shadow: 0 0 0 12px rgba(243, 156, 18, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(243, 156, 18, 0); }
+        }
+        .needs-file-save {
+            animation: pulse-orange 1.5s infinite;
+            background: #f39c12 !important; /* Bright Orange */
+            color: #000 !important;
+            border: 2px solid #fff !important;
+        }
     </style>
 </head>
 <body>
@@ -81,7 +94,7 @@
                 <input type="number" id="inp-accel" onchange="updatePageParam('accel', this.value)">
             </div>
 
-            <button onclick="saveToFile()" style="background:#f39c12; color:#000; font-weight:bold;">💾 Save</button>
+            <button id="btn-main-save" onclick="saveToFile()" style="background:#444; color:#fff; font-weight:bold;">💾 Saved</button>
             <button class="btn-play" onclick="playAction()">▶ Play Action</button>
         </div>
     </header>

@@ -32,7 +32,7 @@ function updateSyncUI() {
         btnSave.style.background = "#333";
         btnSave.style.color = "#a0a0a0";
         btnSave.innerText = "⚠️ Play to Unlock";
-        
+
         btnPlay.classList.add('needs-action');
         btnSave.classList.remove('needs-action');
 
@@ -44,7 +44,7 @@ function updateSyncUI() {
         btnSave.style.background = "var(--success)"; // Green
         btnSave.style.color = "#000";
         btnSave.innerText = "📸 Save Step";
-        
+
         btnPlay.classList.remove('needs-action');
         btnSave.classList.add('needs-action');
 
@@ -56,7 +56,7 @@ function updateSyncUI() {
         btnSave.style.background = "#444"; // Gray
         btnSave.style.color = "#fff";
         btnSave.innerText = "📸 Save Step";
-        
+
         btnPlay.classList.remove('needs-action');
         btnSave.classList.remove('needs-action');
     }
@@ -71,23 +71,23 @@ const groupClipboard = {};
 // --- UPDATED UI GENERATOR ---
 function buildUI() {
     const container = document.getElementById("sliders-container");
-    container.innerHTML = ""; 
+    container.innerHTML = "";
 
     for (const [groupName, joints] of Object.entries(jointConfiguration)) {
         const groupDiv = document.createElement("div");
         groupDiv.className = "joint-group";
-        
+
         const isLeftLimb = groupName.includes("Left");
         const isRightLimb = groupName.includes("Right");
         let mirrorBtn = "";
-        
+
         if (isLeftLimb) {
             mirrorBtn = `<button onclick="mirrorGroup('${groupName}')" style="font-size:0.75rem; background:var(--accent); color:#000; padding:2px 8px; border:none; border-radius:3px; cursor:pointer;">🪞 Mirror Right</button>`;
         } else if (isRightLimb) {
             mirrorBtn = `<button onclick="mirrorGroup('${groupName}')" style="font-size:0.75rem; background:var(--accent); color:#000; padding:2px 8px; border:none; border-radius:3px; cursor:pointer;">🪞 Mirror Left</button>`;
         }
 
-      groupDiv.innerHTML = `
+        groupDiv.innerHTML = `
             <div style="display:flex; justify-content:space-between; align-items:center; border-bottom: 1px solid #333; padding-bottom: 4px; margin-bottom: 8px;">
                 <h3 style="margin:0; border:none; padding:0; color:var(--accent); font-size: 1rem;">${groupName}</h3>
                 <div style="display:flex; gap:3px; flex-wrap:nowrap; justify-content:flex-end;">
@@ -134,10 +134,10 @@ async function toggleGroupTorque(groupName, state) {
 // --- NEW: Mirroring Logic ---
 // Maps the [Source ID, Target ID] pairs for each limb
 const mirrorPairs = {
-    "Right Arm": [ [1,2], [3,4], [5,6] ],
-    "Left Arm":  [ [2,1], [4,3], [6,5] ],
-    "Right Leg": [ [7,8], [9,10], [11,12], [13,14], [15,16], [17,18] ],
-    "Left Leg":  [ [8,7], [10,9], [12,11], [14,13], [16,15], [18,17] ]
+    "Right Arm": [[1, 2], [3, 4], [5, 6]],
+    "Left Arm": [[2, 1], [4, 3], [6, 5]],
+    "Right Leg": [[7, 8], [9, 10], [11, 12], [13, 14], [15, 16], [17, 18]],
+    "Left Leg": [[8, 7], [10, 9], [12, 11], [14, 13], [16, 15], [18, 17]]
 };
 
 async function mirrorGroup(sourceName) {
@@ -148,12 +148,12 @@ async function mirrorGroup(sourceName) {
         // Send the mirror command for every joint in the limb simultaneously
         const promises = pairs.map(pair => fetch(`/api/mirror/${pair[0]}/${pair[1]}`, { method: 'POST' }));
         await Promise.all(promises);
-        
+
         pendingEditsNotPlayed = true;
         updateSyncUI();
 
         // Wait a tiny bit for the hardware to finish moving, then refresh UI
-        setTimeout(fetchRobotState, 200); 
+        setTimeout(fetchRobotState, 200);
     } catch (error) {
         console.error("Mirroring failed:", error);
     }
@@ -163,10 +163,10 @@ async function fetchPageList() {
     try {
         const res = await fetch('/api/pages_list');
         const pages = await res.json();
-        
+
         const select = document.getElementById("select-page");
         select.innerHTML = ""; // Clear existing options
-        
+
         pages.forEach(p => {
             const opt = document.createElement("option");
             opt.value = p.id;
@@ -174,7 +174,7 @@ async function fetchPageList() {
             opt.innerText = `Pg ${p.id}: ${dispName}`;
             select.appendChild(opt);
         });
-    } catch(e) { console.error("Failed to load page list", e); }
+    } catch (e) { console.error("Failed to load page list", e); }
 }
 
 function updateJointDisplay(id, value) {
@@ -184,22 +184,22 @@ function updateJointDisplay(id, value) {
 async function sendJointCommand(id, value) {
     await fetch(`/api/joint/${id}/${value}`, { method: 'POST' });
 
-    pendingEditsNotPlayed = true; 
+    pendingEditsNotPlayed = true;
     updateSyncUI();
 }
 
 async function toggleTorque(id) {
     // Prevent toggling physical hardware if viewing an offline step
     if (currentStep !== 7) {
-       await setStep(7);
+        await setStep(7);
     }
-    
+
     const btn = document.getElementById(`tq-${id}`);
     const isOff = btn.classList.contains("off");
-    const newState = isOff ? 1 : 0; 
-    
+    const newState = isOff ? 1 : 0;
+
     await fetch(`/api/torque/${id}/${newState}`, { method: 'POST' });
-    fetchRobotState(); 
+    fetchRobotState();
 }
 
 async function loadPage(pageNum) {
@@ -214,7 +214,7 @@ async function setStep(stepNum) {
     // 1. Clean up all step button visuals
     document.querySelectorAll('.step-btn').forEach(btn => {
         btn.classList.remove('active');
-        btn.style.border = "1px solid #333"; 
+        btn.style.border = "1px solid #333";
     });
 
     // 2. Track breadcrumbs
@@ -275,7 +275,7 @@ async function setStep(stepNum) {
 
 async function readRobot() {
     await fetch('/api/read_robot', { method: 'POST' });
-    if(currentStep !== 7) setStep(7); // Jump to Live tab if not already there
+    if (currentStep !== 7) setStep(7); // Jump to Live tab if not already there
     fetchRobotState();
 }
 
@@ -287,8 +287,8 @@ async function fetchRobotState() {
     try {
         const res = await fetch('/api/state');
         const data = await res.json();
-        
-       const selectPage = document.getElementById("select-page");
+
+        const selectPage = document.getElementById("select-page");
         if (selectPage.value != data.page && selectPage.options.length > 0) {
             selectPage.value = data.page;
         }
@@ -312,11 +312,11 @@ async function fetchRobotState() {
 
         for (let id = 1; id <= 22; id++) {
             let val = data.joints[id];
-            
+
             const slider = document.getElementById(`slider-${id}`);
             const display = document.getElementById(`val-${id}`);
             const tqBtn = document.getElementById(`tq-${id}`);
-            
+
             if (!slider) continue;
 
             // Handle Bitmasks
@@ -337,6 +337,19 @@ async function fetchRobotState() {
                 slider.value = val;
                 tqBtn.innerText = "ON"; tqBtn.className = "btn-torque";
             }
+
+            const mainSaveBtn = document.getElementById("btn-main-save");
+            if (mainSaveBtn) {
+                if (data.is_edited) {
+                    mainSaveBtn.classList.add('needs-file-save');
+                    mainSaveBtn.innerText = "💾 Save to File*";
+                } else {
+                    mainSaveBtn.classList.remove('needs-file-save');
+                    mainSaveBtn.style.background = "#444";
+                    mainSaveBtn.style.color = "#fff";
+                    mainSaveBtn.innerText = "💾 Saved";
+                }
+            }
         }
     } catch (error) { console.error("Server offline."); }
 }
@@ -349,7 +362,7 @@ async function toggleAllTorque(state) {
 
     try {
         await fetch(`/api/torque_all/${state}`, { method: 'POST' });
-        fetchRobotState(); 
+        fetchRobotState();
     } catch (error) {
         console.error("Failed to toggle all torque:", error);
     }
@@ -372,36 +385,50 @@ async function saveLiveToCurrentStep() {
     try {
         // Instantly save to the backend without interrupting the user with a pop-up!
         await fetch(`/api/save_live_step/${currentStep}`, { method: 'POST' });
-        fetchRobotState(); 
-        
+        fetchRobotState();
+
         // Reset tracking states
-        pendingSave = false; 
-        
+        pendingSave = false;
+
         // Provide a slick, 1.5-second visual confirmation directly on the button
         const btnSave = document.getElementById('btn-save-step');
         btnSave.innerText = "✅ Saved!";
         btnSave.style.background = "var(--success)";
         btnSave.style.color = "#000";
         btnSave.classList.remove('needs-action');
-        
+
         setTimeout(() => {
             updateSyncUI(); // Reverts the button back to State 3 (Gray)
         }, 1500);
-        
+
     } catch (error) {
         console.error("Failed to save step:", error);
     }
 }
 
-// --- NEW: Save to motion.bin file ---
+// --- Save to motion.bin file ---
 async function saveToFile() {
     try {
         const res = await fetch('/api/save_file', { method: 'POST' });
         const data = await res.json();
+        
         if (data.status === "saved") {
-            alert("✅ Successfully saved changes to motion.bin!");
-        } else {
-            alert("No unsaved changes detected.");
+            const mainSaveBtn = document.getElementById("btn-main-save");
+            
+            // Instantly remove the orange glow and flash green!
+            mainSaveBtn.classList.remove('needs-file-save');
+            mainSaveBtn.style.background = "var(--success)";
+            mainSaveBtn.style.color = "#000";
+            mainSaveBtn.innerText = "✅ Saved!";
+            
+            // Wait 1.5 seconds, then return to dark gray
+            setTimeout(() => {
+                mainSaveBtn.style.background = "#444";
+                mainSaveBtn.style.color = "#fff";
+                mainSaveBtn.innerText = "💾 Saved";
+            }, 1500);
+            
+            fetchRobotState(); // Sync up the rest of the UI
         }
     } catch (error) {
         console.error("Failed to save file:", error);
@@ -410,11 +437,11 @@ async function saveToFile() {
 
 // --- NEW: Delete Current Step ---
 async function deleteCurrentStep() {
-    if (currentStep === 7) return; 
-    if(confirm(`Are you sure you want to completely delete STP ${currentStep}? This will shift all following steps down.`)) {
+    if (currentStep === 7) return;
+    if (confirm(`Are you sure you want to completely delete STP ${currentStep}? This will shift all following steps down.`)) {
         try {
             await fetch(`/api/delete_step/${currentStep}`, { method: 'POST' });
-            fetchRobotState(); 
+            fetchRobotState();
         } catch (error) {
             console.error("Failed to delete step:", error);
         }
@@ -422,20 +449,20 @@ async function deleteCurrentStep() {
 }
 
 async function playSingleStep() {
-    if (currentStep === 7) return; 
+    if (currentStep === 7) return;
     try {
         await fetch(`/api/play_step/${currentStep}`, { method: 'POST' });
-        
+
         // THE FIX: Only turn on the Save glow if we actually had unplayed edits!
         if (pendingEditsNotPlayed) {
-            pendingSave = true; 
+            pendingSave = true;
         }
-        
+
         // Clear the edits flag because we just played them
         pendingEditsNotPlayed = false;
-        
+
         updateSyncUI();
-        
+
     } catch (error) {
         console.error("Failed to play step:", error);
     }
@@ -452,9 +479,9 @@ async function renamePage() {
 
 // --- NEW: Clear/Initialize Page ---
 async function newPage() {
-    if(confirm("⚠️ Are you sure? This will instantly delete the name and ALL steps of the current page!")) {
+    if (confirm("⚠️ Are you sure? This will instantly delete the name and ALL steps of the current page!")) {
         await fetch('/api/new_page', { method: 'POST' });
-        fetchPageList(); 
+        fetchPageList();
         fetchRobotState();
     }
 }
@@ -465,7 +492,7 @@ function copyGroup(groupName, btnElement) {
     if (!joints) return;
 
     groupClipboard[groupName] = {};
-    
+
     // Read the current slider values directly from the UI
     joints.forEach(j => {
         const slider = document.getElementById(`slider-${j.id}`);
@@ -490,7 +517,7 @@ function copyGroup(groupName, btnElement) {
 // --- NEW: Paste Group Pose from Memory ---
 async function pasteGroup(groupName, btnElement) {
     const clipData = groupClipboard[groupName];
-    
+
     // Safety check
     if (!clipData || Object.keys(clipData).length === 0) {
         alert(`⚠️ You haven't copied anything for the ${groupName} yet!`);
@@ -530,14 +557,14 @@ let stepClipboard = null;
 
 async function copyWholeStep() {
     if (currentStep === 7) return;
-    
+
     try {
         // Fetch the exact state of the step we are currently looking at
         const res = await fetch('/api/state');
         const data = await res.json();
-        
+
         stepClipboard = data.joints; // Save all 22 joints to memory
-        
+
         // Visual feedback
         const btn = document.getElementById('btn-copy-step');
         const oldText = btn.innerText;
@@ -547,7 +574,7 @@ async function copyWholeStep() {
             btn.innerText = oldText;
             btn.style.background = "#444";
         }, 1000);
-        
+
     } catch (error) {
         console.error("Failed to copy step:", error);
     }
@@ -559,14 +586,14 @@ async function pasteWholeStep() {
         alert("⚠️ You haven't copied a step yet!");
         return;
     }
-    
+
     try {
         // Send all 22 joint values to the server simultaneously
         const promises = Object.entries(stepClipboard).map(([id, val]) => {
             return fetch(`/api/joint/${id}/${val}`, { method: 'POST' });
         });
         await Promise.all(promises);
-        
+
         pendingEditsNotPlayed = true;
         updateSyncUI();
 
