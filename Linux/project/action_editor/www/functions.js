@@ -211,22 +211,22 @@ async function loadPage(pageNum) {
 let lastOfflineStep = -1;
 
 async function setStep(stepNum) {
-    // 1. Clean up all buttons first (remove active class and reset borders)
+    // 1. Clean up all step button visuals
     document.querySelectorAll('.step-btn').forEach(btn => {
         btn.classList.remove('active');
         btn.style.border = "1px solid #333"; 
     });
 
-    // 2. Track the last offline step we were looking at
+    // 2. Track breadcrumbs
     if (stepNum !== 7) {
         lastOfflineStep = stepNum;
     }
 
-    // 3. Highlight the currently clicked button
+    // 3. Highlight active tab
     const activeBtn = document.getElementById(`btn-step-${stepNum}`);
     if (activeBtn) activeBtn.classList.add('active');
 
-    // 4. THE BREADCRUMB: If we switch to Live, outline the last step we were editing!
+    // 4. Highlight breadcrumb if going to Live Mode
     if (stepNum === 7 && lastOfflineStep !== -1) {
         const lastBtn = document.getElementById(`btn-step-${lastOfflineStep}`);
         if (lastBtn) {
@@ -235,13 +235,20 @@ async function setStep(stepNum) {
         }
     }
 
+    // --- 5. THE STATE MACHINE FIX ---
+    if (currentStep === 7 && stepNum !== 7) {
+        // Returned from Live Mode! Turn the Save button GREEN to remind you to save your pose!
+        pendingSave = true;
+        pendingEditsNotPlayed = false;
+    } else if (currentStep !== 7 && stepNum !== 7 && currentStep !== stepNum) {
+        // Switched between two offline tabs (e.g., STP 1 -> STP 2). Clear the glows!
+        pendingSave = false;
+        pendingEditsNotPlayed = false;
+    }
+
     currentStep = stepNum;
 
-    pendingEditsNotPlayed = false;
-    pendingSave = false;
-    updateSyncUI();
-
-    // --- Update the prominent label ---
+    // --- 6. Update the prominent label ---
     const label = document.getElementById('current-step-label');
     if (stepNum === 7) {
         let reminder = lastOfflineStep !== -1 ? ` (Came from STP ${lastOfflineStep})` : "";
@@ -252,7 +259,7 @@ async function setStep(stepNum) {
         label.style.color = "var(--accent)";
     }
 
-    // Show step tools only if we aren't looking at STP 7 (Live Robot)
+    // --- 7. Show/Hide Step Tools ---
     const isEditMode = (stepNum !== 7);
     document.getElementById('btn-save-step').style.display = isEditMode ? 'block' : 'none';
     document.getElementById('btn-delete-step').style.display = isEditMode ? 'block' : 'none';
@@ -260,6 +267,8 @@ async function setStep(stepNum) {
     document.getElementById('btn-copy-step').style.display = isEditMode ? 'block' : 'none';
     document.getElementById('btn-paste-step').style.display = isEditMode ? 'block' : 'none';
 
+    // --- 8. Apply Glows and Fetch Data ---
+    updateSyncUI();
     await fetch(`/api/step/${stepNum}`, { method: 'POST' });
     fetchRobotState();
 }
