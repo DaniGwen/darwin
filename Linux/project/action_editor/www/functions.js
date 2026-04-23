@@ -17,6 +17,7 @@ window.onload = () => {
 
 let pendingEditsNotPlayed = false;
 let pendingSave = false; // NEW: Tracks when Play is clicked so Save can glow
+let needsPlayToSync = false;
 
 function updateSyncUI() {
     const btnSave = document.getElementById('btn-save-step');
@@ -24,39 +25,41 @@ function updateSyncUI() {
 
     if (!btnSave || !btnPlay) return;
 
-    if (pendingEditsNotPlayed && currentStep !== 7) {
-        // STATE 1: Sliders changed, waiting for playback. (Locked, Gray)
+    if ((pendingEditsNotPlayed || needsPlayToSync) && currentStep !== 7) {
+        // STATE 1: Unsynced. User edited sliders OR switched to a new tab.
         btnSave.disabled = true;
         btnSave.style.opacity = "0.5";
         btnSave.style.cursor = "not-allowed";
         btnSave.style.background = "#333";
         btnSave.style.color = "#a0a0a0";
-        btnSave.innerText = "⚠️ Play to Unlock";
-
+        
+        // Dynamic text depending on the exact context
+        btnSave.innerText = pendingEditsNotPlayed ? "⚠️ Play to Unlock" : "⚠️ Play to Sync";
+        
         btnPlay.classList.add('needs-action');
         btnSave.classList.remove('needs-action');
 
     } else if (pendingSave && currentStep !== 7) {
-        // STATE 2: Step played, waiting to be saved. (Unlocked, Green, Glowing)
+        // STATE 2: Step played, waiting to be saved.
         btnSave.disabled = false;
         btnSave.style.opacity = "1";
         btnSave.style.cursor = "pointer";
         btnSave.style.background = "var(--success)"; // Green
         btnSave.style.color = "#000";
         btnSave.innerText = "📸 Save Step";
-
+        
         btnPlay.classList.remove('needs-action');
         btnSave.classList.add('needs-action');
 
     } else {
-        // STATE 3: Step is safely saved. (Unlocked, Standard Gray)
+        // STATE 3: Fully synced and safely saved.
         btnSave.disabled = false;
         btnSave.style.opacity = "1";
         btnSave.style.cursor = "pointer";
         btnSave.style.background = "#444"; // Gray
         btnSave.style.color = "#fff";
         btnSave.innerText = "📸 Save Step";
-
+        
         btnPlay.classList.remove('needs-action');
         btnSave.classList.remove('needs-action');
     }
@@ -230,18 +233,20 @@ async function setStep(stepNum) {
         }
     }
 
-    // --- BUG FIX 3: Restore Manual Save Control ---
     if (currentStep === 7 && stepNum !== 7) {
-        // Returning from Live Mode!
-        // Turn the Save Step button GREEN to ask the user to commit their changes!
+        // Returned from Live Mode
         if (pendingSave || pendingEditsNotPlayed) {
             pendingSave = true; 
             pendingEditsNotPlayed = false;
+            needsPlayToSync = false; // The physical robot perfectly matches the new pose
+        } else {
+            needsPlayToSync = true; // We didn't save a pose, so the robot is likely out of sync
         }
     } else if (currentStep !== 7 && stepNum !== 7 && currentStep !== stepNum) {
-        // Switched between offline tabs. Clear the glows.
+        // Switched between offline tabs (e.g., STP 1 -> STP 2).
         pendingSave = false;
         pendingEditsNotPlayed = false;
+        needsPlayToSync = true; // THE GUARDIAN FIX: Require playback before saving!
     }
 
     currentStep = stepNum;
@@ -457,20 +462,21 @@ async function deleteCurrentStep() {
 }
 
 async function playSingleStep() {
-    if (currentStep === 7) return;
+    if (currentStep === 7) return; 
     try {
         await fetch(`/api/play_step/${currentStep}`, { method: 'POST' });
-
-        // THE FIX: Only turn on the Save glow if we actually had unplayed edits!
+        
+        // Only trigger the Save glow if we actually moved edited sliders.
+        // If we just clicked Play to "Sync" the robot to the tab, it doesn't need saving!
         if (pendingEditsNotPlayed) {
-            pendingSave = true;
+            pendingSave = true; 
         }
-
-        // Clear the edits flag because we just played them
+        
         pendingEditsNotPlayed = false;
-
+        needsPlayToSync = false; // The physical robot is now completely synced with the screen!
+        
         updateSyncUI();
-
+        
     } catch (error) {
         console.error("Failed to play step:", error);
     }

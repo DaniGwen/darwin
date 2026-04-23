@@ -132,21 +132,40 @@ void RunWebServer()
         ReadStep(&cm730); // Pulls physical data into Step (STP7)
         res.set_content("{\"status\":\"ok\"}", "application/json"); });
 
-    // 7. Play Action
-    // --- UPDATED: Play Action (With Anti-Jerk Safety) ---
+    // --- UPDATED: Play Action (With 1.5s Anti-Jerk Lead-In) ---
     svr.Post("/api/play", [](const httplib::Request &, httplib::Response &res) {
         if (Action::GetInstance()->IsRunning()) {
             res.set_content("{\"status\":\"already_playing\"}", "application/json");
             return;
         }
 
-        // Run the motion loop in a detached thread
         std::thread play_thread([]() {
             
             // --- THE ANTI-JERK SAFETY FIX ---
-            // Read the exact physical position of every single motor and feed it to the 
-            // Action Engine's internal memory BEFORE waking it up. This forces a smooth
-            // transition from the current physical pose to Step 0!
+            // 1. Gently move all valid joints to Step 0 using a slow hardware speed
+            int param[JointData::NUMBER_OF_JOINTS * 5];
+            int n = 0;
+            for (int id = 1; id <= 22; id++) {
+                // Skip joints that are invalid (----) or Torque Off (????) in Step 0
+                if (Page.step[0].position[id] & Action::INVALID_BIT_MASK) continue;
+                if (Page.step[0].position[id] & Action::TORQUE_OFF_BIT_MASK) continue;
+
+                int wGoalPosition = Page.step[0].position[id];
+                int slow_speed = 64; // Dynamixel Speed: 1 to 1023. 64 is a gentle, safe glide.
+                
+                param[n++] = id;
+                param[n++] = CM730::GetLowByte(wGoalPosition);
+                param[n++] = CM730::GetHighByte(wGoalPosition);
+                param[n++] = CM730::GetLowByte(slow_speed);
+                param[n++] = CM730::GetHighByte(slow_speed);
+            }
+
+            if (n > 0) {
+                cm730.SyncWrite(MX28::P_GOAL_POSITION_L, 5, n / 5, param);
+                usleep(1500000); // Wait exactly 1.5 seconds for the robot to smoothly arrive
+            }
+
+            // 2. Feed the new physical position into the Action Engine memory BEFORE starting
             for (int id = 1; id <= 22; id++) {
                 int val;
                 if (cm730.ReadWord(id, MX28::P_PRESENT_POSITION_L, &val, 0) == CM730::SUCCESS) {
@@ -160,13 +179,11 @@ void RunWebServer()
             if (motion_timer_ptr) motion_timer_ptr->Start();
 
             if (Action::GetInstance()->Start(indexPage, &Page)) {
-                // Keep the thread alive while the robot moves
                 while (Action::GetInstance()->IsRunning()) {
                     usleep(10000);
                 }
             }
 
-            // Clean up and stop the heartbeat when finished
             MotionManager::GetInstance()->SetEnable(false);
             if (motion_timer_ptr) motion_timer_ptr->Stop();
         });
