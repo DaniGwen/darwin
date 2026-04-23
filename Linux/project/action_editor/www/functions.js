@@ -117,17 +117,17 @@ function buildUI() {
     }
 }
 
-// --- NEW: Group Torque Logic ---
 async function toggleGroupTorque(groupName, state) {
-    if (currentStep !== 7) {
-        await setStep(7);
-    }
+    if (currentStep !== 7) await setStep(7); 
+
     const joints = jointConfiguration[groupName];
     if (!joints) return;
 
-    // Send the toggle command for every joint in the group simultaneously
     const promises = joints.map(j => fetch(`/api/torque/${j.id}/${state}`, { method: 'POST' }));
     await Promise.all(promises);
+    
+    pendingSave = true; // NEW: Flag the physical change!
+    updateSyncUI();
     fetchRobotState();
 }
 
@@ -189,16 +189,16 @@ async function sendJointCommand(id, value) {
 }
 
 async function toggleTorque(id) {
-    // Prevent toggling physical hardware if viewing an offline step
-    if (currentStep !== 7) {
-        await setStep(7);
-    }
+    if (currentStep !== 7) await setStep(7);
 
     const btn = document.getElementById(`tq-${id}`);
     const isOff = btn.classList.contains("off");
     const newState = isOff ? 1 : 0;
 
     await fetch(`/api/torque/${id}/${newState}`, { method: 'POST' });
+
+    pendingSave = true; // NEW: Flag the physical change!
+    updateSyncUI();
     fetchRobotState();
 }
 
@@ -211,22 +211,17 @@ async function loadPage(pageNum) {
 let lastOfflineStep = -1;
 
 async function setStep(stepNum) {
-    // 1. Clean up all step button visuals
+    // 1. Clean up button visuals
     document.querySelectorAll('.step-btn').forEach(btn => {
         btn.classList.remove('active');
-        btn.style.border = "1px solid #333";
+        btn.style.border = "1px solid #333"; 
     });
 
-    // 2. Track breadcrumbs
-    if (stepNum !== 7) {
-        lastOfflineStep = stepNum;
-    }
+    if (stepNum !== 7) lastOfflineStep = stepNum;
 
-    // 3. Highlight active tab
     const activeBtn = document.getElementById(`btn-step-${stepNum}`);
     if (activeBtn) activeBtn.classList.add('active');
 
-    // 4. Highlight breadcrumb if going to Live Mode
     if (stepNum === 7 && lastOfflineStep !== -1) {
         const lastBtn = document.getElementById(`btn-step-${lastOfflineStep}`);
         if (lastBtn) {
@@ -235,20 +230,23 @@ async function setStep(stepNum) {
         }
     }
 
-    // --- 5. THE STATE MACHINE FIX ---
+    // --- THE SEAMLESS WORKFLOW FIX ---
     if (currentStep === 7 && stepNum !== 7) {
-        // Returned from Live Mode! Turn the Save button GREEN to remind you to save your pose!
-        pendingSave = true;
+        // We are returning to an offline step from Live Mode!
+        // Auto-save the physical pose so sliders don't snap back!
+        if (pendingSave || pendingEditsNotPlayed) {
+            await fetch(`/api/save_live_step/${stepNum}`, { method: 'POST' });
+        }
+        pendingSave = false;
         pendingEditsNotPlayed = false;
     } else if (currentStep !== 7 && stepNum !== 7 && currentStep !== stepNum) {
-        // Switched between two offline tabs (e.g., STP 1 -> STP 2). Clear the glows!
         pendingSave = false;
         pendingEditsNotPlayed = false;
     }
 
     currentStep = stepNum;
 
-    // --- 6. Update the prominent label ---
+    // --- Update Labels and UI ---
     const label = document.getElementById('current-step-label');
     if (stepNum === 7) {
         let reminder = lastOfflineStep !== -1 ? ` (Came from STP ${lastOfflineStep})` : "";
@@ -259,7 +257,6 @@ async function setStep(stepNum) {
         label.style.color = "var(--accent)";
     }
 
-    // --- 7. Show/Hide Step Tools ---
     const isEditMode = (stepNum !== 7);
     document.getElementById('btn-save-step').style.display = isEditMode ? 'block' : 'none';
     document.getElementById('btn-delete-step').style.display = isEditMode ? 'block' : 'none';
@@ -267,7 +264,6 @@ async function setStep(stepNum) {
     document.getElementById('btn-copy-step').style.display = isEditMode ? 'block' : 'none';
     document.getElementById('btn-paste-step').style.display = isEditMode ? 'block' : 'none';
 
-    // --- 8. Apply Glows and Fetch Data ---
     updateSyncUI();
     await fetch(`/api/step/${stepNum}`, { method: 'POST' });
     fetchRobotState();
@@ -355,14 +351,14 @@ async function fetchRobotState() {
 }
 
 async function toggleAllTorque(state) {
-    // Prevent toggling physical hardware if viewing an offline step
-    if (currentStep !== 7) {
-        await setStep(7);
-    }
+    if (currentStep !== 7) await setStep(7); 
 
     try {
         await fetch(`/api/torque_all/${state}`, { method: 'POST' });
-        fetchRobotState();
+        
+        pendingSave = true; // NEW: Flag the physical change!
+        updateSyncUI();
+        fetchRobotState(); 
     } catch (error) {
         console.error("Failed to toggle all torque:", error);
     }
@@ -411,23 +407,23 @@ async function saveToFile() {
     try {
         const res = await fetch('/api/save_file', { method: 'POST' });
         const data = await res.json();
-        
+
         if (data.status === "saved") {
             const mainSaveBtn = document.getElementById("btn-main-save");
-            
+
             // Instantly remove the orange glow and flash green!
             mainSaveBtn.classList.remove('needs-file-save');
             mainSaveBtn.style.background = "var(--success)";
             mainSaveBtn.style.color = "#000";
             mainSaveBtn.innerText = "✅ Saved!";
-            
+
             // Wait 1.5 seconds, then return to dark gray
             setTimeout(() => {
                 mainSaveBtn.style.background = "#444";
                 mainSaveBtn.style.color = "#fff";
                 mainSaveBtn.innerText = "💾 Saved";
             }, 1500);
-            
+
             fetchRobotState(); // Sync up the rest of the UI
         }
     } catch (error) {
