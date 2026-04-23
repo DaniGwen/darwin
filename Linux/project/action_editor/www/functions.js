@@ -29,7 +29,7 @@ function updateSyncUI() {
         btnSave.disabled = true;
         btnSave.style.opacity = "0.3";
         btnSave.style.cursor = "not-allowed";
-        btnSave.innerText = "⚠️ Play Step to Unlock Save";
+        btnSave.innerText = "⚠️ Play to Unlock Save";
         
         btnPlay.classList.add('needs-action');
         btnSave.classList.remove('needs-action');
@@ -39,7 +39,7 @@ function updateSyncUI() {
         btnSave.disabled = false;
         btnSave.style.opacity = "1";
         btnSave.style.cursor = "pointer";
-        btnSave.innerText = "📸 Save Live Pose Here";
+        btnSave.innerText = "📸 Save Step";
         
         btnPlay.classList.remove('needs-action');
         btnSave.classList.add('needs-action');
@@ -49,7 +49,7 @@ function updateSyncUI() {
         btnSave.disabled = false;
         btnSave.style.opacity = "1";
         btnSave.style.cursor = "pointer";
-        btnSave.innerText = "📸 Save Live Pose Here";
+        btnSave.innerText = "📸 Save Step";
         
         btnPlay.classList.remove('needs-action');
         btnSave.classList.remove('needs-action');
@@ -114,8 +114,7 @@ function buildUI() {
 // --- NEW: Group Torque Logic ---
 async function toggleGroupTorque(groupName, state) {
     if (currentStep !== 7) {
-        alert("⚠️ Please switch to 'STP 7 (Live Robot)' to turn physical motors ON and OFF.");
-        return;
+        await setStep(7);
     }
     const joints = jointConfiguration[groupName];
     if (!joints) return;
@@ -186,8 +185,7 @@ async function sendJointCommand(id, value) {
 async function toggleTorque(id) {
     // Prevent toggling physical hardware if viewing an offline step
     if (currentStep !== 7) {
-        alert("⚠️ Please switch to 'STP 7 (Live Robot)' to turn physical motors ON and OFF.");
-        return;
+       await setStep(7);
     }
     
     const btn = document.getElementById(`tq-${id}`);
@@ -331,8 +329,7 @@ async function fetchRobotState() {
 async function toggleAllTorque(state) {
     // Prevent toggling physical hardware if viewing an offline step
     if (currentStep !== 7) {
-        alert("⚠️ Please switch to 'STP 7 (Live Robot)' to turn physical motors ON and OFF.");
-        return;
+        await setStep(7);
     }
 
     try {
