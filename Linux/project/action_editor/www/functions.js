@@ -118,14 +118,14 @@ function buildUI() {
 }
 
 async function toggleGroupTorque(groupName, state) {
-    if (currentStep !== 7) await setStep(7); 
+    if (currentStep !== 7) await setStep(7);
 
     const joints = jointConfiguration[groupName];
     if (!joints) return;
 
     const promises = joints.map(j => fetch(`/api/torque/${j.id}/${state}`, { method: 'POST' }));
     await Promise.all(promises);
-    
+
     pendingSave = true; // NEW: Flag the physical change!
     updateSyncUI();
     fetchRobotState();
@@ -214,7 +214,7 @@ async function setStep(stepNum) {
     // 1. Clean up button visuals
     document.querySelectorAll('.step-btn').forEach(btn => {
         btn.classList.remove('active');
-        btn.style.border = "1px solid #333"; 
+        btn.style.border = "1px solid #333";
     });
 
     if (stepNum !== 7) lastOfflineStep = stepNum;
@@ -230,16 +230,16 @@ async function setStep(stepNum) {
         }
     }
 
-    // --- THE SEAMLESS WORKFLOW FIX ---
+    // --- BUG FIX 3: Restore Manual Save Control ---
     if (currentStep === 7 && stepNum !== 7) {
-        // We are returning to an offline step from Live Mode!
-        // Auto-save the physical pose so sliders don't snap back!
+        // Returning from Live Mode!
+        // Turn the Save Step button GREEN to ask the user to commit their changes!
         if (pendingSave || pendingEditsNotPlayed) {
-            await fetch(`/api/save_live_step/${stepNum}`, { method: 'POST' });
+            pendingSave = true; 
+            pendingEditsNotPlayed = false;
         }
-        pendingSave = false;
-        pendingEditsNotPlayed = false;
     } else if (currentStep !== 7 && stepNum !== 7 && currentStep !== stepNum) {
+        // Switched between offline tabs. Clear the glows.
         pendingSave = false;
         pendingEditsNotPlayed = false;
     }
@@ -306,6 +306,7 @@ async function fetchRobotState() {
             document.getElementById("inp-step-pause").value = data.step_pause;
         }
 
+        // --- JOINT SLIDERS LOOP ---
         for (let id = 1; id <= 22; id++) {
             let val = data.joints[id];
 
@@ -330,35 +331,46 @@ async function fetchRobotState() {
                 display.innerText = val;
                 display.className = "val-display";
                 slider.disabled = false;
-                slider.value = val;
+
+                // --- BUG FIX 2: Prevent sliders from snapping backward! ---
+                if (!pendingSave || currentStep === 7) {
+                    slider.value = val;
+                }
+
                 tqBtn.innerText = "ON"; tqBtn.className = "btn-torque";
             }
+        } // <--- END OF THE FOR LOOP
 
-            const mainSaveBtn = document.getElementById("btn-main-save");
-            if (mainSaveBtn) {
-                if (data.is_edited) {
-                    mainSaveBtn.classList.add('needs-file-save');
-                    mainSaveBtn.innerText = "💾 Save to File*";
-                } else {
-                    mainSaveBtn.classList.remove('needs-file-save');
-                    mainSaveBtn.style.background = "#444";
-                    mainSaveBtn.style.color = "#fff";
-                    mainSaveBtn.innerText = "💾 Saved";
-                }
+        // --- BUG FIX 1: Main Save Button (Moved OUTSIDE the loop!) ---
+        const mainSaveBtn = document.getElementById("btn-main-save");
+        if (mainSaveBtn) {
+            if (data.is_edited) {
+                mainSaveBtn.classList.add('needs-file-save');
+                mainSaveBtn.style.background = ""; // Clear inline color
+                mainSaveBtn.style.color = "";      // Clear inline text color
+                mainSaveBtn.innerText = "💾 Save to File*";
+            } else {
+                mainSaveBtn.classList.remove('needs-file-save');
+                mainSaveBtn.style.background = "#444"; // Restore inline color
+                mainSaveBtn.style.color = "#fff";      // Restore inline text color
+                mainSaveBtn.innerText = "💾 Saved";
             }
         }
-    } catch (error) { console.error("Server offline."); }
+
+    } catch (error) { 
+        console.error("Server offline."); 
+    }
 }
 
 async function toggleAllTorque(state) {
-    if (currentStep !== 7) await setStep(7); 
+    if (currentStep !== 7) await setStep(7);
 
     try {
         await fetch(`/api/torque_all/${state}`, { method: 'POST' });
-        
+
         pendingSave = true; // NEW: Flag the physical change!
         updateSyncUI();
-        fetchRobotState(); 
+        fetchRobotState();
     } catch (error) {
         console.error("Failed to toggle all torque:", error);
     }
