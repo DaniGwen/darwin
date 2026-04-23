@@ -25,30 +25,36 @@ function updateSyncUI() {
     if (!btnSave || !btnPlay) return;
 
     if (pendingEditsNotPlayed && currentStep !== 7) {
-        // State 1: User edited sliders -> Play Step glows
+        // STATE 1: Sliders changed, waiting for playback. (Locked, Gray)
         btnSave.disabled = true;
-        btnSave.style.opacity = "0.3";
+        btnSave.style.opacity = "0.5";
         btnSave.style.cursor = "not-allowed";
-        btnSave.innerText = "⚠️ Play to Unlock Save";
+        btnSave.style.background = "#333";
+        btnSave.style.color = "#a0a0a0";
+        btnSave.innerText = "⚠️ Play to Unlock";
         
         btnPlay.classList.add('needs-action');
         btnSave.classList.remove('needs-action');
 
     } else if (pendingSave && currentStep !== 7) {
-        // State 2: User clicked Play Step -> Save Step glows
+        // STATE 2: Step played, waiting to be saved. (Unlocked, Green, Glowing)
         btnSave.disabled = false;
         btnSave.style.opacity = "1";
         btnSave.style.cursor = "pointer";
+        btnSave.style.background = "var(--success)"; // Green
+        btnSave.style.color = "#000";
         btnSave.innerText = "📸 Save Step";
         
         btnPlay.classList.remove('needs-action');
         btnSave.classList.add('needs-action');
 
     } else {
-        // State 3: Normal state (Everything is saved and synced)
+        // STATE 3: Step is safely saved. (Unlocked, Standard Gray)
         btnSave.disabled = false;
         btnSave.style.opacity = "1";
         btnSave.style.cursor = "pointer";
+        btnSave.style.background = "#444"; // Gray
+        btnSave.style.color = "#fff";
         btnSave.innerText = "📸 Save Step";
         
         btnPlay.classList.remove('needs-action');
@@ -354,18 +360,27 @@ async function updatePageParam(param, value) {
 async function saveLiveToCurrentStep() {
     if (currentStep === 7) return;
 
-    // The confirmation box remains, but the alert is gone!
-    if(confirm(`Are you sure you want to overwrite STP ${currentStep} with the robot's physical pose right now?`)) {
-        try {
-            await fetch(`/api/save_live_step/${currentStep}`, { method: 'POST' });
-            fetchRobotState(); 
-            
-            pendingSave = false; // NEW: Turn off the Save button glow!
-            updateSyncUI();
-            
-        } catch (error) {
-            console.error("Failed to save step:", error);
-        }
+    try {
+        // Instantly save to the backend without interrupting the user with a pop-up!
+        await fetch(`/api/save_live_step/${currentStep}`, { method: 'POST' });
+        fetchRobotState(); 
+        
+        // Reset tracking states
+        pendingSave = false; 
+        
+        // Provide a slick, 1.5-second visual confirmation directly on the button
+        const btnSave = document.getElementById('btn-save-step');
+        btnSave.innerText = "✅ Saved!";
+        btnSave.style.background = "var(--success)";
+        btnSave.style.color = "#000";
+        btnSave.classList.remove('needs-action');
+        
+        setTimeout(() => {
+            updateSyncUI(); // Reverts the button back to State 3 (Gray)
+        }, 1500);
+        
+    } catch (error) {
+        console.error("Failed to save step:", error);
     }
 }
 
