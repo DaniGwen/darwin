@@ -142,29 +142,6 @@ void RunWebServer()
         std::thread play_thread([]() {
             
             // --- THE ANTI-JERK SAFETY FIX ---
-            // 1. Gently move all valid joints to Step 0 using a slow hardware speed
-            int param[JointData::NUMBER_OF_JOINTS * 5];
-            int n = 0;
-            for (int id = 1; id <= 22; id++) {
-                // Skip joints that are invalid (----) or Torque Off (????) in Step 0
-                if (Page.step[0].position[id] & Action::INVALID_BIT_MASK) continue;
-                if (Page.step[0].position[id] & Action::TORQUE_OFF_BIT_MASK) continue;
-
-                int wGoalPosition = Page.step[0].position[id];
-                int slow_speed = 64; // Dynamixel Speed: 1 to 1023. 64 is a gentle, safe glide.
-                
-                param[n++] = id;
-                param[n++] = CM730::GetLowByte(wGoalPosition);
-                param[n++] = CM730::GetHighByte(wGoalPosition);
-                param[n++] = CM730::GetLowByte(slow_speed);
-                param[n++] = CM730::GetHighByte(slow_speed);
-            }
-
-            if (n > 0) {
-                cm730.SyncWrite(MX28::P_GOAL_POSITION_L, 5, n / 5, param);
-                usleep(1500000); // Wait exactly 1.5 seconds for the robot to smoothly arrive
-            }
-
             // 2. Feed the new physical position into the Action Engine memory BEFORE starting
             for (int id = 1; id <= 22; id++) {
                 int val;
