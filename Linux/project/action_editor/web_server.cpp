@@ -43,6 +43,7 @@ void RunWebServer()
         json += "\"step_time\": " + std::to_string(stepTime) + ",";
         json += "\"step_pause\": " + std::to_string(stepPause) + ",";
         json += "\"is_edited\": " + std::string(bEdited ? "true" : "false") + ",";
+        json += "\"stepnum\": " + std::to_string(Page.header.stepnum) + ",";
         json += "\"joints\": {";
         // ID 21 and 22 are Wrist/Gripper
         for(int id = 1; id <= 22; id++) {

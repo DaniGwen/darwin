@@ -38,6 +38,8 @@ namespace Robot
 			ID_HEAD_TILT            = 20,
 			ID_R_WRIST		        = 21,
 			ID_R_GRIPPER		    = 22,
+			ID_L_WRIST		        = 23,
+			ID_L_GRIPPER		    = 24,
 			NUMBER_OF_JOINTS
 		};
 

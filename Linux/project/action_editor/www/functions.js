@@ -18,6 +18,8 @@ window.onload = () => {
 let pendingEditsNotPlayed = false;
 let pendingSave = false; // NEW: Tracks when Play is clicked so Save can glow
 let needsPlayToSync = false;
+let actionStepNum = 1;
+let lastPlayedStep = -1;
 
 function updateSyncUI() {
     const btnSave = document.getElementById('btn-save-step');
@@ -32,10 +34,10 @@ function updateSyncUI() {
         btnSave.style.cursor = "not-allowed";
         btnSave.style.background = "#333";
         btnSave.style.color = "#a0a0a0";
-        
+
         // Dynamic text depending on the exact context
         btnSave.innerText = pendingEditsNotPlayed ? "⚠️ Play to Unlock" : "⚠️ Play to Sync";
-        
+
         btnPlay.classList.add('needs-action');
         btnSave.classList.remove('needs-action');
 
@@ -47,7 +49,7 @@ function updateSyncUI() {
         btnSave.style.background = "var(--success)"; // Green
         btnSave.style.color = "#000";
         btnSave.innerText = "📸 Save Step";
-        
+
         btnPlay.classList.remove('needs-action');
         btnSave.classList.add('needs-action');
 
@@ -59,7 +61,7 @@ function updateSyncUI() {
         btnSave.style.background = "#444"; // Gray
         btnSave.style.color = "#fff";
         btnSave.innerText = "📸 Save Step";
-        
+
         btnPlay.classList.remove('needs-action');
         btnSave.classList.remove('needs-action');
     }
@@ -236,12 +238,10 @@ async function setStep(stepNum) {
     if (currentStep === 7 && stepNum !== 7) {
         // Returned from Live Mode
         if (pendingSave || pendingEditsNotPlayed) {
-            pendingSave = true; 
+            pendingSave = true;
             pendingEditsNotPlayed = false;
-            needsPlayToSync = false; // The physical robot perfectly matches the new pose
-        } else {
-            needsPlayToSync = true; // We didn't save a pose, so the robot is likely out of sync
         }
+        lastPlayedStep = -1;
     } else if (currentStep !== 7 && stepNum !== 7 && currentStep !== stepNum) {
         // Switched between offline tabs (e.g., STP 1 -> STP 2).
         pendingSave = false;
@@ -280,14 +280,47 @@ async function readRobot() {
     fetchRobotState();
 }
 
+// --- UPDATED: Smart Action Playback ---
 async function playAction() {
-    await fetch(`/api/play`, { method: 'POST' });
+    // The DARwIn-OP engine is 0-indexed. If there are 4 steps, the last step is STP 3.
+    const lastStepOfAction = Math.max(0, actionStepNum - 1);
+    
+    try {
+        // Did we already play the last step?
+        if (lastPlayedStep !== lastStepOfAction) {
+            
+            // 1. Give the user visual feedback that we are prepping the robot
+            const btn = document.querySelector('.btn-play');
+            const oldText = btn.innerText;
+            btn.innerText = "⏳ Syncing to Last Step...";
+            btn.style.opacity = "0.7";
+            
+            // 2. Tell the native DARwIn-OP engine to smoothly play the last step
+            await fetch(`/api/play_step/${lastStepOfAction}`, { method: 'POST' });
+            
+            // 3. Wait 1.2 seconds for the physical motors to smoothly glide into position.
+            // (Because this is a JS Promise, your web browser stays perfectly responsive!)
+            await new Promise(resolve => setTimeout(resolve, 1200));
+            
+            // 4. Update the tracker and restore the button
+            lastPlayedStep = lastStepOfAction;
+            btn.innerText = oldText;
+            btn.style.opacity = "1";
+        }
+        
+        // The robot is now perfectly positioned. Safely execute the sequence!
+        await fetch('/api/play', { method: 'POST' });
+        
+    } catch (error) {
+        console.error("Failed to play action:", error);
+    }
 }
 
 async function fetchRobotState() {
     try {
         const res = await fetch('/api/state');
         const data = await res.json();
+        actionStepNum = data.stepnum || 1;
 
         const selectPage = document.getElementById("select-page");
         if (selectPage.value != data.page && selectPage.options.length > 0) {
@@ -362,8 +395,8 @@ async function fetchRobotState() {
             }
         }
 
-    } catch (error) { 
-        console.error("Server offline."); 
+    } catch (error) {
+        console.error("Server offline.");
     }
 }
 
@@ -462,21 +495,22 @@ async function deleteCurrentStep() {
 }
 
 async function playSingleStep() {
-    if (currentStep === 7) return; 
+    if (currentStep === 7) return;
     try {
         await fetch(`/api/play_step/${currentStep}`, { method: 'POST' });
-        
+
         // Only trigger the Save glow if we actually moved edited sliders.
         // If we just clicked Play to "Sync" the robot to the tab, it doesn't need saving!
         if (pendingEditsNotPlayed) {
-            pendingSave = true; 
+            pendingSave = true;
         }
-        
+
         pendingEditsNotPlayed = false;
+        lastPlayedStep = currentStep;
         needsPlayToSync = false; // The physical robot is now completely synced with the screen!
-        
+
         updateSyncUI();
-        
+
     } catch (error) {
         console.error("Failed to play step:", error);
     }
