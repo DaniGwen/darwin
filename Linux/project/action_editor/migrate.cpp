@@ -72,8 +72,8 @@ int main() {
     while (inFile.read(reinterpret_cast<char*>(&oldPage), sizeof(OLD_PAGE))) {
         memset(&newPage, 0, sizeof(NEW_PAGE));
         
-        // Copy Header (Names, Speeds, Next Page, etc.)
-        newPage.header = oldPage.header;
+        // BUG FIX: Copy the header using raw memory bytes instead of the equals sign!
+        memcpy(&newPage.header, &oldPage.header, sizeof(oldPage.header));
         
         // Copy Steps
         for (int s = 0; s < MAXNUM_STEP; s++) {
@@ -86,7 +86,6 @@ int main() {
             }
             
             // Initialize new Left Hand joints 23 and 24 as INVALID (0x4000).
-            // This prevents the new hand from snapping unexpectedly during old actions.
             newPage.step[s].position[23] = 0x4000;
             newPage.step[s].position[24] = 0x4000;
         }
