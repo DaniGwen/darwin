@@ -4,7 +4,14 @@ const jointConfiguration = {
     "Left Arm": [{ id: 2, name: "Sho Pitch (2)" }, { id: 4, name: "Sho Roll (4)" }, { id: 6, name: "Elbow (6)" }],
     "Right Leg": [{ id: 7, name: "Hip Yaw (7)" }, { id: 9, name: "Hip Roll (9)" }, { id: 11, name: "Hip Pitch (11)" }, { id: 13, name: "Knee (13)" }, { id: 15, name: "Ank Pitch (15)" }, { id: 17, name: "Ank Roll (17)" }],
     "Left Leg": [{ id: 8, name: "Hip Yaw (8)" }, { id: 10, name: "Hip Roll (10)" }, { id: 12, name: "Hip Pitch (12)" }, { id: 14, name: "Knee (14)" }, { id: 16, name: "Ank Pitch (16)" }, { id: 18, name: "Ank Roll (18)" }],
-    "Extras": [{ id: 21, name: "Wrist (21)" }, { id: 22, name: "Gripper (22)" }]
+    "Right Hand": [
+        { id: 21, name: "R Wrist (21)", mirrorId: 23, invert: true },  
+        { id: 22, name: "R Gripper (22)", mirrorId: 24, invert: false }  
+    ],
+    "Left Hand": [
+        { id: 23, name: "L Wrist (23)", mirrorId: 21, invert: true },  
+        { id: 24, name: "L Gripper (24)", mirrorId: 22, invert: false }  
+    ]
 };
 
 window.onload = () => {
@@ -345,7 +352,7 @@ async function fetchRobotState() {
         }
 
         // --- JOINT SLIDERS LOOP ---
-        for (let id = 1; id <= 22; id++) {
+        for (let id = 1; id <= 24; id++) {
             let val = data.joints[id];
 
             const slider = document.getElementById(`slider-${id}`);

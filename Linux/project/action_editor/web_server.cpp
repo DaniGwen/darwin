@@ -45,12 +45,12 @@ void RunWebServer()
         json += "\"is_edited\": " + std::string(bEdited ? "true" : "false") + ",";
         json += "\"stepnum\": " + std::to_string(Page.header.stepnum) + ",";
         json += "\"joints\": {";
-        // ID 21 and 22 are Wrist/Gripper
-        for(int id = 1; id <= 22; id++) {
+        // ID 21 and 24 are Wrist/Gripper
+        for(int id = 1; id <= 24; id++) {
             // If viewing Step 7, show Live memory. Otherwise show Page Step memory.
             int val = (webCurrentStep == 7) ? Step.position[id] : Page.step[webCurrentStep].position[id];
             json += "\"" + std::to_string(id) + "\": " + std::to_string(val);
-            if(id < 22) json += ", ";
+            if(id < 24) json += ", ";
         }
         json += "} }";
         
@@ -96,7 +96,7 @@ void RunWebServer()
              {
         int state = std::stoi(req.matches[1]); // 1 or 0
         
-        for(int id = 1; id <= 22; id++) {
+        for(int id = 1; id <= 24; id++) {
             cm730.WriteByte(id, MX28::P_TORQUE_ENABLE, state, 0);
             if (state == 1) {
                 int val = 2048; 
@@ -144,7 +144,7 @@ void RunWebServer()
             
             // --- THE ANTI-JERK SAFETY FIX ---
             // 2. Feed the new physical position into the Action Engine memory BEFORE starting
-            for (int id = 1; id <= 22; id++) {
+            for (int id = 1; id <= 24; id++) {
                 int val;
                 if (cm730.ReadWord(id, MX28::P_PRESENT_POSITION_L, &val, 0) == CM730::SUCCESS) {
                     Action::GetInstance()->m_Joint.SetValue(id, val);
@@ -191,7 +191,7 @@ void RunWebServer()
             // Step.position already contains the 100% perfect angles from the Torque ON command.
 
             // Copy the live data into the target step memory
-            for(int id = 1; id <= 22; id++) {
+            for(int id = 1; id <= 24; id++) {
                 if (!(Step.position[id] & Action::INVALID_BIT_MASK) && !(Step.position[id] & Action::TORQUE_OFF_BIT_MASK)) {
                     Page.step[target_step].position[id] = Step.position[id];
                 }
