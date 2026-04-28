@@ -295,10 +295,22 @@ void MotionManager::Process()
                 param[n++] = MotionStatus::m_CurrentJoints.GetCWSlope(id);
                 param[n++] = MotionStatus::m_CurrentJoints.GetCCWSlope(id);
 #else
-                param[n++] = MotionStatus::m_CurrentJoints.GetDGain(id);
-                param[n++] = MotionStatus::m_CurrentJoints.GetIGain(id);
-                param[n++] = MotionStatus::m_CurrentJoints.GetPGain(id);
-                param[n++] = 0;
+                // --- HARDWARE PROTOCOL FIX ---
+                if (id == 23 || id == 24) {
+                    // AX-18s use Compliance instead of PID. 
+                    // Send safe defaults: CW Margin(1), CCW Margin(1), CW Slope(32), CCW Slope(32)
+                    param[n++] = 1;  
+                    param[n++] = 1;  
+                    param[n++] = 32; 
+                    param[n++] = 32; 
+                } else {
+                    // MX-28s use standard PID.
+                    param[n++] = MotionStatus::m_CurrentJoints.GetDGain(id);
+                    param[n++] = MotionStatus::m_CurrentJoints.GetIGain(id);
+                    param[n++] = MotionStatus::m_CurrentJoints.GetPGain(id);
+                    param[n++] = 0;
+                }
+                // -----------------------------
 #endif
                 // --- THE VIRTUALIZATION INTERCEPT ---
                 int wGoalPosition = MotionStatus::m_CurrentJoints.GetValue(id) + m_Offset[id];
