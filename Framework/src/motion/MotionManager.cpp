@@ -300,8 +300,20 @@ void MotionManager::Process()
                 param[n++] = MotionStatus::m_CurrentJoints.GetPGain(id);
                 param[n++] = 0;
 #endif
-                param[n++] = CM730::GetLowByte(MotionStatus::m_CurrentJoints.GetValue(id) + m_Offset[id]);
-                param[n++] = CM730::GetHighByte(MotionStatus::m_CurrentJoints.GetValue(id) + m_Offset[id]);
+                // --- THE VIRTUALIZATION INTERCEPT ---
+                int wGoalPosition = MotionStatus::m_CurrentJoints.GetValue(id) + m_Offset[id];
+                
+                // Scale down the 4095 software value to the 1023 hardware limit for AX-18s
+                if (id == 23 || id == 24) {
+                    wGoalPosition = wGoalPosition / 4;
+                    if (wGoalPosition > 1023) wGoalPosition = 1023;
+                    if (wGoalPosition < 0) wGoalPosition = 0;
+                }
+                
+                param[n++] = CM730::GetLowByte(wGoalPosition);
+                param[n++] = CM730::GetHighByte(wGoalPosition);
+                // ------------------------------------
+                
                 joint_num++;
             }
 
