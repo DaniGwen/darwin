@@ -5,12 +5,12 @@ const jointConfiguration = {
     "Right Leg": [{ id: 7, name: "Hip Yaw (7)" }, { id: 9, name: "Hip Roll (9)" }, { id: 11, name: "Hip Pitch (11)" }, { id: 13, name: "Knee (13)" }, { id: 15, name: "Ank Pitch (15)" }, { id: 17, name: "Ank Roll (17)" }],
     "Left Leg": [{ id: 8, name: "Hip Yaw (8)" }, { id: 10, name: "Hip Roll (10)" }, { id: 12, name: "Hip Pitch (12)" }, { id: 14, name: "Knee (14)" }, { id: 16, name: "Ank Pitch (16)" }, { id: 18, name: "Ank Roll (18)" }],
     "Right Hand": [
-        { id: 21, name: "R Wrist (21)", mirrorId: 23, invert: true },  
-        { id: 22, name: "R Gripper (22)", mirrorId: 24, invert: false }  
+        { id: 21, name: "R Wrist (21)", mirrorId: 23, invert: true },
+        { id: 22, name: "R Gripper (22)", mirrorId: 24, invert: false }
     ],
     "Left Hand": [
-        { id: 23, name: "L Wrist (23)", mirrorId: 21, invert: true },  
-        { id: 24, name: "L Gripper (24)", mirrorId: 22, invert: false }  
+        { id: 23, name: "L Wrist (23)", mirrorId: 21, invert: true, min: 1052, max: 3400 },
+        { id: 24, name: "L Gripper (24)", mirrorId: 22, invert: false, min: 1600, max: 3260 }
     ]
 };
 
@@ -113,12 +113,16 @@ function buildUI() {
         `;
 
         joints.forEach(joint => {
+            // Check if limits exist, otherwise default to 0-4095
+            const minVal = joint.min !== undefined ? joint.min : 0;
+            const maxVal = joint.max !== undefined ? joint.max : 4095;
+
             const row = document.createElement("div");
             row.className = "slider-row";
             row.innerHTML = `
                 <label>${joint.name}</label>
                 <button class="btn-torque" id="tq-${joint.id}" onclick="toggleTorque(${joint.id})">ON</button>
-                <input type="range" id="slider-${joint.id}" min="0" max="4095" value="2048" 
+                <input type="range" id="slider-${joint.id}" min="${minVal}" max="${maxVal}" value="2048" 
                        oninput="updateJointDisplay(${joint.id}, this.value)"
                        onchange="sendJointCommand(${joint.id}, this.value)">
                 <div class="val-display" id="val-${joint.id}">2048</div>
@@ -291,33 +295,33 @@ async function readRobot() {
 async function playAction() {
     // The DARwIn-OP engine is 0-indexed. If there are 4 steps, the last step is STP 3.
     const lastStepOfAction = Math.max(0, actionStepNum - 1);
-    
+
     try {
         // Did we already play the last step?
         if (lastPlayedStep !== lastStepOfAction) {
-            
+
             // 1. Give the user visual feedback that we are prepping the robot
             const btn = document.querySelector('.btn-play');
             const oldText = btn.innerText;
             btn.innerText = "⏳ Syncing to Last Step...";
             btn.style.opacity = "0.7";
-            
+
             // 2. Tell the native DARwIn-OP engine to smoothly play the last step
             await fetch(`/api/play_step/${lastStepOfAction}`, { method: 'POST' });
-            
+
             // 3. Wait 1.2 seconds for the physical motors to smoothly glide into position.
             // (Because this is a JS Promise, your web browser stays perfectly responsive!)
             await new Promise(resolve => setTimeout(resolve, 1200));
-            
+
             // 4. Update the tracker and restore the button
             lastPlayedStep = lastStepOfAction;
             btn.innerText = oldText;
             btn.style.opacity = "1";
         }
-        
+
         // The robot is now perfectly positioned. Safely execute the sequence!
         await fetch('/api/play', { method: 'POST' });
-        
+
     } catch (error) {
         console.error("Failed to play action:", error);
     }

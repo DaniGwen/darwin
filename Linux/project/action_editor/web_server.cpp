@@ -19,12 +19,16 @@ int webCurrentStep = 7;
 
 // --- NEW: Custom Virtualized Hardware Read ---
 // This safely replaces the old ReadStep() so we can apply the AX-18 scaling
-void UpdateLiveStepFromHardware() {
-    for (int id = 1; id <= 24; id++) {
+void UpdateLiveStepFromHardware()
+{
+    for (int id = 1; id <= 24; id++)
+    {
         int val = 2048;
-        if (cm730.ReadWord(id, MX28::P_PRESENT_POSITION_L, &val, 0) == CM730::SUCCESS) {
+        if (cm730.ReadWord(id, MX28::P_PRESENT_POSITION_L, &val, 0) == CM730::SUCCESS)
+        {
             // --- VIRTUALIZATION INTERCEPT ---
-            if (id == 23 || id == 24) val *= 4; 
+            if (id == 23 || id == 24)
+                val *= 4;
             Step.position[id] = val;
         }
     }
@@ -73,6 +77,14 @@ void RunWebServer()
         int id = std::stoi(req.matches[1]);
         int value = std::stoi(req.matches[2]);
         
+        if (id == 23) {
+            if (value < 1052) value = 1052;
+            if (value > 3400) value = 3400;
+        } else if (id == 24) {
+            if (value < 1600) value = 1600;
+            if (value > 3260) value = 3260;
+        }
+
         if (webCurrentStep == 7) {
             Step.position[id] = value;
             
@@ -156,7 +168,8 @@ void RunWebServer()
         res.set_content("{\"status\":\"ok\"}", "application/json"); });
 
     // --- Play Action ---
-    svr.Post("/api/play", [](const httplib::Request &, httplib::Response &res) {
+    svr.Post("/api/play", [](const httplib::Request &, httplib::Response &res)
+             {
         if (Action::GetInstance()->IsRunning()) {
             res.set_content("{\"status\":\"already_playing\"}", "application/json");
             return;
@@ -188,8 +201,7 @@ void RunWebServer()
         });
         play_thread.detach();
 
-        res.set_content("{\"status\":\"playing\"}", "application/json");
-    });
+        res.set_content("{\"status\":\"playing\"}", "application/json"); });
 
     svr.Post(R"(/api/page_param/(speed|accel)/(\d+))", [](const httplib::Request &req, httplib::Response &res)
              {
@@ -335,6 +347,14 @@ void RunWebServer()
 
             int mirrored_val = 4096 - src_val; 
 
+            if (tgt == 23) {
+                if (mirrored_val < 1052) mirrored_val = 1052;
+                if (mirrored_val > 3400) mirrored_val = 3400;
+            } else if (tgt == 24) {
+                if (mirrored_val < 1600) mirrored_val = 1600;
+                if (mirrored_val > 3260) mirrored_val = 3260;
+            }
+            
             if (webCurrentStep == 7) {
                 cm730.WriteByte(tgt, MX28::P_TORQUE_ENABLE, 1, 0);
                 
@@ -370,6 +390,7 @@ void RunWebServer()
         bEdited = true;
         res.set_content("{\"status\":\"ok\"}", "application/json"); });
 
-    std::cout << "\n[INFO] Full Web Editor running on port 8080\n" << std::endl;
+    std::cout << "\n[INFO] Full Web Editor running on port 8080\n"
+              << std::endl;
     svr.listen("0.0.0.0", 8080);
 }
