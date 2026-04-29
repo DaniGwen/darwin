@@ -301,8 +301,8 @@ void MotionManager::Process()
                     // Send safe defaults: CW Margin(1), CCW Margin(1), CW Slope(32), CCW Slope(32)
                     param[n++] = 1;  
                     param[n++] = 1;  
-                    param[n++] = 32; 
-                    param[n++] = 32; 
+                    param[n++] = 8; 
+                    param[n++] = 8; 
                 } else {
                     // MX-28s use standard PID.
                     param[n++] = MotionStatus::m_CurrentJoints.GetDGain(id);
