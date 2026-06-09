@@ -134,15 +134,13 @@ function buildUI() {
 }
 
 async function toggleGroupTorque(groupName, state) {
-    if (currentStep !== 7) await setStep(7);
-
     const joints = jointConfiguration[groupName];
     if (!joints) return;
 
     const promises = joints.map(j => fetch(`/api/torque/${j.id}/${state}`, { method: 'POST' }));
     await Promise.all(promises);
-
-    pendingSave = true; // NEW: Flag the physical change!
+    
+    pendingSave = true; 
     updateSyncUI();
     fetchRobotState();
 }
@@ -205,17 +203,15 @@ async function sendJointCommand(id, value) {
 }
 
 async function toggleTorque(id) {
-    if (currentStep !== 7) await setStep(7);
-
     const btn = document.getElementById(`tq-${id}`);
     const isOff = btn.classList.contains("off");
-    const newState = isOff ? 1 : 0;
-
+    const newState = isOff ? 1 : 0; 
+    
     await fetch(`/api/torque/${id}/${newState}`, { method: 'POST' });
-
-    pendingSave = true; // NEW: Flag the physical change!
+    
+    pendingSave = true; 
     updateSyncUI();
-    fetchRobotState();
+    fetchRobotState(); 
 }
 
 async function loadPage(pageNum) {
@@ -412,14 +408,12 @@ async function fetchRobotState() {
 }
 
 async function toggleAllTorque(state) {
-    if (currentStep !== 7) await setStep(7);
-
     try {
         await fetch(`/api/torque_all/${state}`, { method: 'POST' });
-
-        pendingSave = true; // NEW: Flag the physical change!
+        
+        pendingSave = true; 
         updateSyncUI();
-        fetchRobotState();
+        fetchRobotState(); 
     } catch (error) {
         console.error("Failed to toggle all torque:", error);
     }

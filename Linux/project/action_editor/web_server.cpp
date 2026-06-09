@@ -72,11 +72,11 @@ void RunWebServer()
         res.set_content(json, "application/json"); });
 
     // 2. Move Joint
-    svr.Post(R"(/api/joint/(\d+)/(\d+))", [](const httplib::Request &req, httplib::Response &res)
-             {
+    svr.Post(R"(/api/joint/(\d+)/(\d+))", [](const httplib::Request &req, httplib::Response &res) {
         int id = std::stoi(req.matches[1]);
         int value = std::stoi(req.matches[2]);
         
+        // --- SOFTWARE SAFETY LIMITS ---
         if (id == 23) {
             if (value < 1052) value = 1052;
             if (value > 3400) value = 3400;
@@ -85,27 +85,28 @@ void RunWebServer()
             if (value > 3260) value = 3260;
         }
 
-        if (webCurrentStep == 7) {
-            Step.position[id] = value;
-            
-            // --- VIRTUALIZATION INTERCEPT (WRITE) ---
-            int hw_val = value;
-            if (id == 23 || id == 24) {
-                hw_val /= 4;
-                if (hw_val > 1023) hw_val = 1023;
-            }
-            cm730.WriteWord(id, MX28::P_GOAL_POSITION_L, hw_val, 0); 
-            // ----------------------------------------
-            
-        } else {
-            Page.step[webCurrentStep].position[id] = value; 
+        // ALWAYS update the memory of the step you are actively looking at!
+        if (webCurrentStep == 7) Step.position[id] = value;
+        else Page.step[webCurrentStep].position[id] = value;
+
+        // --- VIRTUALIZATION & HARDWARE MOVE ---
+        int hw_val = value;
+        if (id == 23 || id == 24) {
+            hw_val /= 4;
+            if (hw_val > 1023) hw_val = 1023;
         }
+
+        // FIX: Set a safe, moderate speed (150) so sliders don't jerk the robot!
+        cm730.WriteWord(id, MX28::P_MOVING_SPEED_L, 150, 0);
+        cm730.WriteWord(id, MX28::P_GOAL_POSITION_L, hw_val, 0); 
+        
         bEdited = true;
-        res.set_content("{\"status\":\"ok\"}", "application/json"); });
+        res.set_content("{\"status\":\"ok\"}", "application/json"); 
+    });
 
     // 3. Toggle Torque
-    svr.Post(R"(/api/torque/(\d+)/(\d+))", [](const httplib::Request &req, httplib::Response &res)
-             {
+    // 3. Toggle Torque
+    svr.Post(R"(/api/torque/(\d+)/(\d+))", [](const httplib::Request &req, httplib::Response &res) {
         int id = std::stoi(req.matches[1]);
         int state = std::stoi(req.matches[2]); 
         
@@ -114,35 +115,38 @@ void RunWebServer()
         if (state == 1) {
             int val = 2048; 
             if (cm730.ReadWord(id, MX28::P_PRESENT_POSITION_L, &val, 0) == CM730::SUCCESS) {
-                if (id == 23 || id == 24) val *= 4; // VIRTUALIZATION UP-SCALE
-                Step.position[id] = val; 
-            } else {
-                Step.position[id] = val; 
+                if (id == 23 || id == 24) val *= 4; 
+                // ALWAYS save the physical read to the active tab!
+                if (webCurrentStep == 7) Step.position[id] = val; 
+                else Page.step[webCurrentStep].position[id] = val;
             }
         } else {
-            Step.position[id] = Action::TORQUE_OFF_BIT_MASK; 
+            if (webCurrentStep == 7) Step.position[id] = Action::TORQUE_OFF_BIT_MASK; 
+            else Page.step[webCurrentStep].position[id] = Action::TORQUE_OFF_BIT_MASK;
         }
         bEdited = true;
-        res.set_content("{\"status\":\"ok\"}", "application/json"); });
+        res.set_content("{\"status\":\"ok\"}", "application/json"); 
+    });
 
-    svr.Post(R"(/api/torque_all/(\d+))", [](const httplib::Request &req, httplib::Response &res)
-             {
+    svr.Post(R"(/api/torque_all/(\d+))", [](const httplib::Request &req, httplib::Response &res) {
         int state = std::stoi(req.matches[1]); 
-        
         for(int id = 1; id <= 24; id++) {
             cm730.WriteByte(id, MX28::P_TORQUE_ENABLE, state, 0);
             if (state == 1) {
                 int val = 2048; 
                 if (cm730.ReadWord(id, MX28::P_PRESENT_POSITION_L, &val, 0) == CM730::SUCCESS) {
-                    if (id == 23 || id == 24) val *= 4; // VIRTUALIZATION UP-SCALE
-                    Step.position[id] = val;
+                    if (id == 23 || id == 24) val *= 4; 
+                    if (webCurrentStep == 7) Step.position[id] = val;
+                    else Page.step[webCurrentStep].position[id] = val;
                 }
             } else {
-                Step.position[id] = Action::TORQUE_OFF_BIT_MASK;
+                if (webCurrentStep == 7) Step.position[id] = Action::TORQUE_OFF_BIT_MASK;
+                else Page.step[webCurrentStep].position[id] = Action::TORQUE_OFF_BIT_MASK;
             }
         }
         bEdited = true;
-        res.set_content("{\"status\":\"ok\"}", "application/json"); });
+        res.set_content("{\"status\":\"ok\"}", "application/json"); 
+    });
 
     // 4. Change Page
     svr.Post(R"(/api/page/(\d+))", [](const httplib::Request &req, httplib::Response &res)
@@ -334,19 +338,17 @@ void RunWebServer()
         res.set_content("{\"status\":\"ok\"}", "application/json"); });
 
     // --- Mirror Joint Position ---
-    svr.Post(R"(/api/mirror/(\d+)/(\d+))", [](const httplib::Request &req, httplib::Response &res)
-             {
+    svr.Post(R"(/api/mirror/(\d+)/(\d+))", [](const httplib::Request &req, httplib::Response &res) {
         int src = std::stoi(req.matches[1]);
         int tgt = std::stoi(req.matches[2]);
 
         int src_val = 0;
         if (cm730.ReadWord(src, MX28::P_PRESENT_POSITION_L, &src_val, 0) == CM730::SUCCESS) {
-            
-            // --- VIRTUALIZATION INTERCEPT (READ SRC) ---
             if (src == 23 || src == 24) src_val *= 4;
 
             int mirrored_val = 4096 - src_val; 
 
+            // --- SOFTWARE SAFETY LIMITS ---
             if (tgt == 23) {
                 if (mirrored_val < 1052) mirrored_val = 1052;
                 if (mirrored_val > 3400) mirrored_val = 3400;
@@ -354,25 +356,28 @@ void RunWebServer()
                 if (mirrored_val < 1600) mirrored_val = 1600;
                 if (mirrored_val > 3260) mirrored_val = 3260;
             }
+
+            // Always turn torque ON and physically move the target arm slowly!
+            cm730.WriteByte(tgt, MX28::P_TORQUE_ENABLE, 1, 0);
             
-            if (webCurrentStep == 7) {
-                cm730.WriteByte(tgt, MX28::P_TORQUE_ENABLE, 1, 0);
-                
-                // --- VIRTUALIZATION INTERCEPT (WRITE TGT) ---
-                int hw_val = mirrored_val;
-                if (tgt == 23 || tgt == 24) {
-                    hw_val /= 4;
-                    if (hw_val > 1023) hw_val = 1023;
-                }
-                cm730.WriteWord(tgt, MX28::P_GOAL_POSITION_L, hw_val, 0);
-                
-                Step.position[tgt] = mirrored_val; 
-            } else {
-                Page.step[webCurrentStep].position[tgt] = mirrored_val;
+            int hw_val = mirrored_val;
+            if (tgt == 23 || tgt == 24) {
+                hw_val /= 4;
+                if (hw_val > 1023) hw_val = 1023;
             }
+            
+            // Set safe speed for mirroring
+            cm730.WriteWord(tgt, MX28::P_MOVING_SPEED_L, 150, 0);
+            cm730.WriteWord(tgt, MX28::P_GOAL_POSITION_L, hw_val, 0);
+            
+            // Save to the active tab
+            if (webCurrentStep == 7) Step.position[tgt] = mirrored_val; 
+            else Page.step[webCurrentStep].position[tgt] = mirrored_val;
+            
             bEdited = true;
         }
-        res.set_content("{\"status\":\"ok\"}", "application/json"); });
+        res.set_content("{\"status\":\"ok\"}", "application/json"); 
+    });
 
     svr.Post(R"(/api/step_param/(time|pause)/(\d+))", [](const httplib::Request &req, httplib::Response &res)
              {
