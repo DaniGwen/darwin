@@ -145,13 +145,19 @@ async function toggleGroupTorque(groupName, state) {
     fetchRobotState();
 }
 
-// --- NEW: Mirroring Logic ---
+// --- Mirroring Logic ---
 // Maps the [Source ID, Target ID] pairs for each limb
 const mirrorPairs = {
-    "Right Arm": [[1, 2], [3, 4], [5, 6]],
-    "Left Arm": [[2, 1], [4, 3], [6, 5]],
-    "Right Leg": [[7, 8], [9, 10], [11, 12], [13, 14], [15, 16], [17, 18]],
-    "Left Leg": [[8, 7], [10, 9], [12, 11], [14, 13], [16, 15], [18, 17]]
+    "Right Arm": [[1, 2, 1], [3, 4, 1], [5, 6, 1]],
+    "Left Arm": [[2, 1, 1], [4, 3, 1], [6, 5, 1]],
+    "Right Leg": [[7, 8, 1], [9, 10, 1], [11, 12, 1], [13, 14, 1], [15, 16, 1], [17, 18, 1]],
+    "Left Leg": [[8, 7, 1], [10, 9, 1], [12, 11, 1], [14, 13, 1], [16, 15, 1], [18, 17, 1]],
+    
+    // --- NEW: Hand Mirroring ---
+    // Wrist (21/23) uses 1 (Invert) so it bends the correct mirrored direction.
+    // Gripper (22/24) uses 0 (Direct Copy) so open stays open, closed stays closed!
+    "Right Hand": [[21, 23, 1], [22, 24, 0]],
+    "Left Hand": [[23, 21, 1], [24, 22, 0]]
 };
 
 async function mirrorGroup(sourceName) {
@@ -159,15 +165,23 @@ async function mirrorGroup(sourceName) {
     if (!pairs) return;
 
     try {
-        // Send the mirror command for every joint in the limb simultaneously
-        const promises = pairs.map(pair => fetch(`/api/mirror/${pair[0]}/${pair[1]}`, { method: 'POST' }));
+        // Send the mirror command for every joint, including the Invert Flag (pair[2])
+        const promises = pairs.map(pair => {
+            const src = pair[0];
+            const tgt = pair[1];
+            const invertFlag = pair[2];
+            return fetch(`/api/mirror/${src}/${tgt}/${invertFlag}`, { method: 'POST' });
+        });
+        
         await Promise.all(promises);
 
-        pendingEditsNotPlayed = true;
+        // Tell the UI a change was made without forcing a tab jump
+        pendingSave = true; 
         updateSyncUI();
 
-        // Wait a tiny bit for the hardware to finish moving, then refresh UI
-        setTimeout(fetchRobotState, 200);
+        // Wait a tiny bit for the hardware to finish smoothly moving, then refresh UI
+        setTimeout(fetchRobotState, 400); // Bumped to 400ms to allow the new, slower safe-speed to finish!
+        
     } catch (error) {
         console.error("Mirroring failed:", error);
     }
@@ -289,35 +303,20 @@ async function readRobot() {
 
 // --- UPDATED: Smart Action Playback ---
 async function playAction() {
-    // The DARwIn-OP engine is 0-indexed. If there are 4 steps, the last step is STP 3.
-    const lastStepOfAction = Math.max(0, actionStepNum - 1);
-
     try {
-        // Did we already play the last step?
-        if (lastPlayedStep !== lastStepOfAction) {
-
-            // 1. Give the user visual feedback that we are prepping the robot
-            const btn = document.querySelector('.btn-play');
-            const oldText = btn.innerText;
-            btn.innerText = "⏳ Syncing to Last Step...";
-            btn.style.opacity = "0.7";
-
-            // 2. Tell the native DARwIn-OP engine to smoothly play the last step
-            await fetch(`/api/play_step/${lastStepOfAction}`, { method: 'POST' });
-
-            // 3. Wait 1.2 seconds for the physical motors to smoothly glide into position.
-            // (Because this is a JS Promise, your web browser stays perfectly responsive!)
-            await new Promise(resolve => setTimeout(resolve, 1200));
-
-            // 4. Update the tracker and restore the button
-            lastPlayedStep = lastStepOfAction;
+        const btn = document.querySelector('.btn-play');
+        const oldText = btn.innerText;
+        btn.innerText = "⏳ Playing...";
+        btn.style.opacity = "0.7";
+        
+        // Let the C++ Anti-Jerk engine handle the smooth transition to Step 0!
+        await fetch('/api/play', { method: 'POST' });
+        
+        setTimeout(() => {
             btn.innerText = oldText;
             btn.style.opacity = "1";
-        }
-
-        // The robot is now perfectly positioned. Safely execute the sequence!
-        await fetch('/api/play', { method: 'POST' });
-
+        }, 1200);
+        
     } catch (error) {
         console.error("Failed to play action:", error);
     }

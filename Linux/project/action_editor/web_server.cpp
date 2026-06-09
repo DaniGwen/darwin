@@ -338,17 +338,24 @@ void RunWebServer()
         res.set_content("{\"status\":\"ok\"}", "application/json"); });
 
     // --- Mirror Joint Position ---
-    svr.Post(R"(/api/mirror/(\d+)/(\d+))", [](const httplib::Request &req, httplib::Response &res) {
+    svr.Post(R"(/api/mirror/(\d+)/(\d+)/(\d+))", [](const httplib::Request &req, httplib::Response &res) {
         int src = std::stoi(req.matches[1]);
         int tgt = std::stoi(req.matches[2]);
+        int invert = std::stoi(req.matches[3]); // 1 for true, 0 for false
 
         int src_val = 0;
         if (cm730.ReadWord(src, MX28::P_PRESENT_POSITION_L, &src_val, 0) == CM730::SUCCESS) {
+            
+            // 1. Read and Scale Up Source (if AX-18)
             if (src == 23 || src == 24) src_val *= 4;
 
-            int mirrored_val = 4096 - src_val; 
+            // 2. Apply Invert Logic
+            int mirrored_val = src_val; 
+            if (invert == 1) {
+                mirrored_val = 4096 - src_val; 
+            }
 
-            // --- SOFTWARE SAFETY LIMITS ---
+            // 3. --- SOFTWARE SAFETY LIMITS ---
             if (tgt == 23) {
                 if (mirrored_val < 1052) mirrored_val = 1052;
                 if (mirrored_val > 3400) mirrored_val = 3400;
@@ -357,7 +364,7 @@ void RunWebServer()
                 if (mirrored_val > 3260) mirrored_val = 3260;
             }
 
-            // Always turn torque ON and physically move the target arm slowly!
+            // 4. Move the Hardware Safely
             cm730.WriteByte(tgt, MX28::P_TORQUE_ENABLE, 1, 0);
             
             int hw_val = mirrored_val;
@@ -366,11 +373,10 @@ void RunWebServer()
                 if (hw_val > 1023) hw_val = 1023;
             }
             
-            // Set safe speed for mirroring
             cm730.WriteWord(tgt, MX28::P_MOVING_SPEED_L, 150, 0);
             cm730.WriteWord(tgt, MX28::P_GOAL_POSITION_L, hw_val, 0);
             
-            // Save to the active tab
+            // 5. Save to active tab memory
             if (webCurrentStep == 7) Step.position[tgt] = mirrored_val; 
             else Page.step[webCurrentStep].position[tgt] = mirrored_val;
             
