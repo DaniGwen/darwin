@@ -513,9 +513,9 @@ int main(void)
         else if (detected_object_label == "scissors" && scissors_detect_count >= detect_threshold && current_action_label != "scissors" && can_perform_action)
         {
             std::cout << "INFO: Detected scissors consistently. Playing hold item action." << std::endl;
-            LinuxActionScript::PlayMP3Wait("/home/darwin/darwin/Data/mp3/scissors-detected.mp3");
             run_action(ACTION_PAGE_HOLD_ITEM);
 
+            LinuxActionScript::PlayMP3Wait("/home/darwin/darwin/Data/mp3/Thank you.mp3");
             current_action_label = "scissors";
             last_action_time = current_time;
             scissors_detect_count = 0; // Reset counter
