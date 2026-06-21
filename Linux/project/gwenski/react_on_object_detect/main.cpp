@@ -510,7 +510,7 @@ int main(void)
         {
             handleGenericObjectDetected("sports ball", ACTION_PAGE_SPORTS_BALL, current_action_label, last_action_time, sports_ball_detect_count, current_time);
         }
-        else if (detected_object_label == "scissors" && pen_detect_count >= detect_threshold && current_action_label != "scissors" && can_perform_action)
+        else if (detected_object_label == "scissors" && scissors_detect_count >= detect_threshold && current_action_label != "scissors" && can_perform_action)
         {
             std::cout << "INFO: Detected scissors consistently. Playing hold item action." << std::endl;
             LinuxActionScript::PlayMP3Wait("/home/darwin/darwin/Data/mp3/scissors-detected.mp3");
@@ -518,7 +518,7 @@ int main(void)
 
             current_action_label = "scissors";
             last_action_time = current_time;
-            pen_detect_count = 0; // Reset counter
+            scissors_detect_count = 0; // Reset counter
         }
         else if (detected_object_label == "none" && current_action_label != "standby" && can_perform_action)
         {
@@ -551,7 +551,7 @@ int main(void)
                 std::remove("/tmp/darwin_voice_cmd.txt");
                 current_action_label = "standby";
                 last_action_time = current_time;
-                pen_detect_count = 0; // Reset counter
+                scissors_detect_count = 0; // Reset counter
             }
             else
             {
