@@ -319,7 +319,7 @@ int main(void)
         return -1;
     }
 
-    Robot::Action::GetInstance()->LoadFile(MOTION_FILE_PATH); // Load motion file for Action module
+    Robot::Action::GetInstance()->LoadFile((char*)MOTION_FILE_PATH); // Load motion file for Action module
 
     // --- Camera Initialization ---
     std::cout << "INFO: Initializing camera..." << std::endl;
@@ -537,15 +537,13 @@ int main(void)
             {
                 std::cout << GREEN << "INFO: Voice command 'release' received. Releasing pen." << RESET << std::endl;
                 Action::GetInstance()->m_Joint.SetEnable(22, false);
-                right_arm_controller.m_Joint.SetEnable(22, true);
 
                 // Opens the gripper to release the pen
                 right_arm_controller.OpenGripper();
                 std::this_thread::sleep_for(std::chrono::milliseconds(3000));
-                right_arm_controller.CloseGripper();
+                right_arm_controller.Default();
 
                 // Hand back control to Action module
-                right_arm_controller.m_Joint.SetEnable(22, false);
                 Action::GetInstance()->m_Joint.SetEnable(22, true);
 
                 run_action(ACTION_PAGE_STAND);
