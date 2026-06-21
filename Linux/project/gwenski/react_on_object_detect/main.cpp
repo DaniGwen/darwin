@@ -46,6 +46,7 @@
 #define ACTION_PAGE_READY_TO_PICKUP 32
 #define ACTION_PAGE_PICKUP_ITEM 33
 #define ACTION_PAGE_PASS_ITEM 34
+#define ACTION_PAGE_HOLD_ITEM 35
 
 enum class BottleTaskState
 {
@@ -266,7 +267,6 @@ void handleGenericObjectDetected(const std::string &label, int action_page,
 {
     std::cout << "INFO: Detected " << label << " consistently. Playing action page " << action_page << std::endl;
 
-
     if (label == "dog")
     {
         std::cout << "INFO: Dog detected, playing dog action." << std::endl;
@@ -323,7 +323,7 @@ int main(void)
 
     // --- Camera Initialization ---
     std::cout << "INFO: Initializing camera..." << std::endl;
-    LinuxCamera::GetInstance()->Initialize(0);        // Initialize with device index 0
+    LinuxCamera::GetInstance()->Initialize(0); // Initialize with device index 0
     LinuxCamera::GetInstance()->LoadINISettings(ini);
     std::cout << "INFO: Camera initialized and settings loaded." << std::endl;
 
@@ -372,19 +372,19 @@ int main(void)
     LinuxActionScript::PlayMP3Wait("/home/darwin/darwin/Data/mp3/cinematic-space-effect.mp3");
 
     pthread_t tracking_thread;
-    std::cout << "INFO: Creating HeadTracking thread..." << std::endl;                                  
+    std::cout << "INFO: Creating HeadTracking thread..." << std::endl;
     int thread_create_status = pthread_create(&tracking_thread, NULL, HeadTrackingThread, head_tracker);
 
     if (thread_create_status != 0)
     {
         LinuxActionScript::PlayMP3Wait("/home/darwin/darwin/Data/mp3/sonic-boom-sound-effect.mp3");
         std::cerr << "ERROR: Failed to create HeadTracking thread: " << strerror(thread_create_status) << std::endl;
-        head_tracker->Cleanup();                                                                                    
-        motion_timer->Stop();                                                                                       
-        MotionManager::GetInstance()->SetEnable(false);                                                              
-        MotionManager::GetInstance()->RemoveModule((MotionModule *)action_module);                                   
-        delete ini;                                                                                                  
-        delete motion_timer;                                                                                         
+        head_tracker->Cleanup();
+        motion_timer->Stop();
+        MotionManager::GetInstance()->SetEnable(false);
+        MotionManager::GetInstance()->RemoveModule((MotionModule *)action_module);
+        delete ini;
+        delete motion_timer;
         return -1;
     }
     std::cout << "INFO: HeadTracking thread created successfully." << std::endl;
@@ -400,7 +400,7 @@ int main(void)
     int dog_detect_count = 0;
     int cat_detect_count = 0;
     int sports_ball_detect_count = 0;
-    // Add other detection counters here if needed
+    int pen_detect_count = 0;
 
     const int detect_threshold = 10;
 
@@ -467,7 +467,14 @@ int main(void)
         {
             sports_ball_detect_count = 0;
         }
-        // Update other counters similarly
+        if (detected_object_label == "pen")
+        {
+            pen_detect_count++;
+        }
+        else
+        {
+            pen_detect_count = 0;
+        }
 
         // Action logic using encapsulated methods
         if (detected_object_label == "person" && person_detect_count >= detect_threshold && current_action_label != "person" && can_perform_action)
@@ -503,9 +510,16 @@ int main(void)
         {
             handleGenericObjectDetected("sports ball", ACTION_PAGE_SPORTS_BALL, current_action_label, last_action_time, sports_ball_detect_count, current_time);
         }
-        // Add other object handling "else if" blocks here, potentially using handleGenericObjectDetected
-        // or new specific handlers if their logic is complex.
+        else if (detected_object_label == "pen" && pen_detect_count >= detect_threshold && current_action_label != "pen" && can_perform_action)
+        {
+            std::cout << "INFO: Detected pen consistently. Playing hold item action." << std::endl;
+            LinuxActionScript::PlayMP3Wait("/home/darwin/darwin/Data/mp3/pen-detected.mp3");
+            run_action(ACTION_PAGE_HOLD_ITEM);
 
+            current_action_label = "pen";
+            last_action_time = current_time;
+            pen_detect_count = 0; // Reset counter
+        }
         else if (detected_object_label == "none" && current_action_label != "standby" && can_perform_action)
         {
             handleNoTargetOrStandby(current_action_label, last_action_time, current_time);
