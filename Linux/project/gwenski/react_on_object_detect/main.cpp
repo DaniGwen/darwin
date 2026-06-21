@@ -402,7 +402,7 @@ int main(void)
     int sports_ball_detect_count = 0;
     int scissors_detect_count = 0;
 
-    const int detect_threshold = 10;
+    const int detect_threshold = 4;
 
     while (1)
     {
@@ -506,7 +506,7 @@ int main(void)
         {
             handleGenericObjectDetected("cat", ACTION_PAGE_HAPPY, current_action_label, last_action_time, cat_detect_count, current_time);
         }
-        else if (detected_object_label == "sports ball" && sports_ball_detect_count >= detect_threshold && current_action_label != "sports ball" && can_perform_action)
+        else if (detected_object_label == "sportsball" && sports_ball_detect_count >= detect_threshold && current_action_label != "sports ball" && can_perform_action)
         {
             handleGenericObjectDetected("sports ball", ACTION_PAGE_SPORTS_BALL, current_action_label, last_action_time, sports_ball_detect_count, current_time);
         }
@@ -533,12 +533,12 @@ int main(void)
             std::getline(voice_cmd_file, cmd);
             voice_cmd_file.close();
 
-            if (cmd == "release" && current_action_label == "pen")
+            if (cmd == "release" && current_action_label == "scissors")
             {
-                std::cout << GREEN << "INFO: Voice command 'release' received. Releasing pen." << RESET << std::endl;
+                std::cout << GREEN << "INFO: Voice command 'release' received. Releasing scissors." << RESET << std::endl;
                 Action::GetInstance()->m_Joint.SetEnable(22, false);
 
-                // Opens the gripper to release the pen
+                // Opens the gripper to release the scissors
                 right_arm_controller.OpenGripper();
                 std::this_thread::sleep_for(std::chrono::milliseconds(3000));
                 right_arm_controller.Default();
