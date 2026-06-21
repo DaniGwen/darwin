@@ -525,6 +525,42 @@ int main(void)
             handleNoTargetOrStandby(current_action_label, last_action_time, current_time);
         }
 
+        // -- Voice command listener
+        std::ifstream voice_cmd_file("/tmp/darwin_voice_cmd.txt");
+        if (voice_cmd_file.is_open())
+        {
+            std::string cmd;
+            std::getline(voice_cmd_file, cmd);
+            voice_cmd_file.close();
+
+            if (cmd == "release" && current_action_label == "pen")
+            {
+                std::cout << GREEN << "INFO: Voice command 'release' received. Releasing pen." << RESET << std::endl;
+                Action::GetInstance()->m_Joint.SetEnable(22, false);
+                RightArmController::GetInstance()->m_Joint.SetEnable(22, true);
+
+                // Opens the gripper to release the pen
+                RightArmController::GetInstance()->OpenGripper();
+                std::this_thread::sleep_for(std::chrono::milliseconds(3000));
+                RightArmController::GetInstance()->CloseGripper();
+
+                // Hand back control to Action module
+                RightArmController::GetInstance()->m_Joint.SetEnable(22, false);
+                Action::GetInstance()->m_Joint.SetEnable(22, true);
+
+                run_action(ACTION_PAGE_STAND);
+                // clean up text file after processing
+                std::remove("/tmp/darwin_voice_cmd.txt");
+                current_action_label = "standby";
+                last_action_time = current_time;
+                pen_detect_count = 0; // Reset counter
+            }
+            else
+            {
+                std::remove("/tmp/darwin_voice_cmd.txt"); // Clean up unrecognized commands
+            }
+        }
+
         std::this_thread::sleep_for(std::chrono::milliseconds(150));
     }
 
