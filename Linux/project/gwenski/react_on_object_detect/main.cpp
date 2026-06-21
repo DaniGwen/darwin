@@ -400,7 +400,7 @@ int main(void)
     int dog_detect_count = 0;
     int cat_detect_count = 0;
     int sports_ball_detect_count = 0;
-    int pen_detect_count = 0;
+    int scissors_detect_count = 0;
 
     const int detect_threshold = 10;
 
@@ -467,13 +467,13 @@ int main(void)
         {
             sports_ball_detect_count = 0;
         }
-        if (detected_object_label == "pen")
+        if (detected_object_label == "scissors")
         {
-            pen_detect_count++;
+            scissors_detect_count++;
         }
         else
         {
-            pen_detect_count = 0;
+            scissors_detect_count = 0;
         }
 
         // Action logic using encapsulated methods
@@ -510,13 +510,13 @@ int main(void)
         {
             handleGenericObjectDetected("sports ball", ACTION_PAGE_SPORTS_BALL, current_action_label, last_action_time, sports_ball_detect_count, current_time);
         }
-        else if (detected_object_label == "pen" && pen_detect_count >= detect_threshold && current_action_label != "pen" && can_perform_action)
+        else if (detected_object_label == "scissors" && pen_detect_count >= detect_threshold && current_action_label != "scissors" && can_perform_action)
         {
-            std::cout << "INFO: Detected pen consistently. Playing hold item action." << std::endl;
-            LinuxActionScript::PlayMP3Wait("/home/darwin/darwin/Data/mp3/pen-detected.mp3");
+            std::cout << "INFO: Detected scissors consistently. Playing hold item action." << std::endl;
+            LinuxActionScript::PlayMP3Wait("/home/darwin/darwin/Data/mp3/scissors-detected.mp3");
             run_action(ACTION_PAGE_HOLD_ITEM);
 
-            current_action_label = "pen";
+            current_action_label = "scissors";
             last_action_time = current_time;
             pen_detect_count = 0; // Reset counter
         }
