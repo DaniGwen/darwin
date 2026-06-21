@@ -514,7 +514,7 @@ int main(void)
         {
             std::cout << "INFO: Detected pen consistently. Playing hold item action." << std::endl;
             LinuxActionScript::PlayMP3Wait("/home/darwin/darwin/Data/mp3/pen-detected.mp3");
-            run_action(ACTION_PAGE_HOLD_ITEM);
+            right_arm_controller->run_action(ACTION_PAGE_HOLD_ITEM);
 
             current_action_label = "pen";
             last_action_time = current_time;
@@ -537,15 +537,15 @@ int main(void)
             {
                 std::cout << GREEN << "INFO: Voice command 'release' received. Releasing pen." << RESET << std::endl;
                 Action::GetInstance()->m_Joint.SetEnable(22, false);
-                RightArmController::GetInstance()->m_Joint.SetEnable(22, true);
+                right_arm_controller->m_Joint.SetEnable(22, true);
 
                 // Opens the gripper to release the pen
-                RightArmController::GetInstance()->OpenGripper();
+                right_arm_controller->OpenGripper();
                 std::this_thread::sleep_for(std::chrono::milliseconds(3000));
-                RightArmController::GetInstance()->CloseGripper();
+                right_arm_controller->CloseGripper();
 
                 // Hand back control to Action module
-                RightArmController::GetInstance()->m_Joint.SetEnable(22, false);
+                right_arm_controller->m_Joint.SetEnable(22, false);
                 Action::GetInstance()->m_Joint.SetEnable(22, true);
 
                 run_action(ACTION_PAGE_STAND);
