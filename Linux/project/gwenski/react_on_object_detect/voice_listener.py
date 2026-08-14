@@ -6,7 +6,7 @@ CMD_FILE = "/tmp/darwin_voice_cmd.txt"
 
 def listen_loop():
     r = sr.Recognizer()
-    mic = sr.Microphone(device_index=11)
+    mic = sr.Microphone(device_index=2, sample_rate=16000)
     with mic as source:
             print("Adjusting for background noise...")
             r.adjust_for_ambient_noise(source, duration=2)
