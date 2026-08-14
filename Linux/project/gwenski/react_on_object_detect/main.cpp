@@ -319,7 +319,7 @@ int main(void)
         return -1;
     }
 
-    Robot::Action::GetInstance()->LoadFile((char*)MOTION_FILE_PATH); // Load motion file for Action module
+    Robot::Action::GetInstance()->LoadFile((char *)MOTION_FILE_PATH); // Load motion file for Action module
 
     // --- Camera Initialization ---
     std::cout << "INFO: Initializing camera..." << std::endl;
@@ -426,106 +426,103 @@ int main(void)
         auto current_time = std::chrono::steady_clock::now();
         bool can_perform_action = (current_time - last_action_time) >= action_cooldown;
 
-        // Update detection counts
-        if (detected_object_label == "person")
+        // 1. STATE LOCK: Only process camera if hands are EMPTY
+        if (current_action_label != "bottle")
         {
-            person_detect_count++;
-        }
-        else
-        {
-            person_detect_count = 0;
-        }
-        if (detected_object_label == "bottle")
-        {
-            bottle_detect_count++;
-        }
-        else
-        {
-            bottle_detect_count = 0;
-        }
-        if (detected_object_label == "dog")
-        {
-            dog_detect_count++;
-        }
-        else
-        {
-            dog_detect_count = 0;
-        }
-        if (detected_object_label == "cat")
-        {
-            cat_detect_count++;
-        }
-        else
-        {
-            cat_detect_count = 0;
-        }
-        if (detected_object_label == "sports ball")
-        {
-            sports_ball_detect_count++;
-        }
-        else
-        {
-            sports_ball_detect_count = 0;
-        }
-        if (detected_object_label == "scissors")
-        {
-            scissors_detect_count++;
-        }
-        else
-        {
-            scissors_detect_count = 0;
+            std::string detected_object_label = head_tracker->GetDetectedLabel();
+            double distance = 0;
+
+            if (detected_object_label != "none")
+            {
+                distance = head_tracker->GetDetectedObjectDistance();
+                if (distance > 0)
+                {
+                    std::cout << MAGENTA << "INFO: Estimated distance to " << detected_object_label
+                              << ": " << distance << " meters." << RESET << std::endl;
+                }
+            }
+
+            detected_object_label.erase(std::remove_if(detected_object_label.begin(), detected_object_label.end(), [](unsigned char c)
+                                                       { return std::isspace(c); }),
+                                        detected_object_label.end());
+
+            // 2. COUNTER DECAY: Fixes the distraction issue
+            if (detected_object_label == "person")
+                person_detect_count++;
+            else if (person_detect_count > 0)
+                person_detect_count--;
+
+            if (detected_object_label == "bottle")
+                bottle_detect_count++;
+            else if (bottle_detect_count > 0)
+                bottle_detect_count--; // Gradual decay instead of instant 0
+
+            if (detected_object_label == "dog")
+                dog_detect_count++;
+            else if (dog_detect_count > 0)
+                dog_detect_count--;
+
+            if (detected_object_label == "cat")
+                cat_detect_count++;
+            else if (cat_detect_count > 0)
+                cat_detect_count--;
+
+            if (detected_object_label == "sportsball")
+                sports_ball_detect_count++;
+            else if (sports_ball_detect_count > 0)
+                sports_ball_detect_count--;
+
+            // 3. TRIGGER ACTIONS
+            if (detected_object_label == "person" && person_detect_count >= detect_threshold && current_action_label != "person" && can_perform_action)
+            {
+                handlePersonDetected(left_arm_controller, current_action_label, last_action_time, person_detect_count, current_time);
+            }
+            else if (detected_object_label == "dog" && dog_detect_count >= detect_threshold && current_action_label != "dog" && can_perform_action)
+            {
+                handleGenericObjectDetected("dog", ACTION_PAGE_HAPPY, current_action_label, last_action_time, dog_detect_count, current_time);
+            }
+            else if (detected_object_label == "cat" && cat_detect_count >= detect_threshold && current_action_label != "cat" && can_perform_action)
+            {
+                handleGenericObjectDetected("cat", ACTION_PAGE_HAPPY, current_action_label, last_action_time, cat_detect_count, current_time);
+            }
+            else if (detected_object_label == "sportsball" && sports_ball_detect_count >= detect_threshold && current_action_label != "sports ball" && can_perform_action)
+            {
+                handleGenericObjectDetected("sports ball", ACTION_PAGE_SPORTS_BALL, current_action_label, last_action_time, sports_ball_detect_count, current_time);
+            }
+            else if (detected_object_label == "bottle" && bottle_detect_count >= detect_threshold && current_action_label != "bottle" && can_perform_action)
+            {
+                std::cout << "INFO: Detected bottle consistently. Playing hold item action." << std::endl;
+                run_action(ACTION_PAGE_HOLD_ITEM);
+                LinuxActionScript::PlayMP3Wait("/home/darwin/darwin/Data/mp3/Thank you.mp3");
+
+                current_action_label = "bottle";
+                last_action_time = current_time;
+                bottle_detect_count = 0;
+            }
+            // else if (detected_object_label == "bottle" && bottle_detect_count >= detect_threshold && current_action_label != "bottle" && can_perform_action)
+            // {
+            //     handleBottleInteraction(current_bottle_task_state,
+            //                             legs_controller,
+            //                             right_arm_controller,
+            //                             head_tracker,
+            //                             current_action_label,
+            //                             last_action_time,
+            //                             current_time);
+
+            //     if (current_bottle_task_state == BottleTaskState::DONE)
+            //     {
+            //         std::cout << "Task complete! Resetting to IDLE in 5 seconds." << std::endl;
+            //         std::this_thread::sleep_for(std::chrono::seconds(5));
+            //         current_bottle_task_state = BottleTaskState::IDLE;
+            //     }
+            // }
+            else if (detected_object_label == "none" && current_action_label != "standby" && can_perform_action)
+            {
+                handleNoTargetOrStandby(current_action_label, last_action_time, current_time);
+            }
         }
 
-        // Action logic using encapsulated methods
-        if (detected_object_label == "person" && person_detect_count >= detect_threshold && current_action_label != "person" && can_perform_action)
-        {
-            handlePersonDetected(left_arm_controller, current_action_label, last_action_time, person_detect_count, current_time);
-        }
-        // else if (detected_object_label == "bottle" && bottle_detect_count >= detect_threshold && current_action_label != "bottle" && can_perform_action)
-        // {
-        //     handleBottleInteraction(current_bottle_task_state,
-        //                             legs_controller,
-        //                             right_arm_controller,
-        //                             head_tracker,
-        //                             current_action_label,
-        //                             last_action_time,
-        //                             current_time);
-
-        //     if (current_bottle_task_state == BottleTaskState::DONE)
-        //     {
-        //         std::cout << "Task complete! Resetting to IDLE in 5 seconds." << std::endl;
-        //         std::this_thread::sleep_for(std::chrono::seconds(5));
-        //         current_bottle_task_state = BottleTaskState::IDLE;
-        //     }
-        // }
-        else if (detected_object_label == "dog" && dog_detect_count >= detect_threshold && current_action_label != "dog" && can_perform_action)
-        {
-            handleGenericObjectDetected("dog", ACTION_PAGE_HAPPY, current_action_label, last_action_time, dog_detect_count, current_time);
-        }
-        else if (detected_object_label == "cat" && cat_detect_count >= detect_threshold && current_action_label != "cat" && can_perform_action)
-        {
-            handleGenericObjectDetected("cat", ACTION_PAGE_HAPPY, current_action_label, last_action_time, cat_detect_count, current_time);
-        }
-        else if (detected_object_label == "sportsball" && sports_ball_detect_count >= detect_threshold && current_action_label != "sports ball" && can_perform_action)
-        {
-            handleGenericObjectDetected("sports ball", ACTION_PAGE_SPORTS_BALL, current_action_label, last_action_time, sports_ball_detect_count, current_time);
-        }
-        else if (detected_object_label == "bottle" && bottle_detect_count >= detect_threshold && current_action_label != "bottle" && can_perform_action)
-        {
-            std::cout << "INFO: Detected bottle consistently. Playing hold item action." << std::endl;
-            run_action(ACTION_PAGE_HOLD_ITEM);
-
-            LinuxActionScript::PlayMP3Wait("/home/darwin/darwin/Data/mp3/Thank you.mp3");
-            current_action_label = "bottle";
-            last_action_time = current_time;
-            bottle_detect_count = 0; // Reset counter
-        }
-        else if (detected_object_label == "none" && current_action_label != "standby" && can_perform_action)
-        {
-            handleNoTargetOrStandby(current_action_label, last_action_time, current_time);
-        }
-
-        // -- Voice command listener
+        // 4. ALWAYS CHECK VOICE COMMANDS (Even if hands are full)
         std::ifstream voice_cmd_file("/tmp/darwin_voice_cmd.txt");
         if (voice_cmd_file.is_open())
         {
@@ -547,11 +544,11 @@ int main(void)
                 Action::GetInstance()->m_Joint.SetEnable(22, true);
 
                 run_action(ACTION_PAGE_STAND);
-                // clean up text file after processing
                 std::remove("/tmp/darwin_voice_cmd.txt");
-                current_action_label = "standby";
+
+                current_action_label = "standby"; // Frees the state lock!
                 last_action_time = current_time;
-                bottle_detect_count = 0; // Reset counter
+                bottle_detect_count = 0;
             }
             else
             {
