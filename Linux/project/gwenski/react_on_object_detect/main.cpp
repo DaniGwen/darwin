@@ -308,8 +308,12 @@ int main(void)
     change_current_dir(); // Change current directory to executable's location //
 
     std::cout << "Cleaning up stale processes..." << std::endl;
-    system("pkill -9 -f custom_detect_object.py");
-    system("pkill -9 mjpg_streamer");
+    // Ask politely first so hardware is released gracefully
+    system("pkill -f custom_detect_object.py");
+    system("pkill mjpg_streamer");
+    
+    // Give them half a second to close the camera ports
+    std::this_thread::sleep_for(std::chrono::milliseconds(500));
 
     // Load INI settings
     minIni *ini = new minIni(INI_FILE_PATH);
