@@ -426,8 +426,8 @@ int main(void)
         auto current_time = std::chrono::steady_clock::now();
         bool can_perform_action = (current_time - last_action_time) >= action_cooldown;
 
-        // 1. STATE LOCK: Only process camera if hands are EMPTY
-        if (current_action_label != "bottle")
+        // --- VISION BLOCK: Only run if the robot's hands are empty ---
+        if (current_action_label != "bottle") 
         {
             std::string detected_object_label = head_tracker->GetDetectedLabel();
             double distance = 0;
@@ -446,33 +446,24 @@ int main(void)
                                                        { return std::isspace(c); }),
                                         detected_object_label.end());
 
-            // 2. COUNTER DECAY: Fixes the distraction issue
-            if (detected_object_label == "person")
-                person_detect_count++;
-            else if (person_detect_count > 0)
-                person_detect_count--;
+            // Counter Updates (using decay to prevent flickering resets)
+            if (detected_object_label == "person") person_detect_count++;
+            else if (person_detect_count > 0) person_detect_count--;
 
-            if (detected_object_label == "bottle")
-                bottle_detect_count++;
-            else if (bottle_detect_count > 0)
-                bottle_detect_count--; // Gradual decay instead of instant 0
+            if (detected_object_label == "bottle") bottle_detect_count++;
+            else if (bottle_detect_count > 0) bottle_detect_count--;
 
-            if (detected_object_label == "dog")
-                dog_detect_count++;
-            else if (dog_detect_count > 0)
-                dog_detect_count--;
+            if (detected_object_label == "dog") dog_detect_count++;
+            else if (dog_detect_count > 0) dog_detect_count--;
 
-            if (detected_object_label == "cat")
-                cat_detect_count++;
-            else if (cat_detect_count > 0)
-                cat_detect_count--;
+            if (detected_object_label == "cat") cat_detect_count++;
+            else if (cat_detect_count > 0) cat_detect_count--;
 
-            if (detected_object_label == "sportsball")
-                sports_ball_detect_count++;
-            else if (sports_ball_detect_count > 0)
-                sports_ball_detect_count--;
+            if (detected_object_label == "sportsball") sports_ball_detect_count++;
+            else if (sports_ball_detect_count > 0) sports_ball_detect_count--;
 
-            // 3. TRIGGER ACTIONS
+
+            // Action Triggers
             if (detected_object_label == "person" && person_detect_count >= detect_threshold && current_action_label != "person" && can_perform_action)
             {
                 handlePersonDetected(left_arm_controller, current_action_label, last_action_time, person_detect_count, current_time);
@@ -493,9 +484,9 @@ int main(void)
             {
                 std::cout << "INFO: Detected bottle consistently. Playing hold item action." << std::endl;
                 run_action(ACTION_PAGE_HOLD_ITEM);
-                LinuxActionScript::PlayMP3Wait("/home/darwin/darwin/Data/mp3/Thank you.mp3");
 
-                current_action_label = "bottle";
+                LinuxActionScript::PlayMP3Wait("/home/darwin/darwin/Data/mp3/Thank you.mp3");
+                current_action_label = "bottle"; // Locks the vision block!
                 last_action_time = current_time;
                 bottle_detect_count = 0;
             }
@@ -522,7 +513,7 @@ int main(void)
             }
         }
 
-        // 4. ALWAYS CHECK VOICE COMMANDS (Even if hands are full)
+        // --- VOICE COMMAND BLOCK: Always checks the text file ---
         std::ifstream voice_cmd_file("/tmp/darwin_voice_cmd.txt");
         if (voice_cmd_file.is_open())
         {
@@ -545,14 +536,14 @@ int main(void)
 
                 run_action(ACTION_PAGE_STAND);
                 std::remove("/tmp/darwin_voice_cmd.txt");
-
-                current_action_label = "standby"; // Frees the state lock!
+                
+                current_action_label = "standby"; // Unlocks the vision block
                 last_action_time = current_time;
-                bottle_detect_count = 0;
+                bottle_detect_count = 0; 
             }
-            else
+            else if (!cmd.empty()) // CRITICAL FIX: Only delete the file if Python finished writing
             {
-                std::remove("/tmp/darwin_voice_cmd.txt"); // Clean up unrecognized commands
+                std::remove("/tmp/darwin_voice_cmd.txt"); 
             }
         }
 
