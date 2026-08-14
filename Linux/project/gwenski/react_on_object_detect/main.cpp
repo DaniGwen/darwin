@@ -481,23 +481,23 @@ int main(void)
         {
             handlePersonDetected(left_arm_controller, current_action_label, last_action_time, person_detect_count, current_time);
         }
-        else if (detected_object_label == "bottle" && bottle_detect_count >= detect_threshold && current_action_label != "bottle" && can_perform_action)
-        {
-            handleBottleInteraction(current_bottle_task_state,
-                                    legs_controller,
-                                    right_arm_controller,
-                                    head_tracker,
-                                    current_action_label,
-                                    last_action_time,
-                                    current_time);
+        // else if (detected_object_label == "bottle" && bottle_detect_count >= detect_threshold && current_action_label != "bottle" && can_perform_action)
+        // {
+        //     handleBottleInteraction(current_bottle_task_state,
+        //                             legs_controller,
+        //                             right_arm_controller,
+        //                             head_tracker,
+        //                             current_action_label,
+        //                             last_action_time,
+        //                             current_time);
 
-            if (current_bottle_task_state == BottleTaskState::DONE)
-            {
-                std::cout << "Task complete! Resetting to IDLE in 5 seconds." << std::endl;
-                std::this_thread::sleep_for(std::chrono::seconds(5));
-                current_bottle_task_state = BottleTaskState::IDLE;
-            }
-        }
+        //     if (current_bottle_task_state == BottleTaskState::DONE)
+        //     {
+        //         std::cout << "Task complete! Resetting to IDLE in 5 seconds." << std::endl;
+        //         std::this_thread::sleep_for(std::chrono::seconds(5));
+        //         current_bottle_task_state = BottleTaskState::IDLE;
+        //     }
+        // }
         else if (detected_object_label == "dog" && dog_detect_count >= detect_threshold && current_action_label != "dog" && can_perform_action)
         {
             handleGenericObjectDetected("dog", ACTION_PAGE_HAPPY, current_action_label, last_action_time, dog_detect_count, current_time);
@@ -510,15 +510,15 @@ int main(void)
         {
             handleGenericObjectDetected("sports ball", ACTION_PAGE_SPORTS_BALL, current_action_label, last_action_time, sports_ball_detect_count, current_time);
         }
-        else if (detected_object_label == "scissors" && scissors_detect_count >= detect_threshold && current_action_label != "scissors" && can_perform_action)
+        else if (detected_object_label == "bottle" && bottle_detect_count >= detect_threshold && current_action_label != "bottle" && can_perform_action)
         {
-            std::cout << "INFO: Detected scissors consistently. Playing hold item action." << std::endl;
+            std::cout << "INFO: Detected bottle consistently. Playing hold item action." << std::endl;
             run_action(ACTION_PAGE_HOLD_ITEM);
 
             LinuxActionScript::PlayMP3Wait("/home/darwin/darwin/Data/mp3/Thank you.mp3");
-            current_action_label = "scissors";
+            current_action_label = "bottle";
             last_action_time = current_time;
-            scissors_detect_count = 0; // Reset counter
+            bottle_detect_count = 0; // Reset counter
         }
         else if (detected_object_label == "none" && current_action_label != "standby" && can_perform_action)
         {
@@ -533,12 +533,12 @@ int main(void)
             std::getline(voice_cmd_file, cmd);
             voice_cmd_file.close();
 
-            if (cmd == "release" && current_action_label == "scissors")
+            if (cmd == "release" && current_action_label == "bottle")
             {
-                std::cout << GREEN << "INFO: Voice command 'release' received. Releasing scissors." << RESET << std::endl;
+                std::cout << GREEN << "INFO: Voice command 'release' received. Releasing bottle." << RESET << std::endl;
                 Action::GetInstance()->m_Joint.SetEnable(22, false);
 
-                // Opens the gripper to release the scissors
+                // Opens the gripper to release the bottle
                 right_arm_controller.OpenGripper();
                 std::this_thread::sleep_for(std::chrono::milliseconds(3000));
                 right_arm_controller.Default();
@@ -551,7 +551,7 @@ int main(void)
                 std::remove("/tmp/darwin_voice_cmd.txt");
                 current_action_label = "standby";
                 last_action_time = current_time;
-                scissors_detect_count = 0; // Reset counter
+                bottle_detect_count = 0; // Reset counter
             }
             else
             {
