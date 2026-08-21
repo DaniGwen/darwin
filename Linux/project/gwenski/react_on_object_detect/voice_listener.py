@@ -5,21 +5,22 @@ CMD_FILE = "/tmp/darwin_voice_cmd.txt"
 
 def listen_loop():
     r = sr.Recognizer()
-    
-    # 1. Lower threshold drastically so even quiet speech triggers it
-    r.energy_threshold = 1000 
-    # 2. Turn OFF dynamic adjustment so it stays at 300
-    r.dynamic_energy_threshold = False 
-
     mic = sr.Microphone(device_index=3) 
-    
-    print("Ready to receive commands.")
-            
+
+    with mic as source:
+        print("Calibrating to background noise... Please remain quiet.")
+        # This will calculate the exact ambient volume of the room
+        r.adjust_for_ambient_noise(source, duration=2)
+        
+        # Turn off dynamic adjustment so the threshold stays locked at this perfect baseline
+        r.dynamic_energy_threshold = False
+        print(f"Calibration complete! Energy threshold locked at: {r.energy_threshold}")
+        print("Ready to receive commands.")
+
     while True:
         try:
             with mic as source:
                 print("Listening for command...")
-                # 3. Add timeout=5. If it hears nothing for 5 seconds, it restarts.
                 audio = r.listen(source, timeout=5, phrase_time_limit=4)
                 
                 text = r.recognize_google(audio).lower()
@@ -31,7 +32,6 @@ def listen_loop():
                         f.write("release")
                         
         except sr.WaitTimeoutError:
-            # This triggers if 5 seconds pass without hearing anything loud enough
             print("Silence detected, restarting listen loop...")
             pass
         except sr.UnknownValueError:
