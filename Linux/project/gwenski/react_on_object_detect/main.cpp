@@ -557,8 +557,6 @@ int main(void)
                 std::this_thread::sleep_for(std::chrono::milliseconds(1500));
 
                 run_action(ACTION_PAGE_STAND);
-
-                right_arm_controller.Default();
                 Action::GetInstance()->m_Joint.SetEnable(22, true);
 
                 std::remove("/tmp/darwin_voice_cmd.txt");
