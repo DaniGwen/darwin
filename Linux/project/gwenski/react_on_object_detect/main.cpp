@@ -430,7 +430,7 @@ int main(void)
         auto current_time = std::chrono::steady_clock::now();
         bool can_perform_action = (current_time - last_action_time) >= action_cooldown;
 
-        // --- VISION BLOCK: Only run if the robot's hands are empty ---
+        // --- VISION BLOCK: Only run if hands are empty ---
         if (current_action_label != "bottle") 
         {
             std::string detected_object_label = head_tracker->GetDetectedLabel();
@@ -441,16 +441,16 @@ int main(void)
                 distance = head_tracker->GetDetectedObjectDistance();
                 if (distance > 0)
                 {
-                    std::cout << MAGENTA << "INFO: Estimated distance to " << detected_object_label
-                              << ": " << distance << " meters." << RESET << std::endl;
+                    std::cout << MAGENTA << "INFO: Estimated distance to " << detected_object_label << ": " << distance << "m." << RESET << std::endl;
                 }
             }
 
+            // Remove spaces from labels (e.g., "sports ball" -> "sportsball")
             detected_object_label.erase(std::remove_if(detected_object_label.begin(), detected_object_label.end(), [](unsigned char c)
                                                        { return std::isspace(c); }),
                                         detected_object_label.end());
 
-            // Counter Updates (using decay to prevent flickering resets)
+            // 1. COUNTER DECAY (Gradually drops to 0 if the object is lost or replaced by a table/chair)
             if (detected_object_label == "person") person_detect_count++;
             else if (person_detect_count > 0) person_detect_count--;
 
@@ -467,7 +467,7 @@ int main(void)
             else if (sports_ball_detect_count > 0) sports_ball_detect_count--;
 
 
-            // Action Triggers
+            // 2. ACTION TRIGGERS
             if (detected_object_label == "person" && person_detect_count >= detect_threshold && current_action_label != "person" && can_perform_action)
             {
                 handlePersonDetected(left_arm_controller, current_action_label, last_action_time, person_detect_count, current_time);
@@ -487,10 +487,12 @@ int main(void)
             else if (detected_object_label == "bottle" && bottle_detect_count >= detect_threshold && current_action_label != "bottle" && can_perform_action)
             {
                 std::cout << "INFO: Detected bottle consistently. Playing hold item action." << std::endl;
+                
+                // Using your exact run_action function
                 run_action(ACTION_PAGE_HOLD_ITEM);
-
                 LinuxActionScript::PlayMP3Wait("/home/darwin/darwin/Data/mp3/Thank you.mp3");
-                current_action_label = "bottle"; // Locks the vision block!
+                
+                current_action_label = "bottle"; // Locks the vision block
                 last_action_time = current_time;
                 bottle_detect_count = 0;
             }
@@ -517,7 +519,7 @@ int main(void)
             }
         }
 
-        // --- VOICE COMMAND BLOCK: Always checks the text file ---
+        // --- VOICE COMMAND BLOCK ---
         std::ifstream voice_cmd_file("/tmp/darwin_voice_cmd.txt");
         if (voice_cmd_file.is_open())
         {
@@ -525,17 +527,16 @@ int main(void)
             std::getline(voice_cmd_file, cmd);
             voice_cmd_file.close();
 
-            if (cmd == "release" && current_action_label == "bottle")
+            // CRITICAL FIX: Use .find() to safely ignore hidden newline characters from Python
+            if (cmd.find("release") != std::string::npos && current_action_label == "bottle")
             {
                 std::cout << GREEN << "INFO: Voice command 'release' received. Releasing bottle." << RESET << std::endl;
+                
+                // Your exact release logic
                 Action::GetInstance()->m_Joint.SetEnable(22, false);
-
-                // Opens the gripper to release the bottle
                 right_arm_controller.OpenGripper();
                 std::this_thread::sleep_for(std::chrono::milliseconds(3000));
                 right_arm_controller.Default();
-
-                // Hand back control to Action module
                 Action::GetInstance()->m_Joint.SetEnable(22, true);
 
                 run_action(ACTION_PAGE_STAND);
@@ -545,7 +546,7 @@ int main(void)
                 last_action_time = current_time;
                 bottle_detect_count = 0; 
             }
-            else if (!cmd.empty()) // CRITICAL FIX: Only delete the file if Python finished writing
+            else if (!cmd.empty()) 
             {
                 std::remove("/tmp/darwin_voice_cmd.txt"); 
             }
