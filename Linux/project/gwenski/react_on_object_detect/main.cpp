@@ -527,11 +527,20 @@ int main(void)
             std::getline(voice_cmd_file, cmd);
             voice_cmd_file.close();
 
-            // CRITICAL FIX: Use .find() to safely ignore hidden newline characters from Python
             if (cmd.find("release") != std::string::npos && current_action_label == "bottle")
             {
                 std::cout << GREEN << "INFO: Voice command 'release' received. Releasing bottle." << RESET << std::endl;
                 
+                // ==========================================
+                // NEW: REPEAT / ACKNOWLEDGE THE COMMAND
+                // ==========================================
+                // Option 1: Play a built-in Darwin MP3 confirmation
+                LinuxActionScript::PlayMP3Wait("/home/darwin/darwin/Data/mp3/Yes.mp3");
+                
+                // Option 2: Literally say the word using Linux TTS
+                system("espeak \"releasing\" &");
+                // ==========================================
+
                 // Your exact release logic
                 Action::GetInstance()->m_Joint.SetEnable(22, false);
                 right_arm_controller.OpenGripper();
@@ -548,6 +557,9 @@ int main(void)
             }
             else if (!cmd.empty()) 
             {
+                // Optional: If you want it to repeat commands it doesn't understand
+                // system(("espeak \"I heard " + cmd + " but I cannot do that\"").c_str());
+                
                 std::remove("/tmp/darwin_voice_cmd.txt"); 
             }
         }
