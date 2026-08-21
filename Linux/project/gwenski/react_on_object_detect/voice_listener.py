@@ -7,7 +7,7 @@ def listen_loop():
     r = sr.Recognizer()
     
     # 1. Lower threshold drastically so even quiet speech triggers it
-    r.energy_threshold = 500 
+    r.energy_threshold = 1000 
     # 2. Turn OFF dynamic adjustment so it stays at 300
     r.dynamic_energy_threshold = False 
 
