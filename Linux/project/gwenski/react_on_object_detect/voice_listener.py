@@ -6,11 +6,11 @@ CMD_FILE = "/tmp/darwin_voice_cmd.txt"
 def listen_loop():
     r = sr.Recognizer()
     
-    # 1. Hardcode the microphone sensitivity to bypass the freeze
-    r.energy_threshold = 3500 
-    r.dynamic_energy_threshold = True 
+    # 1. Lower threshold drastically so even quiet speech triggers it
+    r.energy_threshold = 300 
+    # 2. Turn OFF dynamic adjustment so it stays at 300
+    r.dynamic_energy_threshold = False 
 
-    # 2. Use your confirmed Logitech USB Mic index
     mic = sr.Microphone(device_index=3) 
     
     print("Ready to receive commands.")
@@ -19,20 +19,24 @@ def listen_loop():
         try:
             with mic as source:
                 print("Listening for command...")
-                audio = r.listen(source, phrase_time_limit=4)
+                # 3. Add timeout=5. If it hears nothing for 5 seconds, it restarts.
+                audio = r.listen(source, timeout=5, phrase_time_limit=4)
                 
-                # Convert speech to text
                 text = r.recognize_google(audio).lower()
                 print(f" Heard: {text}")
                 
-                # Check for trigger words
                 if "release" in text or "drop" in text:
                     print("Command: release")
                     with open(CMD_FILE, "w") as f:
                         f.write("release")
                         
+        except sr.WaitTimeoutError:
+            # This triggers if 5 seconds pass without hearing anything loud enough
+            print("Silence detected, restarting listen loop...")
+            pass
         except sr.UnknownValueError:
             print("Could not understand audio")
+            pass
         except sr.RequestError as e:
             print(f"Could not request results; {e}")
         except Exception as e:
