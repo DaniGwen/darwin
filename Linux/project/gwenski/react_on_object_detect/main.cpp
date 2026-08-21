@@ -99,7 +99,7 @@ void run_action(int action_page)
 void run_action_non_blocking(int action_page)
 {
     MotionManager::GetInstance()->RemoveModule(static_cast<MotionModule *>(Walking::GetInstance()));
-    MotionManager::GetInstance()->SetEnable(true); 
+    MotionManager::GetInstance()->SetEnable(true);
 
     MotionManager::GetInstance()->SetJointEnableState(JointData::ID_HEAD_PAN, false);
     MotionManager::GetInstance()->SetJointEnableState(JointData::ID_HEAD_TILT, false);
@@ -314,9 +314,9 @@ BottleTaskState current_bottle_task_state = BottleTaskState::IDLE;
 
 int main(void)
 {
-    printf("\n===== Head tracking with Object Detection via Unix Domain Socket (Multithreaded) =====\n\n"); 
+    printf("\n===== Head tracking with Object Detection via Unix Domain Socket (Multithreaded) =====\n\n");
     srand(time(NULL));
-    change_current_dir(); 
+    change_current_dir();
 
     std::cout << "Cleaning up stale processes..." << std::endl;
     // Ask politely first so hardware is released gracefully
@@ -334,11 +334,11 @@ int main(void)
         return -1;
     }
 
-    Robot::Action::GetInstance()->LoadFile((char *)MOTION_FILE_PATH); 
+    Robot::Action::GetInstance()->LoadFile((char *)MOTION_FILE_PATH);
 
     // --- Camera Initialization ---
     std::cout << "INFO: Initializing camera..." << std::endl;
-    LinuxCamera::GetInstance()->Initialize(0); 
+    LinuxCamera::GetInstance()->Initialize(0);
     LinuxCamera::GetInstance()->LoadINISettings(ini);
     std::cout << "INFO: Camera initialized and settings loaded." << std::endl;
 
@@ -347,8 +347,8 @@ int main(void)
     CM730 cm730(&linux_cm730);
 
     // Get MotionManager and Action singletons
-    MotionManager *motion_manager = MotionManager::GetInstance(); 
-    Action *action_module = Action::GetInstance();                
+    MotionManager *motion_manager = MotionManager::GetInstance();
+    Action *action_module = Action::GetInstance();
 
     if (motion_manager->Initialize(&cm730) == false)
     {
@@ -369,10 +369,10 @@ int main(void)
 
     HeadTracking *head_tracker = HeadTracking::GetInstance();
 
-    if (!head_tracker->Initialize(ini, &cm730)) 
+    if (!head_tracker->Initialize(ini, &cm730))
     {
         LinuxActionScript::PlayMP3Wait("/home/darwin/darwin/Data/mp3/Oops.mp3");
-        std::cerr << "ERROR: HeadTracking initialization failed. Exiting." << std::endl; 
+        std::cerr << "ERROR: HeadTracking initialization failed. Exiting." << std::endl;
         motion_timer->Stop();
         MotionManager::GetInstance()->SetEnable(false);
         MotionManager::GetInstance()->RemoveModule((MotionModule *)action_module);
@@ -381,7 +381,7 @@ int main(void)
         return -1;
     }
 
-    std::cout << "INFO: Playing initial standby action (Page " << ACTION_PAGE_STAND << ")..." << std::endl; 
+    std::cout << "INFO: Playing initial standby action (Page " << ACTION_PAGE_STAND << ")..." << std::endl;
     run_action(ACTION_PAGE_STAND);
 
     pthread_t tracking_thread;
@@ -431,27 +431,37 @@ int main(void)
             }
         }
 
-        detected_object_label.erase(std::remove_if(detected_object_label.begin(), detected_object_label.end(), [](unsigned char c) 
+        detected_object_label.erase(std::remove_if(detected_object_label.begin(), detected_object_label.end(), [](unsigned char c)
                                                    { return std::isspace(c); }),
                                     detected_object_label.end());
 
         auto current_time = std::chrono::steady_clock::now();
         bool can_perform_action = (current_time - last_action_time) >= action_cooldown;
 
-        if (detected_object_label == "person") person_detect_count++;
-        else if (person_detect_count > 0) person_detect_count--;
+        if (detected_object_label == "person")
+            person_detect_count++;
+        else if (person_detect_count > 0)
+            person_detect_count--;
 
-        if (detected_object_label == "bottle") bottle_detect_count++;
-        else if (bottle_detect_count > 0) bottle_detect_count--;
+        if (detected_object_label == "bottle")
+            bottle_detect_count++;
+        else if (bottle_detect_count > 0)
+            bottle_detect_count--;
 
-        if (detected_object_label == "dog") dog_detect_count++;
-        else if (dog_detect_count > 0) dog_detect_count--;
+        if (detected_object_label == "dog")
+            dog_detect_count++;
+        else if (dog_detect_count > 0)
+            dog_detect_count--;
 
-        if (detected_object_label == "cat") cat_detect_count++;
-        else if (cat_detect_count > 0) cat_detect_count--;
+        if (detected_object_label == "cat")
+            cat_detect_count++;
+        else if (cat_detect_count > 0)
+            cat_detect_count--;
 
-        if (detected_object_label == "sportsball") sports_ball_detect_count++;
-        else if (sports_ball_detect_count > 0) sports_ball_detect_count--;
+        if (detected_object_label == "sportsball")
+            sports_ball_detect_count++;
+        else if (sports_ball_detect_count > 0)
+            sports_ball_detect_count--;
 
         // 2. ACTION TRIGGERS
         if (detected_object_label == "person" && person_detect_count >= detect_threshold && current_action_label != "person" && can_perform_action)
@@ -477,9 +487,9 @@ int main(void)
             run_action_non_blocking(ACTION_PAGE_HOLD_ITEM);
 
             // Play confirmation using native script in a detached thread so it doesn't freeze the loop
-            std::thread([]() {
-                LinuxActionScript::PlayMP3Wait("/home/darwin/darwin/Data/mp3/Thank you.mp3");
-            }).detach();
+            std::thread([]()
+                        { LinuxActionScript::PlayMP3Wait("/home/darwin/darwin/Data/mp3/Thank you.mp3"); })
+                .detach();
 
             current_action_label = "bottle";
             last_action_time = current_time;
@@ -493,42 +503,41 @@ int main(void)
             {
                 Action::GetInstance()->m_Joint.SetEnable(22, false);
                 right_arm_controller.OpenGripper();
-                std::this_thread::sleep_for(std::chrono::milliseconds(1500)); 
-                
-                run_action(ACTION_PAGE_STAND); 
-                
-                right_arm_controller.Default(); 
+                std::this_thread::sleep_for(std::chrono::milliseconds(1500));
+
+                run_action(ACTION_PAGE_STAND);
+
+                right_arm_controller.Default();
                 Action::GetInstance()->m_Joint.SetEnable(22, true);
             }
-            else 
+            else
             {
                 run_action(ACTION_PAGE_STAND);
             }
 
             current_action_label = "standby";
             last_action_time = current_time;
-            }
-            // else if (detected_object_label == "bottle" && bottle_detect_count >= detect_threshold && current_action_label != "bottle" && can_perform_action)
-            // {
-            //     handleBottleInteraction(current_bottle_task_state,
-            //                             legs_controller,
-            //                             right_arm_controller,
-            //                             head_tracker,
-            //                             current_action_label,
-            //                             last_action_time,
-            //                             current_time);
+        }
+        // else if (detected_object_label == "bottle" && bottle_detect_count >= detect_threshold && current_action_label != "bottle" && can_perform_action)
+        // {
+        //     handleBottleInteraction(current_bottle_task_state,
+        //                             legs_controller,
+        //                             right_arm_controller,
+        //                             head_tracker,
+        //                             current_action_label,
+        //                             last_action_time,
+        //                             current_time);
 
-            //     if (current_bottle_task_state == BottleTaskState::DONE)
-            //     {
-            //         std::cout << "Task complete! Resetting to IDLE in 5 seconds." << std::endl;
-            //         std::this_thread::sleep_for(std::chrono::seconds(5));
-            //         current_bottle_task_state = BottleTaskState::IDLE;
-            //     }
-            // }
-            else if (detected_object_label == "none" && current_action_label != "standby" && can_perform_action)
-            {
-                handleNoTargetOrStandby(current_action_label, last_action_time, current_time);
-            }
+        //     if (current_bottle_task_state == BottleTaskState::DONE)
+        //     {
+        //         std::cout << "Task complete! Resetting to IDLE in 5 seconds." << std::endl;
+        //         std::this_thread::sleep_for(std::chrono::seconds(5));
+        //         current_bottle_task_state = BottleTaskState::IDLE;
+        //     }
+        // }
+        else if (detected_object_label == "none" && current_action_label != "standby" && can_perform_action)
+        {
+            handleNoTargetOrStandby(current_action_label, last_action_time, current_time);
         }
 
         // --- VOICE COMMAND BLOCK ---
@@ -544,13 +553,13 @@ int main(void)
                 std::cout << GREEN << "INFO: Voice command 'release' received." << RESET << std::endl;
 
                 LinuxActionScript::PlayMP3Wait("/home/darwin/darwin/Data/mp3/Yes.mp3");
-                
+
                 Action::GetInstance()->m_Joint.SetEnable(22, false);
                 right_arm_controller.OpenGripper();
                 std::this_thread::sleep_for(std::chrono::milliseconds(1500));
-                
+
                 run_action(ACTION_PAGE_STAND);
-                
+
                 right_arm_controller.Default();
                 Action::GetInstance()->m_Joint.SetEnable(22, true);
 
