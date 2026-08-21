@@ -96,6 +96,17 @@ void run_action(int action_page)
     MotionManager::GetInstance()->SetEnable(false);
 }
 
+void run_action_non_blocking(int action_page)
+{
+    MotionManager::GetInstance()->RemoveModule(static_cast<MotionModule *>(Walking::GetInstance()));
+    MotionManager::GetInstance()->SetEnable(true); 
+
+    MotionManager::GetInstance()->SetJointEnableState(JointData::ID_HEAD_PAN, false);
+    MotionManager::GetInstance()->SetJointEnableState(JointData::ID_HEAD_TILT, false);
+
+    Action::GetInstance()->Start(action_page);
+}
+
 // Thread entry point function for HeadTracking
 void *HeadTrackingThread(void *arg)
 {
@@ -311,7 +322,7 @@ int main(void)
     // Ask politely first so hardware is released gracefully
     system("pkill -f custom_detect_object.py");
     system("pkill mjpg_streamer");
-    
+
     // Give them half a second to close the camera ports
     std::this_thread::sleep_for(std::chrono::milliseconds(500));
 
@@ -429,7 +440,7 @@ int main(void)
         bool can_perform_action = (current_time - last_action_time) >= action_cooldown;
 
         // --- VISION BLOCK: Only run if hands are empty ---
-        if (current_action_label != "bottle") 
+        if (current_action_label != "bottle")
         {
             std::string detected_object_label = head_tracker->GetDetectedLabel();
             double distance = 0;
@@ -449,21 +460,30 @@ int main(void)
                                         detected_object_label.end());
 
             // 1. COUNTER DECAY (Gradually drops to 0 if the object is lost or replaced by a table/chair)
-            if (detected_object_label == "person") person_detect_count++;
-            else if (person_detect_count > 0) person_detect_count--;
+            if (detected_object_label == "person")
+                person_detect_count++;
+            else if (person_detect_count > 0)
+                person_detect_count--;
 
-            if (detected_object_label == "bottle") bottle_detect_count++;
-            else if (bottle_detect_count > 0) bottle_detect_count--;
+            if (detected_object_label == "bottle")
+                bottle_detect_count++;
+            else if (bottle_detect_count > 0)
+                bottle_detect_count--;
 
-            if (detected_object_label == "dog") dog_detect_count++;
-            else if (dog_detect_count > 0) dog_detect_count--;
+            if (detected_object_label == "dog")
+                dog_detect_count++;
+            else if (dog_detect_count > 0)
+                dog_detect_count--;
 
-            if (detected_object_label == "cat") cat_detect_count++;
-            else if (cat_detect_count > 0) cat_detect_count--;
+            if (detected_object_label == "cat")
+                cat_detect_count++;
+            else if (cat_detect_count > 0)
+                cat_detect_count--;
 
-            if (detected_object_label == "sportsball") sports_ball_detect_count++;
-            else if (sports_ball_detect_count > 0) sports_ball_detect_count--;
-
+            if (detected_object_label == "sportsball")
+                sports_ball_detect_count++;
+            else if (sports_ball_detect_count > 0)
+                sports_ball_detect_count--;
 
             // 2. ACTION TRIGGERS
             if (detected_object_label == "person" && person_detect_count >= detect_threshold && current_action_label != "person" && can_perform_action)
@@ -484,15 +504,37 @@ int main(void)
             }
             else if (detected_object_label == "bottle" && bottle_detect_count >= detect_threshold && current_action_label != "bottle" && can_perform_action)
             {
-                std::cout << "INFO: Detected bottle consistently. Playing hold item action." << std::endl;
-                
-                // Using your exact run_action function
-                run_action(ACTION_PAGE_HOLD_ITEM);
-                LinuxActionScript::PlayMP3Wait("/home/darwin/darwin/Data/mp3/Thank you.mp3");
-                
-                current_action_label = "bottle"; // Locks the vision block
+                std::cout << GREEN << "INFO: Detected bottle. Playing hold action in background." << RESET << std::endl;
+
+                // CRITICAL: Use the new non-blocking function!
+                run_action_non_blocking(ACTION_PAGE_HOLD_ITEM);
+
+                // Use terminal to play MP3 so it doesn't freeze the C++ thread either
+                system("mpg321 /home/darwin/darwin/Data/mp3/Thank\\ you.mp3 &");
+
+                current_action_label = "bottle";
                 last_action_time = current_time;
                 bottle_detect_count = 0;
+            }
+            else if (bottle_detect_count == 0 && person_detect_count == 0 && dog_detect_count == 0 && cat_detect_count == 0 && current_action_label != "standby" && can_perform_action)
+            {
+                std::cout << YELLOW << "INFO: Target lost. Returning to standby." << RESET << std::endl;
+
+                // If it was holding a bottle but lost sight of it, drop it
+                if (current_action_label == "bottle")
+                {
+                    Action::GetInstance()->m_Joint.SetEnable(22, false);
+                    right_arm_controller.OpenGripper();
+                    std::this_thread::sleep_for(std::chrono::milliseconds(2000));
+                    right_arm_controller.Default();
+                    Action::GetInstance()->m_Joint.SetEnable(22, true);
+                }
+
+                // Use the normal blocking run_action to safely stand back up
+                run_action(ACTION_PAGE_STAND);
+
+                current_action_label = "standby";
+                last_action_time = current_time;
             }
             // else if (detected_object_label == "bottle" && bottle_detect_count >= detect_threshold && current_action_label != "bottle" && can_perform_action)
             // {
@@ -527,19 +569,10 @@ int main(void)
 
             if (cmd.find("release") != std::string::npos && current_action_label == "bottle")
             {
-                std::cout << GREEN << "INFO: Voice command 'release' received. Releasing bottle." << RESET << std::endl;
-                
-                // ==========================================
-                // NEW: REPEAT / ACKNOWLEDGE THE COMMAND
-                // ==========================================
-                // Option 1: Play a built-in Darwin MP3 confirmation
-                LinuxActionScript::PlayMP3Wait("/home/darwin/darwin/Data/mp3/Yes.mp3");
-                
-                // Option 2: Literally say the word using Linux TTS
-                system("espeak \"releasing\" &");
-                // ==========================================
+                std::cout << GREEN << "INFO: Voice command 'release' received." << RESET << std::endl;
 
-                // Your exact release logic
+                system("mpg321 /home/darwin/darwin/Data/mp3/Yes.mp3");
+                system("espeak \"releasing\" &");
                 Action::GetInstance()->m_Joint.SetEnable(22, false);
                 right_arm_controller.OpenGripper();
                 std::this_thread::sleep_for(std::chrono::milliseconds(3000));
@@ -548,17 +581,14 @@ int main(void)
 
                 run_action(ACTION_PAGE_STAND);
                 std::remove("/tmp/darwin_voice_cmd.txt");
-                
-                current_action_label = "standby"; // Unlocks the vision block
+
+                current_action_label = "standby";
                 last_action_time = current_time;
-                bottle_detect_count = 0; 
+                bottle_detect_count = 0;
             }
-            else if (!cmd.empty()) 
+            else if (!cmd.empty())
             {
-                // Optional: If you want it to repeat commands it doesn't understand
-                // system(("espeak \"I heard " + cmd + " but I cannot do that\"").c_str());
-                
-                std::remove("/tmp/darwin_voice_cmd.txt"); 
+                std::remove("/tmp/darwin_voice_cmd.txt");
             }
         }
 
