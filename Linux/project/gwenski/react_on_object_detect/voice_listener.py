@@ -7,7 +7,7 @@ def listen_loop():
     r = sr.Recognizer()
     
     # 1. Hardcoded to 100. (Drop to 50 or 10 if you still have to speak loudly)
-    r.energy_threshold = 100 
+    r.energy_threshold = 500 
     
     # 2. Lock it so it never tries to auto-adjust and freeze the camera
     r.dynamic_energy_threshold = False 
