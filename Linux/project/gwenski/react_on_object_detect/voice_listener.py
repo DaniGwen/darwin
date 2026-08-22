@@ -7,7 +7,7 @@ CMD_FILE = "/tmp/darwin_voice_cmd.txt"
 def listen_loop():
     r = sr.Recognizer()
     
-    r.energy_threshold = 40 
+    r.energy_threshold = 1000 
     r.dynamic_energy_threshold = False 
 
     mic = sr.Microphone(device_index=3) 
