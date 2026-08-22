@@ -4,6 +4,7 @@ import sys
 import signal
 
 CMD_FILE = "/tmp/darwin_voice_cmd.txt"
+TMP_FILE = "/tmp/darwin_voice_cmd.tmp"
 
 # --- Safely close the microphone when killed ---
 def handle_shutdown(signum, frame):
@@ -19,7 +20,7 @@ def listen_loop():
     r = sr.Recognizer()
     
     # Sensitivity settings
-    r.energy_threshold = 450 
+    r.energy_threshold = 700 
     r.dynamic_energy_threshold = False 
     r.pause_threshold = 0.5 
 
@@ -37,10 +38,13 @@ def listen_loop():
             
             if any(word in text for word in ["release", "drop", "start", "go"]):
                 print(f">>> COMMAND TRIGGERED: {text} <<<")
-                with open(CMD_FILE, "w") as f:
+                with open(TMP_FILE, "w") as f:
                     f.write(text)
                     f.flush()
                     os.fsync(f.fileno()) 
+                
+                # Instantly swap it to the real file C++ is looking for
+                os.rename(TMP_FILE, CMD_FILE)
                     
         except sr.WaitTimeoutError:
             pass
