@@ -329,7 +329,7 @@ int main(void)
 
     // Start the Python voice listener in the background!
     std::cout << "INFO: Starting background voice listener..." << std::endl;
-    system("python3 /home/darwin/darwin/Linux/project/gwenski/react_on_object_detect/voice_listener.py &");
+    system("sudo -u darwin python3 /home/darwin/darwin/Linux/project/gwenski/react_on_object_detect/voice_listener.py &");
     
     // Give the microphone 2 seconds to warm up
     std::this_thread::sleep_for(std::chrono::milliseconds(2000));
