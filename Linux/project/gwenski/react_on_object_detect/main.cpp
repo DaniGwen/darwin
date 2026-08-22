@@ -81,15 +81,14 @@ void change_current_dir()
 
 void run_action(int action_page)
 {
-    MotionManager::GetInstance()->RemoveModule(static_cast<MotionModule *>(Walking::GetInstance())); // Walking module must be removed before running Action
-    MotionManager::GetInstance()->SetEnable(true);                                                   // Must be active to run Action
+    MotionManager::GetInstance()->RemoveModule(static_cast<MotionModule *>(Walking::GetInstance())); 
+    MotionManager::GetInstance()->SetEnable(true);                                                   
 
     MotionManager::GetInstance()->SetJointEnableState(JointData::ID_HEAD_PAN, false);
     MotionManager::GetInstance()->SetJointEnableState(JointData::ID_HEAD_TILT, false);
 
     Action::GetInstance()->Start(action_page);
 
-    // Action::GetInstance()->ReleaseHeadControl(); // Release head control to allow HeadTracking to manage it
     while (Action::GetInstance()->IsRunning())
         usleep(8 * 1000);
 
@@ -111,12 +110,10 @@ void run_action_non_blocking(int action_page)
 // Thread entry point function for HeadTracking
 void *HeadTrackingThread(void *arg)
 {
-    // Cast the argument back to a HeadTracking pointer
     HeadTracking *head_tracker = static_cast<HeadTracking *>(arg);
 
     if (head_tracker)
     {
-        // Run the main tracking loop in this thread
         head_tracker->Run();
     }
     else
@@ -132,26 +129,21 @@ void *HeadTrackingThread(void *arg)
 void handlePersonDetected(LeftArmController &left_arm_controller,
                           std::string &current_action_label,
                           std::chrono::steady_clock::time_point &last_action_time,
-                          int &person_detect_count_ref, // Pass by reference to reset
+                          int &person_detect_count_ref, 
                           const std::chrono::steady_clock::time_point &current_time)
 {
     std::cout << "INFO: Detected person consistently. Playing Wave" << std::endl;
 
-    int random = rand() % 3; // Randomly choose between three actions
+    int random = rand() % 3; 
     if (random == 0)
     {
-        LinuxActionScript::PlayMP3Wait("/home/darwin/darwin/Data/mp3/hello.mp3");
+        system("espeak \"Hello there\" &");
         run_action(ACTION_PAGE_WAVE);
     }
     else if (random == 1)
     {
-        LinuxActionScript::PlayMP3Wait("/home/darwin/darwin/Data/mp3/i-can-see-you.mp3");
+        system("espeak \"I can see you\" &");
         run_action(ACTION_PAGE_WAVE2);
-    }
-    else // random == 2
-    {
-        // LinuxActionScript::PlayMP3Wait("/home/darwin/darwin/Data/mp3/i-love-you-cartoon.mp3");
-        // run_action();
     }
 
     std::chrono::milliseconds wave_duration(1000);
@@ -274,7 +266,7 @@ void handleBottleInteraction(BottleTaskState &state,
 void handleGenericObjectDetected(const std::string &label, int action_page,
                                  std::string &current_action_label,
                                  std::chrono::steady_clock::time_point &last_action_time,
-                                 int &detect_count_ref, // Pass by reference to reset
+                                 int &detect_count_ref, 
                                  const std::chrono::steady_clock::time_point &current_time)
 {
     std::cout << "INFO: Detected " << label << " consistently. Playing action page " << action_page << std::endl;
@@ -282,24 +274,26 @@ void handleGenericObjectDetected(const std::string &label, int action_page,
     if (label == "dog")
     {
         std::cout << "INFO: Dog detected, playing dog action." << std::endl;
-        LinuxActionScript::PlayMP3Wait("/home/darwin/darwin/Data/mp3/such_a_nice_doggy.mp3");
+        system("espeak \"Such a nice doggy\" &");
         run_action(action_page);
     }
     else if (label == "cat")
     {
-        LinuxActionScript::PlayMP3Wait("/home/darwin/darwin/Data/mp3/kitty_kitty.mp3");
         std::cout << "INFO: Cat detected, playing cat action." << std::endl;
+        system("espeak \"Here kitty kitty\" &");
         run_action(action_page);
     }
     else if (label == "sports_ball")
     {
         std::cout << "INFO: Sports ball detected, playing sports ball action." << std::endl;
+        system("espeak \"Let's play ball\" &");
+        run_action(action_page);
     }
 
     run_action(ACTION_PAGE_STAND);
     current_action_label = label;
     last_action_time = current_time;
-    detect_count_ref = 0; // Reset counter
+    detect_count_ref = 0; 
 }
 
 void handleNoTargetOrStandby(std::string &current_action_label,
@@ -316,16 +310,17 @@ void sigint_handler(int sig)
 {
     std::cout << "\n\nINFO: Caught Ctrl+C! Shutting down safely..." << std::endl;
     
-    // 1. Hunt down and kill the background Python scripts
+    // Audibly announce shutdown (runs in background so it doesn't delay the actual shutdown process)
+    system("espeak \"Shutting down safely\" &");
+    
     system("pkill -f voice_listener.py");
     system("pkill -f custom_detect_objects.py");
     system("pkill mjpg_streamer");
     
-    // 2. Turn off the robot's motors so it relaxes instead of staying tense
     MotionManager::GetInstance()->SetEnable(false);
     
     std::cout << "INFO: Background scripts killed and motors relaxed. Goodbye!" << std::endl;
-    exit(0); // Safely exit the program
+    exit(0); 
 }
 
 // ----------------------------------------
@@ -340,48 +335,43 @@ int main(void)
     change_current_dir();
 
     std::cout << "Cleaning up stale processes..." << std::endl;
-    // Ask politely first so hardware is released gracefully
     system("pkill -f custom_detect_object.py");
     system("pkill mjpg_streamer");
     system("pkill -f voice_listener.py");
 
-    // Give them half a second to close the camera ports
     std::this_thread::sleep_for(std::chrono::milliseconds(500));
 
-    // Start the Python voice listener in the background!
     std::cout << "INFO: Starting background voice listener..." << std::endl;
     system("sudo -u darwin python3 /home/darwin/darwin/Linux/project/gwenski/react_on_object_detect/voice_listener.py 2>/dev/null &");
     
-    // Give the microphone 2 seconds to warm up
     std::this_thread::sleep_for(std::chrono::milliseconds(2000));
 
-    // Load INI settings
     minIni *ini = new minIni(INI_FILE_PATH);
     if (!ini)
     {
         std::cerr << "ERROR: Failed to load INI file." << std::endl;
+        // Blocking espeak so it finishes saying the error before exiting
+        system("espeak \"Fatal Error. Failed to load configuration file.\"");
         return -1;
     }
 
     Robot::Action::GetInstance()->LoadFile((char *)MOTION_FILE_PATH);
 
-    // --- Camera Initialization ---
     std::cout << "INFO: Initializing camera..." << std::endl;
     LinuxCamera::GetInstance()->Initialize(0);
     LinuxCamera::GetInstance()->LoadINISettings(ini);
     std::cout << "INFO: Camera initialized and settings loaded." << std::endl;
 
-    // --- Initialize Motion Framework Components ---
     LinuxCM730 linux_cm730(U2D_DEV_NAME);
     CM730 cm730(&linux_cm730);
 
-    // Get MotionManager and Action singletons
     MotionManager *motion_manager = MotionManager::GetInstance();
     Action *action_module = Action::GetInstance();
 
     if (motion_manager->Initialize(&cm730) == false)
     {
         std::cerr << "ERROR: Failed to initialize Motion Manager in main!" << std::endl;
+        system("espeak \"Fatal Error. Servo connection failed.\"");
         delete ini;
         return -1;
     }
@@ -400,8 +390,8 @@ int main(void)
 
     if (!head_tracker->Initialize(ini, &cm730))
     {
-        LinuxActionScript::PlayMP3Wait("/home/darwin/darwin/Data/mp3/Oops.mp3");
         std::cerr << "ERROR: HeadTracking initialization failed. Exiting." << std::endl;
+        system("espeak \"Fatal Error. Camera initialization failed.\"");
         motion_timer->Stop();
         MotionManager::GetInstance()->SetEnable(false);
         MotionManager::GetInstance()->RemoveModule((MotionModule *)action_module);
@@ -419,8 +409,8 @@ int main(void)
 
     if (thread_create_status != 0)
     {
-        LinuxActionScript::PlayMP3Wait("/home/darwin/darwin/Data/mp3/Oops.mp3");
         std::cerr << "ERROR: Failed to create HeadTracking thread: " << strerror(thread_create_status) << std::endl;
+        system("espeak \"Fatal Error. Failed to launch background vision process.\"");
         head_tracker->Cleanup();
         motion_timer->Stop();
         MotionManager::GetInstance()->SetEnable(false);
@@ -430,8 +420,6 @@ int main(void)
         return -1;
     }
     std::cout << "INFO: HeadTracking thread created successfully." << std::endl;
-
-    std::cout << "INFO: Main thread running, checking for detected objects to trigger actions. Press Ctrl+C to exit." << std::endl;
 
     std::cout << "INFO: Main thread ready. Waiting for start command. Press Ctrl+C to exit." << std::endl;
 
@@ -450,7 +438,6 @@ int main(void)
             std::getline(voice_cmd_file, cmd);
             voice_cmd_file.close();
 
-            // Check if the command contains "start" or "go"
             if (cmd.find("start") != std::string::npos || cmd.find("go") != std::string::npos)
             {
                 std::cout << GREEN << "INFO: Start command received: '" << cmd << "'" << RESET << std::endl;
@@ -459,15 +446,13 @@ int main(void)
                 system(speak_cmd.c_str()); 
                 
                 std::remove("/tmp/darwin_voice_cmd.txt");
-                start_command_received = true; // This breaks the waiting loop!
+                start_command_received = true; 
             }
             else if (!cmd.empty())
             {
-                // Delete the file if it hears a random command before we actually start
                 std::remove("/tmp/darwin_voice_cmd.txt"); 
             }
         }
-        // Sleep briefly to avoid maxing out the CPU while waiting
         std::this_thread::sleep_for(std::chrono::milliseconds(200));
     }
     // =========================================================================
@@ -506,30 +491,20 @@ int main(void)
         auto current_time = std::chrono::steady_clock::now();
         bool can_perform_action = (current_time - last_action_time) >= action_cooldown;
 
-        if (detected_object_label == "person")
-            person_detect_count++;
-        else if (person_detect_count > 0)
-            person_detect_count--;
+        if (detected_object_label == "person") person_detect_count++;
+        else if (person_detect_count > 0) person_detect_count--;
 
-        if (detected_object_label == "bottle")
-            bottle_detect_count++;
-        else if (bottle_detect_count > 0)
-            bottle_detect_count--;
+        if (detected_object_label == "bottle") bottle_detect_count++;
+        else if (bottle_detect_count > 0) bottle_detect_count--;
 
-        if (detected_object_label == "dog")
-            dog_detect_count++;
-        else if (dog_detect_count > 0)
-            dog_detect_count--;
+        if (detected_object_label == "dog") dog_detect_count++;
+        else if (dog_detect_count > 0) dog_detect_count--;
 
-        if (detected_object_label == "cat")
-            cat_detect_count++;
-        else if (cat_detect_count > 0)
-            cat_detect_count--;
+        if (detected_object_label == "cat") cat_detect_count++;
+        else if (cat_detect_count > 0) cat_detect_count--;
 
-        if (detected_object_label == "sportsball")
-            sports_ball_detect_count++;
-        else if (sports_ball_detect_count > 0)
-            sports_ball_detect_count--;
+        if (detected_object_label == "sportsball") sports_ball_detect_count++;
+        else if (sports_ball_detect_count > 0) sports_ball_detect_count--;
 
         // 2. ACTION TRIGGERS
         if (detected_object_label == "person" && person_detect_count >= detect_threshold && current_action_label != "person" && can_perform_action)
@@ -553,11 +528,9 @@ int main(void)
             std::cout << GREEN << "INFO: Detected bottle. Playing hold action." << RESET << std::endl;
 
             run_action_non_blocking(ACTION_PAGE_HOLD_ITEM);
-
-            // Play confirmation using native script in a detached thread so it doesn't freeze the loop
-            std::thread([]()
-                        { LinuxActionScript::PlayMP3Wait("/home/darwin/darwin/Data/mp3/Thank you.mp3"); })
-                .detach();
+            
+            // Replaced MP3 with espeak in the background
+            system("espeak \"Thank you\" &");
 
             current_action_label = "bottle";
             last_action_time = current_time;
@@ -607,7 +580,7 @@ int main(void)
         }
 
         // --- VOICE COMMAND BLOCK ---
-       std::ifstream voice_cmd_file("/tmp/darwin_voice_cmd.txt");
+        std::ifstream voice_cmd_file("/tmp/darwin_voice_cmd.txt");
         if (voice_cmd_file.is_open())
         {
             std::string cmd;
@@ -618,12 +591,9 @@ int main(void)
             {
                 std::cout << GREEN << "INFO: Voice command '" << cmd << "' received." << RESET << std::endl;
 
-                // ==========================================
-                // NEW: Dynamically repeat exactly what was heard!
-                // ==========================================
+                // Dynamically repeats what it heard
                 std::string speak_cmd = "espeak \"" + cmd + "\"";
                 system(speak_cmd.c_str()); 
-                // ==========================================
 
                 Action::GetInstance()->m_Joint.SetEnable(22, false);
                 right_arm_controller.OpenGripper();
