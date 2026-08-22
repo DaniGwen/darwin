@@ -25,7 +25,7 @@ def listen_loop():
 
     try:
         # THE FIX: Removed chunk_size=4096! It defaults back to 1024, which the Pi's USB can handle.
-        mic = sr.Microphone(device_index=3)
+        mic = sr.Microphone(device_index=3, sample_rate=16000)
         
         with mic as source:
             print("    [Hardware connected and locked successfully]")
