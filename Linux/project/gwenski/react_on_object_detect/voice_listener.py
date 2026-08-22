@@ -84,8 +84,17 @@ def listen_loop():
     except Exception as e:
         if keep_running:
             print(f"\n    [CRITICAL] ALSA audio driver choked. Rebooting Python process... {e}")
-            time.sleep(1.5) 
-            os.execv(sys.executable, [sys.executable] + sys.argv)
+            
+            # Break the 1.5s sleep into tiny chunks so it reacts to Ctrl+C instantly
+            for _ in range(15):
+                if not keep_running:
+                    print("    [Abort] Shutdown signal received during reboot. Exiting instead.")
+                    sys.exit(0)
+                time.sleep(0.1) 
+            
+            # Final check before hitting the nuclear button
+            if keep_running:
+                os.execv(sys.executable, [sys.executable] + sys.argv)
 
 if __name__ == "__main__":
     if os.path.exists(CMD_FILE):
