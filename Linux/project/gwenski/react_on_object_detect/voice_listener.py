@@ -19,11 +19,11 @@ def listen_loop():
     r = sr.Recognizer()
     
     # Sensitivity settings
-    r.energy_threshold = 400 
+    r.energy_threshold = 100 
     r.dynamic_energy_threshold = False 
     r.pause_threshold = 0.5 
 
-    mic = sr.Microphone()  //device_index=3
+    mic = sr.Microphone(device_index=3)
     print("Ready to receive commands.")
 
     while True:
