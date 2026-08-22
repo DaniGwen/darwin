@@ -322,9 +322,17 @@ int main(void)
     // Ask politely first so hardware is released gracefully
     system("pkill -f custom_detect_object.py");
     system("pkill mjpg_streamer");
+    system("pkill -f voice_listener.py");
 
     // Give them half a second to close the camera ports
     std::this_thread::sleep_for(std::chrono::milliseconds(500));
+
+    // Start the Python voice listener in the background!
+    std::cout << "INFO: Starting background voice listener..." << std::endl;
+    system("python3 /home/darwin/darwin/Linux/project/gwenski/react_on_object_detect/voice_listener.py &");
+    
+    // Give the microphone 2 seconds to warm up
+    std::this_thread::sleep_for(std::chrono::milliseconds(2000));
 
     // Load INI settings
     minIni *ini = new minIni(INI_FILE_PATH);
