@@ -2,6 +2,7 @@ import speech_recognition as sr
 import os
 import sys
 import signal
+import time # Needed for a tiny safety delay
 
 CMD_FILE = "/tmp/darwin_voice_cmd.txt"
 TMP_FILE = "/tmp/darwin_voice_cmd.tmp"
@@ -20,51 +21,65 @@ def listen_loop():
     r.dynamic_energy_threshold = False 
     r.pause_threshold = 0.5 
 
-    # 1. FIXED BUFFER: Increased chunk_size to 4096 to prevent ALSA crashes
-    mic = sr.Microphone(device_index=3, chunk_size=4096) 
     print("Ready to receive commands.")
 
-    try:
-        # 2. FIXED HARDWARE LOOP: Open the mic ONCE, and keep it open!
-        with mic as source:
-            print("    [Hardware connected and locked successfully]")
+    # =======================================================
+    # OUTER LOOP: Creates and repairs the hardware connection
+    # =======================================================
+    while True:
+        try:
+            mic = sr.Microphone(device_index=3, chunk_size=4096)
             
-            while True:
-                try:
-                    print("\n--> LISTENING... (Speak now)")
-                    audio = r.listen(source, timeout=4, phrase_time_limit=4)
+            with mic as source:
+                print("    [Hardware connected and locked successfully]")
                 
-                    print("    [Processing audio...]")
-                    text = r.recognize_google(audio).lower()
+                # =======================================================
+                # INNER LOOP: Listens continuously without turning mic off
+                # =======================================================
+                while True:
+                    try:
+                        print("\n--> LISTENING... (Speak now)")
+                        audio = r.listen(source, timeout=4, phrase_time_limit=4)
                     
-                    print(f"    [GOOGLE HEARD]: '{text}'") 
-                    
-                    trigger_words = [
-                        "release", "drop", "start", "go", "begin", 
-                        "darwin start", "let's go", "star", "dart"
-                    ]
-                    
-                    if any(word in text for word in trigger_words):
-                        print(f">>> COMMAND TRIGGERED: {text} <<<")
+                        print("    [Processing audio...]")
+                        text = r.recognize_google(audio).lower()
                         
-                        with open(TMP_FILE, "w") as f:
-                            f.write(text)
-                            f.flush()
-                            os.fsync(f.fileno()) 
+                        print(f"    [GOOGLE HEARD]: '{text}'") 
                         
-                        os.rename(TMP_FILE, CMD_FILE)
+                        trigger_words = [
+                            "release", "drop", "start", "go", "begin", 
+                            "darwin start", "let's go", "star", "dart"
+                        ]
                         
-                except sr.WaitTimeoutError:
-                    pass
-                except sr.UnknownValueError:
-                    print("    [Ignored: Audio not understood]")
-                except sr.RequestError as e:
-                    print(f"    [API Error]: {e}")
-                except Exception as e:
-                    print(f"    [Error]: {e}")
-                    
-    except Exception as e:
-        print(f"Failed to open microphone: {e}")
+                        if any(word in text for word in trigger_words):
+                            print(f">>> COMMAND TRIGGERED: {text} <<<")
+                            
+                            with open(TMP_FILE, "w") as f:
+                                f.write(text)
+                                f.flush()
+                                os.fsync(f.fileno()) 
+                            
+                            os.rename(TMP_FILE, CMD_FILE)
+                            
+                    except sr.WaitTimeoutError:
+                        # No one spoke. Loop around and keep the mic open!
+                        pass
+                    except sr.UnknownValueError:
+                        print("    [Ignored: Audio not understood]")
+                    except sr.RequestError as e:
+                        print(f"    [API Error]: {e}")
+                    except Exception as e:
+                        error_msg = str(e)
+                        print(f"    [Error]: {error_msg}")
+                        
+                        # THE MAGIC FIX: If the stream dies, BREAK the inner loop!
+                        if "Audio source must be entered" in error_msg or "NoneType" in error_msg or "closed" in error_msg:
+                            print("    [Mic stream died! Forcing a hard reset...]")
+                            break # This kicks it back out to the Outer Loop to reboot the mic!
+                            
+        except Exception as e:
+            print(f"    [Hardware Error]: {e}")
+            time.sleep(1) # If the hardware completely vanishes, wait 1 sec before retrying to avoid spam
 
 if __name__ == "__main__":
     if os.path.exists(CMD_FILE):
