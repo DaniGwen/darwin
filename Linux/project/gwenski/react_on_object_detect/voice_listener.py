@@ -17,18 +17,23 @@ signal.signal(signal.SIGTERM, handle_shutdown)
 def listen_loop():
     r = sr.Recognizer()
     
-    r.energy_threshold = 700 
-    r.dynamic_energy_threshold = False 
+    r.dynamic_energy_threshold = True 
     r.pause_threshold = 0.5 
 
     print("Ready to receive commands.")
 
     try:
-        # THE FIX: Removed chunk_size=4096! It defaults back to 1024, which the Pi's USB can handle.
-        mic = sr.Microphone(device_index=3)
+        # THE CURE: We MUST keep 16000Hz to prevent the Pi's USB bus from suffocating.
+        # Google's API actually prefers 16000Hz for speech recognition anyway!
+        mic = sr.Microphone(device_index=3, sample_rate=16000)
         
         with mic as source:
             print("    [Hardware connected and locked successfully]")
+            
+            # THE NEW MAGIC: Let Python calculate the exact volume threshold automatically!
+            print("    [Calibrating to room noise for 2 seconds. Please stay quiet...]")
+            r.adjust_for_ambient_noise(source, duration=2)
+            print(f"    [Calibration complete. Perfect threshold found: {int(r.energy_threshold)}]")
             
             while True:
                 try:
@@ -62,13 +67,11 @@ def listen_loop():
                 except sr.RequestError as e:
                     print(f"    [API Error]: {e}")
                 except Exception as e:
-                    # If PyAudio crashes due to USB limits, trigger the reboot
                     raise RuntimeError(f"Stream corrupted: {e}")
                     
     except Exception as e:
-        # Ignore the meaningless NoneType error text and focus on the reboot
-        print("\n    [CRITICAL] ALSA audio driver choked on USB bandwidth. Rebooting Python process...")
-        time.sleep(1.5) # Give the Linux kernel a moment to un-jam the USB port
+        print(f"\n    [CRITICAL] ALSA audio driver choked. Rebooting Python process... {e}")
+        time.sleep(1.5) 
         os.execv(sys.executable, [sys.executable] + sys.argv)
 
 if __name__ == "__main__":
