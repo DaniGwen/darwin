@@ -25,12 +25,12 @@ def listen_loop():
                     text = r.recognize_google(audio).lower()
                     print(f" Heard: {text}")
                     
-                    if "release" in text or "drop" in text:
-                        print(f">>> COMMAND TRIGGERED: {text} <<<")
-                        with open(CMD_FILE, "w") as f:
-                         f.write(text)
-                         f.flush()
-                         os.fsync(f.fileno())
+                    if any(word in text for word in ["release", "drop", "start", "go"]):
+                     print(f">>> COMMAND TRIGGERED: {text} <<<")
+                     with open(CMD_FILE, "w") as f:
+                        f.write(text)
+                        f.flush()
+                        os.fsync(f.fileno())
                             
             except sr.WaitTimeoutError:
                 pass # Removed the print spam

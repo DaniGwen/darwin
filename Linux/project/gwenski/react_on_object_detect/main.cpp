@@ -433,6 +433,45 @@ int main(void)
 
     std::cout << "INFO: Main thread running, checking for detected objects to trigger actions. Press Ctrl+C to exit." << std::endl;
 
+    std::cout << "INFO: Main thread ready. Waiting for start command. Press Ctrl+C to exit." << std::endl;
+
+    // =========================================================================
+    // VOICE STARTUP SEQUENCE
+    // =========================================================================
+    system("espeak \"Initialization complete. Waiting for start command.\"");
+    
+    bool start_command_received = false;
+    while (!start_command_received)
+    {
+        std::ifstream voice_cmd_file("/tmp/darwin_voice_cmd.txt");
+        if (voice_cmd_file.is_open())
+        {
+            std::string cmd;
+            std::getline(voice_cmd_file, cmd);
+            voice_cmd_file.close();
+
+            // Check if the command contains "start" or "go"
+            if (cmd.find("start") != std::string::npos || cmd.find("go") != std::string::npos)
+            {
+                std::cout << GREEN << "INFO: Start command received: '" << cmd << "'" << RESET << std::endl;
+                
+                std::string speak_cmd = "espeak \"Starting program\"";
+                system(speak_cmd.c_str()); 
+                
+                std::remove("/tmp/darwin_voice_cmd.txt");
+                start_command_received = true; // This breaks the waiting loop!
+            }
+            else if (!cmd.empty())
+            {
+                // Delete the file if it hears a random command before we actually start
+                std::remove("/tmp/darwin_voice_cmd.txt"); 
+            }
+        }
+        // Sleep briefly to avoid maxing out the CPU while waiting
+        std::this_thread::sleep_for(std::chrono::milliseconds(200));
+    }
+    // =========================================================================
+
     std::string current_action_label = "standby";
     auto last_action_time = std::chrono::steady_clock::now();
     const auto action_cooldown = std::chrono::seconds(9);
