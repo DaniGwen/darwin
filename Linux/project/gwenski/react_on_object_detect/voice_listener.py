@@ -23,9 +23,8 @@ def listen_loop():
     print("Ready to receive commands.")
 
     try:
-        # THE CURE: We MUST keep 16000Hz to prevent the Pi's USB bus from suffocating.
         # Google's API actually prefers 16000Hz for speech recognition anyway!
-        mic = sr.Microphone(device_index=3, sample_rate=16000)
+        mic = sr.Microphone(device_index=3)
         
         with mic as source:
             print("    [Hardware connected and locked successfully]")
