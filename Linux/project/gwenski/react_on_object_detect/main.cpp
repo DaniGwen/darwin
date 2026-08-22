@@ -81,8 +81,8 @@ void change_current_dir()
 
 void run_action(int action_page)
 {
-    MotionManager::GetInstance()->RemoveModule(static_cast<MotionModule *>(Walking::GetInstance())); 
-    MotionManager::GetInstance()->SetEnable(true);                                                   
+    MotionManager::GetInstance()->RemoveModule(static_cast<MotionModule *>(Walking::GetInstance()));
+    MotionManager::GetInstance()->SetEnable(true);
 
     MotionManager::GetInstance()->SetJointEnableState(JointData::ID_HEAD_PAN, false);
     MotionManager::GetInstance()->SetJointEnableState(JointData::ID_HEAD_TILT, false);
@@ -129,12 +129,12 @@ void *HeadTrackingThread(void *arg)
 void handlePersonDetected(LeftArmController &left_arm_controller,
                           std::string &current_action_label,
                           std::chrono::steady_clock::time_point &last_action_time,
-                          int &person_detect_count_ref, 
+                          int &person_detect_count_ref,
                           const std::chrono::steady_clock::time_point &current_time)
 {
     std::cout << "INFO: Detected person consistently. Playing Wave" << std::endl;
 
-    int random = rand() % 3; 
+    int random = rand() % 3;
     if (random == 0)
     {
         system("espeak \"Hello there\" &");
@@ -266,7 +266,7 @@ void handleBottleInteraction(BottleTaskState &state,
 void handleGenericObjectDetected(const std::string &label, int action_page,
                                  std::string &current_action_label,
                                  std::chrono::steady_clock::time_point &last_action_time,
-                                 int &detect_count_ref, 
+                                 int &detect_count_ref,
                                  const std::chrono::steady_clock::time_point &current_time)
 {
     std::cout << "INFO: Detected " << label << " consistently. Playing action page " << action_page << std::endl;
@@ -293,7 +293,7 @@ void handleGenericObjectDetected(const std::string &label, int action_page,
     run_action(ACTION_PAGE_STAND);
     current_action_label = label;
     last_action_time = current_time;
-    detect_count_ref = 0; 
+    detect_count_ref = 0;
 }
 
 void handleNoTargetOrStandby(std::string &current_action_label,
@@ -309,18 +309,18 @@ void handleNoTargetOrStandby(std::string &current_action_label,
 void sigint_handler(int sig)
 {
     std::cout << "\n\nINFO: Caught Ctrl+C! Shutting down safely..." << std::endl;
-    
+
     // Audibly announce shutdown (runs in background so it doesn't delay the actual shutdown process)
     system("espeak \"Shutting down safely\" &");
-    
+
     system("pkill -2 -f voice_listener.py");
     system("pkill -f custom_detect_objects.py");
     system("pkill mjpg_streamer");
-    
+
     MotionManager::GetInstance()->SetEnable(false);
-    
+
     std::cout << "INFO: Background scripts killed and motors relaxed. Goodbye!" << std::endl;
-    exit(0); 
+    exit(0);
 }
 
 // ----------------------------------------
@@ -343,7 +343,7 @@ int main(void)
 
     std::cout << "INFO: Starting background voice listener..." << std::endl;
     system("sudo -u darwin python3 -u /home/darwin/darwin/Linux/project/gwenski/react_on_object_detect/voice_listener.py 2>/dev/null &");
-    
+
     std::this_thread::sleep_for(std::chrono::milliseconds(2000));
 
     minIni *ini = new minIni(INI_FILE_PATH);
@@ -427,7 +427,7 @@ int main(void)
     // VOICE STARTUP SEQUENCE
     // =========================================================================
     system("espeak \"Initialization complete. Waiting for start command.\"");
-    
+
     bool start_command_received = false;
     while (!start_command_received)
     {
@@ -441,16 +441,16 @@ int main(void)
             if (cmd.find("start") != std::string::npos || cmd.find("go") != std::string::npos)
             {
                 std::cout << GREEN << "INFO: Start command received: '" << cmd << "'" << RESET << std::endl;
-                
-                std::string speak_cmd = "espeak \"Starting program\"";
-                system(speak_cmd.c_str()); 
-                
+
+                std::string speak_cmd = "espeak \"" + cmd + "\"";
+                system(speak_cmd.c_str());
+
                 std::remove("/tmp/darwin_voice_cmd.txt");
-                start_command_received = true; 
+                start_command_received = true;
             }
             else if (!cmd.empty())
             {
-                std::remove("/tmp/darwin_voice_cmd.txt"); 
+                std::remove("/tmp/darwin_voice_cmd.txt");
             }
         }
         std::this_thread::sleep_for(std::chrono::milliseconds(200));
@@ -491,20 +491,30 @@ int main(void)
         auto current_time = std::chrono::steady_clock::now();
         bool can_perform_action = (current_time - last_action_time) >= action_cooldown;
 
-        if (detected_object_label == "person") person_detect_count++;
-        else if (person_detect_count > 0) person_detect_count--;
+        if (detected_object_label == "person")
+            person_detect_count++;
+        else if (person_detect_count > 0)
+            person_detect_count--;
 
-        if (detected_object_label == "bottle") bottle_detect_count++;
-        else if (bottle_detect_count > 0) bottle_detect_count--;
+        if (detected_object_label == "bottle")
+            bottle_detect_count++;
+        else if (bottle_detect_count > 0)
+            bottle_detect_count--;
 
-        if (detected_object_label == "dog") dog_detect_count++;
-        else if (dog_detect_count > 0) dog_detect_count--;
+        if (detected_object_label == "dog")
+            dog_detect_count++;
+        else if (dog_detect_count > 0)
+            dog_detect_count--;
 
-        if (detected_object_label == "cat") cat_detect_count++;
-        else if (cat_detect_count > 0) cat_detect_count--;
+        if (detected_object_label == "cat")
+            cat_detect_count++;
+        else if (cat_detect_count > 0)
+            cat_detect_count--;
 
-        if (detected_object_label == "sportsball") sports_ball_detect_count++;
-        else if (sports_ball_detect_count > 0) sports_ball_detect_count--;
+        if (detected_object_label == "sportsball")
+            sports_ball_detect_count++;
+        else if (sports_ball_detect_count > 0)
+            sports_ball_detect_count--;
 
         // 2. ACTION TRIGGERS
         if (detected_object_label == "person" && person_detect_count >= detect_threshold && current_action_label != "person" && can_perform_action)
@@ -528,7 +538,7 @@ int main(void)
             std::cout << GREEN << "INFO: Detected bottle. Playing hold action." << RESET << std::endl;
 
             run_action_non_blocking(ACTION_PAGE_HOLD_ITEM);
-            
+
             // Replaced MP3 with espeak in the background
             system("espeak \"Thank you\" &");
 
@@ -593,12 +603,12 @@ int main(void)
 
                 // Dynamically repeats what it heard
                 std::string speak_cmd = "espeak \"" + cmd + "\"";
-                system(speak_cmd.c_str()); 
+                system(speak_cmd.c_str());
 
                 Action::GetInstance()->m_Joint.SetEnable(22, false);
                 right_arm_controller.OpenGripper();
                 std::this_thread::sleep_for(std::chrono::milliseconds(1500));
-                
+
                 run_action(ACTION_PAGE_STAND);
                 Action::GetInstance()->m_Joint.SetEnable(22, true);
 
