@@ -311,8 +311,6 @@ void handleNoTargetOrStandby(std::string &current_action_label,
     last_action_time = current_time;
 }
 
-BottleTaskState current_bottle_task_state = BottleTaskState::IDLE;
-
 // --- Safe Shutdown Handler for Ctrl+C ---
 void sigint_handler(int sig)
 {
