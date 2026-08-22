@@ -7,7 +7,7 @@ CMD_FILE = "/tmp/darwin_voice_cmd.txt"
 def listen_loop():
     r = sr.Recognizer()
     
-    r.energy_threshold = 20 
+    r.energy_threshold = 40 
     r.dynamic_energy_threshold = False 
 
     mic = sr.Microphone(device_index=3) 
@@ -26,12 +26,11 @@ def listen_loop():
                     print(f" Heard: {text}")
                     
                     if "release" in text or "drop" in text:
-                        print("Command: release")
+                        print(f">>> COMMAND TRIGGERED: {text} <<<")
                         with open(CMD_FILE, "w") as f:
-                            f.write("release")
-                            # Force the file to save instantly so C++ reacts faster
-                            f.flush()
-                            os.fsync(f.fileno()) 
+                         f.write(text)
+                         f.flush()
+                         os.fsync(f.fileno())
                             
             except sr.WaitTimeoutError:
                 pass # Removed the print spam

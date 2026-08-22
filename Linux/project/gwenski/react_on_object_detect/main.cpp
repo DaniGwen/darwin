@@ -350,7 +350,7 @@ int main(void)
 
     // Start the Python voice listener in the background!
     std::cout << "INFO: Starting background voice listener..." << std::endl;
-    system("sudo -u darwin python3 /home/darwin/darwin/Linux/project/gwenski/react_on_object_detect/voice_listener.py &");
+    system("sudo -u darwin python3 /home/darwin/darwin/Linux/project/gwenski/react_on_object_detect/voice_listener.py 2>/dev/null &");
     
     // Give the microphone 2 seconds to warm up
     std::this_thread::sleep_for(std::chrono::milliseconds(2000));
@@ -568,7 +568,7 @@ int main(void)
         }
 
         // --- VOICE COMMAND BLOCK ---
-        std::ifstream voice_cmd_file("/tmp/darwin_voice_cmd.txt");
+       std::ifstream voice_cmd_file("/tmp/darwin_voice_cmd.txt");
         if (voice_cmd_file.is_open())
         {
             std::string cmd;
@@ -577,14 +577,19 @@ int main(void)
 
             if (cmd.find("release") != std::string::npos && current_action_label == "bottle")
             {
-                std::cout << GREEN << "INFO: Voice command 'release' received." << RESET << std::endl;
+                std::cout << GREEN << "INFO: Voice command '" << cmd << "' received." << RESET << std::endl;
 
-                LinuxActionScript::PlayMP3Wait("/home/darwin/darwin/Data/mp3/Yes.mp3");
+                // ==========================================
+                // NEW: Dynamically repeat exactly what was heard!
+                // ==========================================
+                std::string speak_cmd = "espeak \"" + cmd + "\"";
+                system(speak_cmd.c_str()); 
+                // ==========================================
 
                 Action::GetInstance()->m_Joint.SetEnable(22, false);
                 right_arm_controller.OpenGripper();
                 std::this_thread::sleep_for(std::chrono::milliseconds(1500));
-
+                
                 run_action(ACTION_PAGE_STAND);
                 Action::GetInstance()->m_Joint.SetEnable(22, true);
 
