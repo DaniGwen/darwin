@@ -35,6 +35,12 @@
 #include <thread> // Required for std::this_thread::sleep_for
 #include <chrono> // Required for std::chrono::milliseconds
 
+// ==========================================================
+// DEBUG TOGGLE: Set to true to see continuous tracking math
+// ==========================================================
+const bool ENABLE_DEBUG_PRINTS = false; 
+// ==========================================================
+
 #define MAX_MSG_SIZE 1024
 
 // Define socket path here (only once)
@@ -711,8 +717,9 @@ namespace Robot
             pixel_offset_from_center.X = tracked_object_center_for_head.X - (Camera::WIDTH / 2.0);
             pixel_offset_from_center.Y = tracked_object_center_for_head.Y - (Camera::HEIGHT / 2.0);
 
-            std::cout << "DEBUG: Raw Pixel Offset - X: " << pixel_offset_from_center.X
-                      << ", Y: " << pixel_offset_from_center.Y << std::endl;
+            if (ENABLE_DEBUG_PRINTS)
+                std::cout << "DEBUG: Raw Pixel Offset - X: " << pixel_offset_from_center.X
+                          << ", Y: " << pixel_offset_from_center.Y << std::endl;
 
             pixel_offset_from_center.X *= -1; // Invert X for pan (left is positive angle)
             pixel_offset_from_center.Y *= -1; // Invert Y for tilt (up is positive angle)
@@ -720,8 +727,9 @@ namespace Robot
             P_err.X = pixel_offset_from_center.X * (Camera::VIEW_H_ANGLE / (double)Camera::WIDTH);
             P_err.Y = pixel_offset_from_center.Y * (Camera::VIEW_V_ANGLE / (double)Camera::HEIGHT);
 
-            std::cout << "DEBUG: Raw Angular Error (deg) - Pan: " << P_err.X
-                      << ", Tilt: " << P_err.Y << std::endl;
+            if (ENABLE_DEBUG_PRINTS)
+                std::cout << "DEBUG: Raw Angular Error (deg) - Pan: " << P_err.X
+                          << ", Tilt: " << P_err.Y << std::endl;
 
             if (std::abs(P_err.X) < pan_deadband_deg_)
             {
@@ -753,7 +761,9 @@ namespace Robot
             }
 
             UpdateHeadAngles(P_err);
-            std::cout << "DEBUG: Head Moving: P_err.X=" << P_err.X << ", P_err.Y=" << P_err.Y << std::endl;
+            
+            if (ENABLE_DEBUG_PRINTS)
+                std::cout << "DEBUG: Head Moving: P_err.X=" << P_err.X << ", P_err.Y=" << P_err.Y << std::endl;
         }
         else
         {
@@ -764,13 +774,17 @@ namespace Robot
                 double pan_center_speed = (m_Pan_Home - m_PanAngle) * 0.05;    // 5% of distance to home
                 double tilt_center_speed = (m_Tilt_Home - m_TiltAngle) * 0.05; // 5% of distance to home
                 UpdateHeadAngles(Point2D(pan_center_speed, tilt_center_speed));
-                std::cout << "DEBUG: Head Centering: NoTargetCount=" << no_target_count_ << std::endl;
+                
+                if (ENABLE_DEBUG_PRINTS)
+                    std::cout << "DEBUG: Head Centering: NoTargetCount=" << no_target_count_ << std::endl;
+                
                 no_target_count_++;
             }
             else
             {
                 MoveToHome(); // Return to initial position
-                std::cout << "DEBUG: Head Moving to Home." << std::endl;
+                if (ENABLE_DEBUG_PRINTS)
+                    std::cout << "DEBUG: Head Moving to Home." << std::endl;
             }
         }
     }
@@ -889,7 +903,8 @@ namespace Robot
         m_PanAngle = std::max(m_RightLimit, std::min(m_LeftLimit, m_PanAngle));
         m_TiltAngle = std::max(m_BottomLimit, std::min(m_TopLimit, m_TiltAngle));
 
-        std::cout << "DEBUG: HeadTracking::CheckLimit - PanAngle (clamped): " << m_PanAngle << ", TiltAngle (clamped): " << m_TiltAngle << std::endl;
+        if (ENABLE_DEBUG_PRINTS)
+            std::cout << "DEBUG: HeadTracking::CheckLimit - PanAngle (clamped): " << m_PanAngle << ", TiltAngle (clamped): " << m_TiltAngle << std::endl;
     }
 
     void HeadTracking::MoveToHome()
@@ -900,7 +915,9 @@ namespace Robot
         }
 
         MoveByAngle(m_Pan_Home, m_Tilt_Home);
-        std::cout << "DEBUG: HeadTracking::MoveToHome - Moving to Pan_Home: " << m_Pan_Home << ", Tilt_Home: " << m_Tilt_Home << std::endl;
+        
+        if (ENABLE_DEBUG_PRINTS)
+            std::cout << "DEBUG: HeadTracking::MoveToHome - Moving to Pan_Home: " << m_Pan_Home << ", Tilt_Home: " << m_Tilt_Home << std::endl;
     }
 
     void HeadTracking::MoveByAngle(double pan, double tilt)
@@ -909,15 +926,19 @@ namespace Robot
         m_TiltAngle = tilt;
 
         CheckLimit(); // Apply limits after setting new angles
-        std::cout << "DEBUG: HeadTracking::MoveByAngle - Target Pan: " << pan << ", Target Tilt: " << tilt
-                  << " (After Limit: Pan: " << m_PanAngle << ", Tilt: " << m_TiltAngle << ")" << std::endl;
+        
+        if (ENABLE_DEBUG_PRINTS)
+            std::cout << "DEBUG: HeadTracking::MoveByAngle - Target Pan: " << pan << ", Target Tilt: " << tilt
+                      << " (After Limit: Pan: " << m_PanAngle << ", Tilt: " << m_TiltAngle << ")" << std::endl;
     }
 
     void HeadTracking::MoveByAngleOffset(double pan_offset, double tilt_offset)
     {
         // Apply offset to current angles and then move to the new absolute angles
         MoveByAngle(m_PanAngle + pan_offset, m_TiltAngle + tilt_offset);
-        std::cout << "DEBUG: HeadTracking::MoveByAngleOffset - Offset Pan: " << pan_offset << ", Offset Tilt: " << tilt_offset << std::endl;
+        
+        if (ENABLE_DEBUG_PRINTS)
+            std::cout << "DEBUG: HeadTracking::MoveByAngleOffset - Offset Pan: " << pan_offset << ", Offset Tilt: " << tilt_offset << std::endl;
     }
 
     void HeadTracking::InitTracking()
@@ -926,7 +947,9 @@ namespace Robot
         m_Pan_err_diff = 0;
         m_Tilt_err = 0;
         m_Tilt_err_diff = 0;
-        std::cout << "DEBUG: HeadTracking::InitTracking - Tracking errors reset." << std::endl;
+        
+        if (ENABLE_DEBUG_PRINTS)
+            std::cout << "DEBUG: HeadTracking::InitTracking - Tracking errors reset." << std::endl;
     }
 
     void HeadTracking::UpdateHeadAngles(Point2D err)
@@ -985,10 +1008,11 @@ namespace Robot
             cm730_->WriteWord(JointData::ID_HEAD_PAN, MX28::P_GOAL_POSITION_L, pan_goal_value, 0);
             cm730_->WriteWord(JointData::ID_HEAD_TILT, MX28::P_GOAL_POSITION_L, tilt_goal_value, 0);
 
-            std::cout
-                << "DEBUG: HeadTracking::ApplyHeadAngles - Setting Pan Deg: " << m_PanAngle
-                << " (Value: " << pan_goal_value << "), Tilt Deg: " << m_TiltAngle
-                << " (Value: " << tilt_goal_value << ")" << std::endl;
+            if (ENABLE_DEBUG_PRINTS)
+                std::cout
+                    << "DEBUG: HeadTracking::ApplyHeadAngles - Setting Pan Deg: " << m_PanAngle
+                    << " (Value: " << pan_goal_value << "), Tilt Deg: " << m_TiltAngle
+                    << " (Value: " << tilt_goal_value << ")" << std::endl;
         }
         else
         {
@@ -1000,7 +1024,9 @@ namespace Robot
     {
         std::lock_guard<std::mutex> lock(m_Mutex); // Protect access to m_TrackingEnabled
         m_TrackingEnabled = enable;
-        std::cout << "DEBUG: HeadTracking::m_TrackingEnabled set to " << (enable ? "true" : "false") << std::endl;
+        
+        if (ENABLE_DEBUG_PRINTS)
+            std::cout << "DEBUG: HeadTracking::m_TrackingEnabled set to " << (enable ? "true" : "false") << std::endl;
     }
 
     bool HeadTracking::IsTrackingEnabled()
