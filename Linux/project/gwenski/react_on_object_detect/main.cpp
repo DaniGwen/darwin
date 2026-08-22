@@ -22,6 +22,7 @@
 #include <thread>    // Required for std::this_thread::sleep_for (optional)
 #include <cctype>
 #include "algorithm"
+#include <csignal>
 
 #include "minIni.h" // For INI file loading
 #include "HeadTracking.h"
@@ -312,9 +313,31 @@ void handleNoTargetOrStandby(std::string &current_action_label,
 
 BottleTaskState current_bottle_task_state = BottleTaskState::IDLE;
 
+// --- Safe Shutdown Handler for Ctrl+C ---
+void sigint_handler(int sig)
+{
+    std::cout << "\n\nINFO: Caught Ctrl+C! Shutting down safely..." << std::endl;
+    
+    // 1. Hunt down and kill the background Python scripts
+    system("pkill -f voice_listener.py");
+    system("pkill -f custom_detect_objects.py");
+    system("pkill mjpg_streamer");
+    
+    // 2. Turn off the robot's motors so it relaxes instead of staying tense
+    MotionManager::GetInstance()->SetEnable(false);
+    
+    std::cout << "INFO: Background scripts killed and motors relaxed. Goodbye!" << std::endl;
+    exit(0); // Safely exit the program
+}
+
+// ----------------------------------------
+
+BottleTaskState current_bottle_task_state = BottleTaskState::IDLE;
+
 int main(void)
 {
-    printf("\n===== Head tracking with Object Detection via Unix Domain Socket (Multithreaded) =====\n\n");
+    signal(SIGINT, sigint_handler);
+
     srand(time(NULL));
     change_current_dir();
 
