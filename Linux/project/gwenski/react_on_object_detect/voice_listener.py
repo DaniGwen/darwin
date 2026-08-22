@@ -24,7 +24,8 @@ def listen_loop():
     print("Ready to receive commands.")
 
     try:
-        mic = sr.Microphone(device_index=3, chunk_size=4096)
+        # THE FIX: Removed chunk_size=4096! It defaults back to 1024, which the Pi's USB can handle.
+        mic = sr.Microphone(device_index=3)
         
         with mic as source:
             print("    [Hardware connected and locked successfully]")
@@ -61,17 +62,13 @@ def listen_loop():
                 except sr.RequestError as e:
                     print(f"    [API Error]: {e}")
                 except Exception as e:
-                    # If the stream crashes for ANY reason, throw it to the outer exception block
+                    # If PyAudio crashes due to USB limits, trigger the reboot
                     raise RuntimeError(f"Stream corrupted: {e}")
                     
     except Exception as e:
-        print(f"    [Hardware Crash]: {e}")
-        print("    [CRITICAL] ALSA audio driver locked up. Rebooting Python process...")
-        
-        # Give the Linux kernel 2 seconds to forcefully clean up the USB port
-        time.sleep(2) 
-        
-        # THE NUCLEAR OPTION: Completely replaces this corrupted Python process with a fresh one!
+        # Ignore the meaningless NoneType error text and focus on the reboot
+        print("\n    [CRITICAL] ALSA audio driver choked on USB bandwidth. Rebooting Python process...")
+        time.sleep(1.5) # Give the Linux kernel a moment to un-jam the USB port
         os.execv(sys.executable, [sys.executable] + sys.argv)
 
 if __name__ == "__main__":
