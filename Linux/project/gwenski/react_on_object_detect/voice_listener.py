@@ -30,17 +30,13 @@ def listen_loop():
         try:
             with mic as source:
                 print("\n--> LISTENING... (Speak now)")
-                audio = r.listen(source, timeout=4, phrase_time_limit=4) # slightly longer timeouts
+                audio = r.listen(source, timeout=4, phrase_time_limit=4)
             
             print("    [Processing audio...]")
-            
-            # 1. Get the text from Google
             text = r.recognize_google(audio).lower()
             
-            # 2. PRINT EXACTLY WHAT IT HEARD SO YOU CAN DEBUG!
             print(f"    [GOOGLE HEARD]: '{text}'") 
             
-            # 3. Expanded vocabulary to catch misinterpretations
             trigger_words = [
                 "release", "drop", "start", "go", "begin", 
                 "darwin start", "let's go", "star", "dart"
@@ -63,7 +59,14 @@ def listen_loop():
         except sr.RequestError as e:
             print(f"    [API Error]: {e}")
         except Exception as e:
-            print(f"    [Error]: {e}")
+            error_msg = str(e)
+            # Catch the specific NoneType crash and self-heal!
+            if "NoneType" in error_msg and "close" in error_msg:
+                print("    [Mic hiccup: Restarting audio stream...]")
+                # Re-initialize the hardware connection to clear the zombie stream
+                mic = sr.Microphone(device_index=3) 
+            else:
+                print(f"    [Error]: {e}")
 
 if __name__ == "__main__":
     if os.path.exists(CMD_FILE):
