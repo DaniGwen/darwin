@@ -342,7 +342,7 @@ int main(void)
     std::this_thread::sleep_for(std::chrono::milliseconds(500));
 
     std::cout << "INFO: Starting background voice listener..." << std::endl;
-    system("sudo -u darwin python3 /home/darwin/darwin/Linux/project/gwenski/react_on_object_detect/voice_listener.py 2>/dev/null &");
+    system("sudo -u darwin python3 -u /home/darwin/darwin/Linux/project/gwenski/react_on_object_detect/voice_listener.py 2>/dev/null &");
     
     std::this_thread::sleep_for(std::chrono::milliseconds(2000));
 

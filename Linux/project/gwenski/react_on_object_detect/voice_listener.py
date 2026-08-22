@@ -19,37 +19,47 @@ signal.signal(signal.SIGTERM, handle_shutdown)
 def listen_loop():
     r = sr.Recognizer()
     
-    # Sensitivity settings
     r.energy_threshold = 700 
     r.dynamic_energy_threshold = False 
     r.pause_threshold = 0.5 
 
-    mic = sr.Microphone(device_index=3)
+    mic = sr.Microphone(device_index=3) 
     print("Ready to receive commands.")
 
     while True:
         try:
             with mic as source:
                 print("\n--> LISTENING... (Speak now)")
-                audio = r.listen(source, timeout=3, phrase_time_limit=3)
+                audio = r.listen(source, timeout=4, phrase_time_limit=4) # slightly longer timeouts
             
             print("    [Processing audio...]")
+            
+            # 1. Get the text from Google
             text = r.recognize_google(audio).lower()
             
-            if any(word in text for word in ["release", "drop", "start", "go"]):
+            # 2. PRINT EXACTLY WHAT IT HEARD SO YOU CAN DEBUG!
+            print(f"    [GOOGLE HEARD]: '{text}'") 
+            
+            # 3. Expanded vocabulary to catch misinterpretations
+            trigger_words = [
+                "release", "drop", "start", "go", "begin", 
+                "darwin start", "let's go", "star", "dart"
+            ]
+            
+            if any(word in text for word in trigger_words):
                 print(f">>> COMMAND TRIGGERED: {text} <<<")
+                
                 with open(TMP_FILE, "w") as f:
                     f.write(text)
                     f.flush()
                     os.fsync(f.fileno()) 
                 
-                # Instantly swap it to the real file C++ is looking for
                 os.rename(TMP_FILE, CMD_FILE)
                     
         except sr.WaitTimeoutError:
             pass
         except sr.UnknownValueError:
-            pass
+            print("    [Ignored: Audio not understood]")
         except sr.RequestError as e:
             print(f"    [API Error]: {e}")
         except Exception as e:
