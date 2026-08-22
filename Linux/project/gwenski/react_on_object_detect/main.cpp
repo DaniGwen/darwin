@@ -313,7 +313,7 @@ void sigint_handler(int sig)
     // Audibly announce shutdown (runs in background so it doesn't delay the actual shutdown process)
     system("espeak \"Shutting down safely\" &");
     
-    system("pkill -f voice_listener.py");
+    system("pkill -2 -f voice_listener.py");
     system("pkill -f custom_detect_objects.py");
     system("pkill mjpg_streamer");
     
@@ -337,7 +337,7 @@ int main(void)
     std::cout << "Cleaning up stale processes..." << std::endl;
     system("pkill -f custom_detect_object.py");
     system("pkill mjpg_streamer");
-    system("pkill -f voice_listener.py");
+    system("pkill -2 -f voice_listener.py");
 
     std::this_thread::sleep_for(std::chrono::milliseconds(500));
 
