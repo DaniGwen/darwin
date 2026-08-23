@@ -142,7 +142,7 @@ int LinuxCamera::Initialize(int deviceIndex)
         ErrorExit("VIDIOC_G_PARM");
 
     fps.parm.capture.timeperframe.numerator = 1;
-    fps.parm.capture.timeperframe.denominator = 20; // Drop from 30 down to 15 to save USB bandwidth!
+    fps.parm.capture.timeperframe.denominator = 17; // Drop from 30 down to 15 to save USB bandwidth!
     if (ioctl(camera_fd, VIDIOC_S_PARM, &fps) == -1)
         ErrorExit("VIDIOC_S_PARM");
 
