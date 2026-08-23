@@ -16,11 +16,9 @@ SOCKET_PATH = "/tmp/darwin_detector.sock"
 MODEL_PATH = models.MOVENET_MODEL
 
 # Tuning
-CONFIDENCE_THRESHOLD = 0.60   # Banish ghosts scoring 0.57!
-WAVE_HISTORY_LEN = 12         # Require a slightly longer history
-WAVE_MOTION_THRESHOLD = 0.20  # Require more total movement
-WAVE_COOLDOWN = 3.0        
-
+WAVE_HISTORY_LEN = 12         
+WAVE_MOTION_THRESHOLD = 0.20  
+WAVE_COOLDOWN = 3.0           
 SIGNAL_REPEAT_FRAMES = 30  
 
 # ==============================
@@ -29,7 +27,6 @@ SIGNAL_REPEAT_FRAMES = 30
 wrist_x_history = []
 last_wave_time = 0.0
 frames_remaining_to_send = 0
-current_wrist_coords = None
 
 def connect_to_cpp_server():
     sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
@@ -57,13 +54,14 @@ def detect_wave_gesture(keypoints):
     global wrist_x_history
     R_WRIST_IDX = 10
     L_WRIST_IDX = 9
+    NOSE_IDX = 0
     
-    # Track the wrist with the highest confidence
+    nose = keypoints[NOSE_IDX]
     wrist = keypoints[R_WRIST_IDX] if keypoints[R_WRIST_IDX][2] > keypoints[L_WRIST_IDX][2] else keypoints[L_WRIST_IDX]
 
-    if wrist[2] < CONFIDENCE_THRESHOLD:
-        # FIX: Do NOT clear the history here! Just ignore the blurry frame 
-        # so it doesn't instantly forget the wave you started.
+    # ANTI-GHOST: Must clearly see a human nose (>0.4) and a wrist (>0.4)
+    if nose[2] < 0.4 or wrist[2] < 0.4:
+        wrist_x_history.clear() # Kill ghosts instantly!
         return None
 
     wrist_x_history.append(wrist[1])
@@ -72,12 +70,10 @@ def detect_wave_gesture(keypoints):
     if len(wrist_x_history) >= WAVE_HISTORY_LEN:
         deltas = np.diff(wrist_x_history)
         
-        # Count how many times the wrist changes direction (left vs right)
         sign_changes = np.sum(np.diff(np.sign(deltas)) != 0)
         total_motion = np.sum(np.abs(deltas))
         span = np.max(wrist_x_history) - np.min(wrist_x_history)
 
-        # Must move back and forth (at least 2 direction changes)
         if sign_changes >= 2 and total_motion > WAVE_MOTION_THRESHOLD and span > 0.15:
             wrist_x_history.clear()
             return "hand_wave"
@@ -85,7 +81,7 @@ def detect_wave_gesture(keypoints):
     return None
 
 def main():
-    global last_wave_time, frames_remaining_to_send, current_wrist_coords
+    global last_wave_time, frames_remaining_to_send
     
     interpreter = make_interpreter(MODEL_PATH)
     interpreter.allocate_tensors()
@@ -96,7 +92,7 @@ def main():
         sock = connect_to_cpp_server()
         time.sleep(1)
 
-    print("[INFO] Gesture Detector Running", flush=True)
+    print("[INFO] Gesture Detector Running (Anti-Ghost Mode)", flush=True)
 
     try:
         while True:
@@ -119,24 +115,29 @@ def main():
             if gesture and (now - last_wave_time) > WAVE_COOLDOWN:
                 last_wave_time = now
                 frames_remaining_to_send = SIGNAL_REPEAT_FRAMES
-                current_wrist_coords = (pose[10][0], pose[10][1], pose[10][2])
                 print(f"\n[SEND] >>> WAVE DETECTED! <<<\n", flush=True)
 
             response_sent = False
             
             if frames_remaining_to_send > 0:
                 frames_remaining_to_send -= 1
-                y, x, conf = current_wrist_coords
                 
-                # Send normalized coordinates (0.0 to 1.0) so C++ math doesn't explode
-                xmin = max(0.0, x - 0.05)
-                ymin = max(0.0, y - 0.05)
-                xmax = min(1.0, x + 0.05)
-                ymax = min(1.0, y + 0.05)
+                # LIVE TRACKING: Send the bounding box of the whole body so C++ doesn't see a jump!
+                valid_kpts = [kp for kp in pose if kp[2] > 0.2]
+                if valid_kpts:
+                    ys = [kp[0] for kp in valid_kpts]
+                    xs = [kp[1] for kp in valid_kpts]
+                    ymin, ymax = max(0.0, min(ys)), min(1.0, max(ys))
+                    xmin, xmax = max(0.0, min(xs)), min(1.0, max(xs))
+                else:
+                    xmin, ymin, xmax, ymax = 0.0, 0.0, 1.0, 1.0
+                
+                live_wrist = pose[10] if pose[10][2] > pose[9][2] else pose[9]
+                conf = live_wrist[2]
                 
                 msg = f"hand_wave {conf:.2f} {xmin:.3f} {ymin:.3f} {xmax:.3f} {ymax:.3f}"
                 payload = msg.encode("utf-8")
-            
+                
                 sock.sendall(struct.pack("<I", len(payload)) + payload)
                 response_sent = True
                 
