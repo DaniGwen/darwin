@@ -77,7 +77,7 @@ def detect_wave_gesture(keypoints):
         total_motion = np.sum(np.abs(deltas))
         span = np.max(wrist_x_history) - np.min(wrist_x_history)
 
-        # Must move back and forth (at least 2 direction changes) with enough motion
+        # Must move back and forth (at least 2 direction changes)
         if sign_changes >= 2 and total_motion > WAVE_MOTION_THRESHOLD and span > 0.05:
             wrist_x_history.clear()
             return "hand_wave"
@@ -128,23 +128,23 @@ def main():
                 frames_remaining_to_send -= 1
                 y, x, conf = current_wrist_coords
                 
-                # FIXED: Send normalized 0.0-1.0 floats so C++ math doesn't explode
+                # Send normalized coordinates (0.0 to 1.0) so C++ math doesn't explode
                 xmin = max(0.0, x - 0.05)
                 ymin = max(0.0, y - 0.05)
                 xmax = min(1.0, x + 0.05)
                 ymax = min(1.0, y + 0.05)
                 
                 msg = f"hand_wave {conf:.2f} {xmin:.3f} {ymin:.3f} {xmax:.3f} {ymax:.3f}"
-                
                 payload = msg.encode("utf-8")
-                sock.sendall(struct.pack("I", len(payload)) + payload)
+            
+                sock.sendall(struct.pack("<I", len(payload)) + payload)
                 response_sent = True
                 
                 if frames_remaining_to_send == 0:
-                    print(f"[INFO] Wave signal end.", flush=True)
+                    print("[INFO] Wave signal end.", flush=True)
             
             if not response_sent:
-                sock.sendall(struct.pack("I", 0))
+                sock.sendall(struct.pack("<I", 0))
 
     except Exception as e:
         print(f"[ERROR] {e}", flush=True)
