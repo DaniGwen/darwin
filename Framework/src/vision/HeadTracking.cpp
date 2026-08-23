@@ -38,7 +38,7 @@
 // ==========================================================
 // DEBUG TOGGLE: Set to true to see continuous tracking math
 // ==========================================================
-const bool ENABLE_DEBUG_PRINTS = false; 
+const bool ENABLE_DEBUG_PRINTS = false;
 // ==========================================================
 
 #define MAX_MSG_SIZE 1024
@@ -77,6 +77,7 @@ namespace Robot
     bool HeadTracking::m_TrackingEnabled = true; // Start enabled by default
     static int server_fd = -1;
     static int client_fd = -1;
+    static int g_tracking_mode = 1;
 
     // Static member initialization (singleton instance)
     HeadTracking *HeadTracking::GetInstance()
@@ -154,6 +155,7 @@ namespace Robot
     {
         ini_ = ini;
         cm730_ = cm730;
+        g_tracking_mode = mode;
 
         switch (mode)
         {
@@ -566,91 +568,62 @@ namespace Robot
         // Reset distance at the start of each update
         current_object_distance_m_ = -1.0;
 
-        // Priority 1: Person
-        for (const auto &det : detections)
+        // =================================================================
+        // NEW: Dynamic Priority Lists based on running program
+        // =================================================================
+        std::vector<std::string> priority_list;
+        if (g_tracking_mode == 3)
         {
-            if (det.label == "person")
-            {
-                if (cm730_)
-                {
-                    cm730_->WriteWord(CM730::ID_CM, CM730::P_LED_EYE_L, cm730_->MakeColor(255, 0, 255), 0); // Magenta
-                }
-
-                tracked_object_center_for_head.X = (det.xmin + det.xmax) / 2.0 * Camera::WIDTH;
-                tracked_object_center_for_head.Y = (det.ymin + det.ymax) / 2.0 * Camera::HEIGHT;
-
-                target_found_in_frame = true;
-                primary_detected_label = det.label;
-                current_detection_score_val = static_cast<int>(det.score * 100); // Convert to percentage
-                primary_detection = det;
-                break;
-            }
+            // Gesture Mode: Look for waves first, ignore bottles
+            priority_list = {"hand_wave", "person"};
+        }
+        else if (g_tracking_mode == 1)
+        {
+            // Object Mode: Look for person first, then bottle, dog, cat
+            priority_list = {"person", "bottle", "dog", "cat"};
+        }
+        else
+        {
+            // Fallback
+            priority_list = {"person"};
         }
 
-        // Priority 2: Dog (if no person found)
-        if (!target_found_in_frame)
+        // =================================================================
+        // Scan for the highest priority item currently in the frame
+        // =================================================================
+        for (const std::string &target_label : priority_list)
         {
             for (const auto &det : detections)
             {
-                if (det.label == "dog")
+                if (det.label == target_label)
                 {
                     if (cm730_)
                     {
-                        cm730_->WriteWord(CM730::ID_CM, CM730::P_LED_EYE_L, cm730_->MakeColor(0, 0, 255), 0); // Blue for dog
+                        // Dynamically set eye color based on what we locked onto
+                        if (target_label == "hand_wave")
+                            cm730_->WriteWord(CM730::ID_CM, CM730::P_LED_EYE_L, cm730_->MakeColor(0, 255, 255), 0); // Cyan
+                        else if (target_label == "person")
+                            cm730_->WriteWord(CM730::ID_CM, CM730::P_LED_EYE_L, cm730_->MakeColor(255, 0, 255), 0); // Magenta
+                        else if (target_label == "bottle")
+                            cm730_->WriteWord(CM730::ID_CM, CM730::P_LED_EYE_L, cm730_->MakeColor(0, 255, 0), 0); // Green
+                        else if (target_label == "dog")
+                            cm730_->WriteWord(CM730::ID_CM, CM730::P_LED_EYE_L, cm730_->MakeColor(0, 0, 255), 0); // Blue
+                        else if (target_label == "cat")
+                            cm730_->WriteWord(CM730::ID_CM, CM730::P_LED_EYE_L, cm730_->MakeColor(255, 255, 0), 0); // Yellow
                     }
-                    tracked_object_center_for_head.X = (det.xmin + det.xmax) / 2.0 * Camera::WIDTH;
-                    tracked_object_center_for_head.Y = (det.ymin + det.ymax) / 2.0 * Camera::HEIGHT;
-                    primary_detected_label = det.label;
-                    current_detection_score_val = static_cast<int>(det.score * 100);
-                    primary_detection = det;
-                    target_found_in_frame = true;
-                    break;
-                }
-            }
-        }
 
-        // Priority 3: Cat (if no person or dog found)
-        if (!target_found_in_frame)
-        {
-            for (const auto &det : detections)
-            {
-                if (det.label == "cat")
-                {
-                    if (cm730_)
-                    {
-                        cm730_->WriteWord(CM730::ID_CM, CM730::P_LED_EYE_L, cm730_->MakeColor(255, 255, 0), 0); // Yellow for cat
-                    }
                     tracked_object_center_for_head.X = (det.xmin + det.xmax) / 2.0 * Camera::WIDTH;
                     tracked_object_center_for_head.Y = (det.ymin + det.ymax) / 2.0 * Camera::HEIGHT;
-                    primary_detected_label = det.label;
-                    current_detection_score_val = static_cast<int>(det.score * 100);
-                    primary_detection = det;
-                    target_found_in_frame = true;
-                    break;
-                }
-            }
-        }
 
-        // Priority 4: Bottle (if no person, dog, or cat found)
-        if (!target_found_in_frame)
-        {
-            for (const auto &det : detections)
-            {
-                if (det.label == "bottle") // Now check for bottle
-                {
-                    if (cm730_)
-                    {
-                        cm730_->WriteWord(CM730::ID_CM, CM730::P_LED_EYE_L, cm730_->MakeColor(0, 255, 0), 0); // Green for bottle
-                    }
-                    tracked_object_center_for_head.X = (det.xmin + det.xmax) / 2.0 * Camera::WIDTH;
-                    tracked_object_center_for_head.Y = (det.ymin + det.ymax) / 2.0 * Camera::HEIGHT;
+                    target_found_in_frame = true;
                     primary_detected_label = det.label;
                     current_detection_score_val = static_cast<int>(det.score * 100);
                     primary_detection = det;
-                    target_found_in_frame = true;
-                    break;
+                    break; // Found our highest priority target, break inner loop!
                 }
             }
+            if (target_found_in_frame)
+                break; // Break outer loop, don't look for lower priorities
         }
 
         std::lock_guard<std::mutex> lock(m_Mutex);
@@ -749,7 +722,7 @@ namespace Robot
                 P_err.Y *= tilt_error_scale_;
             }
 
-            if (target_found_in_frame && (primary_detected_label == "bottle" || primary_detected_label == "dog" || primary_detected_label == "cat"))
+            if (target_found_in_frame && primary_detected_label != "none")
             {
                 m_last_object_angular_error.X = P_err.X;
                 m_last_object_angular_error.Y = P_err.Y;
@@ -761,7 +734,7 @@ namespace Robot
             }
 
             UpdateHeadAngles(P_err);
-            
+
             if (ENABLE_DEBUG_PRINTS)
                 std::cout << "DEBUG: Head Moving: P_err.X=" << P_err.X << ", P_err.Y=" << P_err.Y << std::endl;
         }
@@ -774,10 +747,10 @@ namespace Robot
                 double pan_center_speed = (m_Pan_Home - m_PanAngle) * 0.05;    // 5% of distance to home
                 double tilt_center_speed = (m_Tilt_Home - m_TiltAngle) * 0.05; // 5% of distance to home
                 UpdateHeadAngles(Point2D(pan_center_speed, tilt_center_speed));
-                
+
                 if (ENABLE_DEBUG_PRINTS)
                     std::cout << "DEBUG: Head Centering: NoTargetCount=" << no_target_count_ << std::endl;
-                
+
                 no_target_count_++;
             }
             else
@@ -915,7 +888,7 @@ namespace Robot
         }
 
         MoveByAngle(m_Pan_Home, m_Tilt_Home);
-        
+
         if (ENABLE_DEBUG_PRINTS)
             std::cout << "DEBUG: HeadTracking::MoveToHome - Moving to Pan_Home: " << m_Pan_Home << ", Tilt_Home: " << m_Tilt_Home << std::endl;
     }
@@ -926,7 +899,7 @@ namespace Robot
         m_TiltAngle = tilt;
 
         CheckLimit(); // Apply limits after setting new angles
-        
+
         if (ENABLE_DEBUG_PRINTS)
             std::cout << "DEBUG: HeadTracking::MoveByAngle - Target Pan: " << pan << ", Target Tilt: " << tilt
                       << " (After Limit: Pan: " << m_PanAngle << ", Tilt: " << m_TiltAngle << ")" << std::endl;
@@ -936,7 +909,7 @@ namespace Robot
     {
         // Apply offset to current angles and then move to the new absolute angles
         MoveByAngle(m_PanAngle + pan_offset, m_TiltAngle + tilt_offset);
-        
+
         if (ENABLE_DEBUG_PRINTS)
             std::cout << "DEBUG: HeadTracking::MoveByAngleOffset - Offset Pan: " << pan_offset << ", Offset Tilt: " << tilt_offset << std::endl;
     }
@@ -947,7 +920,7 @@ namespace Robot
         m_Pan_err_diff = 0;
         m_Tilt_err = 0;
         m_Tilt_err_diff = 0;
-        
+
         if (ENABLE_DEBUG_PRINTS)
             std::cout << "DEBUG: HeadTracking::InitTracking - Tracking errors reset." << std::endl;
     }
@@ -1024,7 +997,7 @@ namespace Robot
     {
         std::lock_guard<std::mutex> lock(m_Mutex); // Protect access to m_TrackingEnabled
         m_TrackingEnabled = enable;
-        
+
         if (ENABLE_DEBUG_PRINTS)
             std::cout << "DEBUG: HeadTracking::m_TrackingEnabled set to " << (enable ? "true" : "false") << std::endl;
     }
