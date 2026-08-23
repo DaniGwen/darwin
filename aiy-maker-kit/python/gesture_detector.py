@@ -79,10 +79,13 @@ def detect_wave_gesture(keypoints):
 
     if len(wrist_x_history) >= WAVE_HISTORY_LEN:
         deltas = np.diff(wrist_x_history)
+        # Check for direction changes (signs flipping) to ensure it's an actual wave
+        sign_changes = np.sum(np.diff(np.sign(deltas)) != 0)
         total_motion = np.sum(np.abs(deltas))
         span = np.max(wrist_x_history) - np.min(wrist_x_history)
 
-        if total_motion > WAVE_MOTION_THRESHOLD and span > 0.05:
+        # Must move back and forth (at least 2 direction changes) with enough motion
+        if sign_changes >= 2 and total_motion > WAVE_MOTION_THRESHOLD and span > 0.05:
             wrist_x_history.clear()
             return "hand_wave"
 
@@ -142,23 +145,15 @@ def main():
             if frames_remaining_to_send > 0:
                 frames_remaining_to_send -= 1
                 
-                # Normalize and Scale to Pixels
                 y, x, conf = current_wrist_coords
                 
-                # MoveNet output is 0.0-1.0, we map to 0-320 and 0-240
-                pixel_x = int(x * CAM_WIDTH)
-                pixel_y = int(y * CAM_HEIGHT)
-                
-                # Bounds check
-                pixel_x = max(0, min(CAM_WIDTH, pixel_x))
-                pixel_y = max(0, min(CAM_HEIGHT, pixel_y))
+                # Send normalized coordinates (0.0 to 1.0) so HeadTracking parser matches other detectors
+                xmin = max(0.0, x - 0.1)
+                ymin = max(0.0, y - 0.1)
+                xmax = min(1.0, x + 0.1)
+                ymax = min(1.0, y + 0.1)
 
-                # Dummy width/height in pixels
-                pixel_w = 40
-                pixel_h = 40
-                
-                # Protocol: Label Confidence X Y W H (space separated)
-                msg = f"hand_wave {conf:.2f} {pixel_x} {pixel_y} {pixel_w} {pixel_h}"
+                msg = f"hand_wave {conf:.2f} {xmin:.2f} {ymin:.2f} {xmax:.2f} {ymax:.2f}"
                 
                 payload = msg.encode("utf-8")
                 sock.sendall(struct.pack("I", len(payload)) + payload)
