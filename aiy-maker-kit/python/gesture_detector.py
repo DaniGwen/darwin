@@ -16,7 +16,7 @@ SOCKET_PATH = "/tmp/darwin_detector.sock"
 MODEL_PATH = models.MOVENET_MODEL
 
 # Tuning
-CONFIDENCE_THRESHOLD = 0.45   # Increased from 0.15 to banish ghost hands!
+CONFIDENCE_THRESHOLD = 0.25   # Lowered so motion blur doesn't break the wave
 WAVE_HISTORY_LEN = 10         
 WAVE_MOTION_THRESHOLD = 0.08  
 WAVE_COOLDOWN = 3.0           
@@ -62,7 +62,8 @@ def detect_wave_gesture(keypoints):
     wrist = keypoints[R_WRIST_IDX] if keypoints[R_WRIST_IDX][2] > keypoints[L_WRIST_IDX][2] else keypoints[L_WRIST_IDX]
 
     if wrist[2] < CONFIDENCE_THRESHOLD:
-        wrist_x_history.clear()
+        # FIX: Do NOT clear the history here! Just ignore the blurry frame 
+        # so it doesn't instantly forget the wave you started.
         return None
 
     wrist_x_history.append(wrist[1])
@@ -71,12 +72,12 @@ def detect_wave_gesture(keypoints):
     if len(wrist_x_history) >= WAVE_HISTORY_LEN:
         deltas = np.diff(wrist_x_history)
         
-        # New Logic: Count how many times the wrist changes direction (left vs right)
+        # Count how many times the wrist changes direction (left vs right)
         sign_changes = np.sum(np.diff(np.sign(deltas)) != 0)
         total_motion = np.sum(np.abs(deltas))
         span = np.max(wrist_x_history) - np.min(wrist_x_history)
 
-        # Require at least 2 direction changes to prevent triggering when just raising the hand
+        # Must move back and forth (at least 2 direction changes) with enough motion
         if sign_changes >= 2 and total_motion > WAVE_MOTION_THRESHOLD and span > 0.05:
             wrist_x_history.clear()
             return "hand_wave"
