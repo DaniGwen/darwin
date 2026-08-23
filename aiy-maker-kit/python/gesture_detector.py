@@ -16,10 +16,10 @@ SOCKET_PATH = "/tmp/darwin_detector.sock"
 MODEL_PATH = models.MOVENET_MODEL
 
 # Tuning
-CONFIDENCE_THRESHOLD = 0.25   # Lowered so motion blur doesn't break the wave
-WAVE_HISTORY_LEN = 10         
-WAVE_MOTION_THRESHOLD = 0.08  
-WAVE_COOLDOWN = 3.0           
+CONFIDENCE_THRESHOLD = 0.60   # Banish ghosts scoring 0.57!
+WAVE_HISTORY_LEN = 12         # Require a slightly longer history
+WAVE_MOTION_THRESHOLD = 0.20  # Require more total movement
+WAVE_COOLDOWN = 3.0        
 
 SIGNAL_REPEAT_FRAMES = 30  
 
@@ -78,7 +78,7 @@ def detect_wave_gesture(keypoints):
         span = np.max(wrist_x_history) - np.min(wrist_x_history)
 
         # Must move back and forth (at least 2 direction changes)
-        if sign_changes >= 2 and total_motion > WAVE_MOTION_THRESHOLD and span > 0.05:
+        if sign_changes >= 2 and total_motion > WAVE_MOTION_THRESHOLD and span > 0.15:
             wrist_x_history.clear()
             return "hand_wave"
 
