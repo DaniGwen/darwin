@@ -28,7 +28,7 @@
 #define U2D_DEV_NAME "/dev/ttyUSB0"
 #define MOTION_FILE_PATH "../../../../Data/motion_4096.bin"
 
-#define ACTION_PAGE_WAVE 15
+#define ACTION_PAGE_WAVE 8
 #define ACTION_PAGE_READY 1
 
 #define DETECT_THRESHOLD 1 
