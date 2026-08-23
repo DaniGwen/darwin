@@ -426,35 +426,35 @@ int main(void)
     // =========================================================================
     // VOICE STARTUP SEQUENCE
     // =========================================================================
-    system("espeak \"Initialization complete. Waiting for start command.\"");
+    // system("espeak \"Initialization complete. Waiting for start command.\"");
 
-    bool start_command_received = false;
-    while (!start_command_received)
-    {
-        std::ifstream voice_cmd_file("/tmp/darwin_voice_cmd.txt");
-        if (voice_cmd_file.is_open())
-        {
-            std::string cmd;
-            std::getline(voice_cmd_file, cmd);
-            voice_cmd_file.close();
+    // bool start_command_received = false;
+    // while (!start_command_received)
+    // {
+    //     std::ifstream voice_cmd_file("/tmp/darwin_voice_cmd.txt");
+    //     if (voice_cmd_file.is_open())
+    //     {
+    //         std::string cmd;
+    //         std::getline(voice_cmd_file, cmd);
+    //         voice_cmd_file.close();
 
-            if (cmd.find("start") != std::string::npos || cmd.find("go") != std::string::npos)
-            {
-                std::cout << GREEN << "INFO: Start command received: '" << cmd << "'" << RESET << std::endl;
+    //         if (cmd.find("start") != std::string::npos || cmd.find("go") != std::string::npos)
+    //         {
+    //             std::cout << GREEN << "INFO: Start command received: '" << cmd << "'" << RESET << std::endl;
 
-                std::string speak_cmd = "espeak \"" + cmd + "\"";
-                system(speak_cmd.c_str());
+    //             std::string speak_cmd = "espeak \"" + cmd + "\"";
+    //             system(speak_cmd.c_str());
 
-                std::remove("/tmp/darwin_voice_cmd.txt");
-                start_command_received = true;
-            }
-            else if (!cmd.empty())
-            {
-                std::remove("/tmp/darwin_voice_cmd.txt");
-            }
-        }
-        std::this_thread::sleep_for(std::chrono::milliseconds(200));
-    }
+    //             std::remove("/tmp/darwin_voice_cmd.txt");
+    //             start_command_received = true;
+    //         }
+    //         else if (!cmd.empty())
+    //         {
+    //             std::remove("/tmp/darwin_voice_cmd.txt");
+    //         }
+    //     }
+    //     std::this_thread::sleep_for(std::chrono::milliseconds(200));
+    // }
     // =========================================================================
 
     std::string current_action_label = "standby";
