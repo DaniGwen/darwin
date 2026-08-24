@@ -2,6 +2,7 @@
 import socket
 import struct
 import time
+import os
 import models
 import numpy as np
 from PIL import Image
@@ -17,9 +18,9 @@ MODEL_PATH = models.MOVENET_MODEL
 
 # Tuning
 WAVE_HISTORY_LEN = 12         
-WAVE_MOTION_THRESHOLD = 0.12  # Lowered from 0.20 to be more sensitive
+WAVE_MOTION_THRESHOLD = 0.12  
 WAVE_COOLDOWN = 3.0           
-SIGNAL_REPEAT_FRAMES = 30
+SIGNAL_REPEAT_FRAMES = 30  
 
 # ==============================
 # Global State
@@ -64,7 +65,7 @@ def detect_wave_gesture(keypoints):
         wrist_x_history.clear() 
         return None
 
-    # BLUR TOLERANCE: Accept blurry wrists down to 0.15 confidence so fast waves aren't ignored
+    # BLUR TOLERANCE: Accept blurry wrists so fast waves aren't ignored
     if wrist[2] > 0.15:
         wrist_x_history.append(wrist[1])
         wrist_x_history = wrist_x_history[-WAVE_HISTORY_LEN:]
@@ -79,7 +80,7 @@ def detect_wave_gesture(keypoints):
         # Print the wave stats to the terminal so we can see what it's doing
         print(f"DEBUG MATH -> Signs: {sign_changes} | Motion: {total_motion:.2f} | Span: {span:.2f}", flush=True)
 
-        # Extremely forgiving wave logic
+        # Forgiving wave logic
         if sign_changes >= 2 and total_motion > 0.10 and span > 0.08:
             wrist_x_history.clear()
             return "hand_wave"
@@ -98,7 +99,7 @@ def main():
         sock = connect_to_cpp_server()
         time.sleep(1)
 
-    print("[INFO] Gesture Detector Running (Tracking Mode Enabled)", flush=True)
+    print("[INFO] Gesture Detector Running (Tracking + Voice Mode)", flush=True)
 
     try:
         while True:
@@ -122,11 +123,14 @@ def main():
                 last_wave_time = now
                 frames_remaining_to_send = SIGNAL_REPEAT_FRAMES
                 print(f"\n[SEND] >>> WAVE DETECTED! <<<\n", flush=True)
+                
+                # --- NEW: VOICE TRIGGER ---
+                # This runs in the background (&) so it doesn't freeze the camera feed
+                os.system('espeak "Hey! Hi!" 2>/dev/null &')
 
-            # --- DYNAMIC MULTI-DETECTION PAYLOAD ---
             msg = ""
             
-            # 1. ALWAYS track the person if they are visible
+            # Find the bounding box for the person
             valid_kpts = [kp for kp in pose if kp[2] > 0.2]
             if valid_kpts:
                 ys = [kp[0] for kp in valid_kpts]
@@ -134,22 +138,19 @@ def main():
                 ymin, ymax = max(0.0, min(ys)), min(1.0, max(ys))
                 xmin, xmax = max(0.0, min(xs)), min(1.0, max(xs))
                 
-                # Append person data to the message string
-                nose_conf = pose[0][2]
-                msg += f"person {nose_conf:.2f} {xmin:.3f} {ymin:.3f} {xmax:.3f} {ymax:.3f} "
-
-            # 2. Add the hand_wave command if it was triggered
-            if frames_remaining_to_send > 0:
-                frames_remaining_to_send -= 1
-                
-                live_wrist = pose[10] if pose[10][2] > pose[9][2] else pose[9]
-                conf = live_wrist[2]
-                
-                # Append wave data to the SAME message string
-                msg += f"hand_wave {conf:.2f} {xmin:.3f} {ymin:.3f} {xmax:.3f} {ymax:.3f} "
-                
-                if frames_remaining_to_send == 0:
-                    print("[INFO] Wave signal end.", flush=True)
+                # --- NEW: CLEAN LABEL SWAPPING ---
+                if frames_remaining_to_send > 0:
+                    frames_remaining_to_send -= 1
+                    live_wrist = pose[10] if pose[10][2] > pose[9][2] else pose[9]
+                    
+                    # When waving, ONLY send the hand_wave label to C++
+                    msg = f"hand_wave {live_wrist[2]:.2f} {xmin:.3f} {ymin:.3f} {xmax:.3f} {ymax:.3f}"
+                    
+                    if frames_remaining_to_send == 0:
+                        print("[INFO] Wave signal end.", flush=True)
+                else:
+                    # When not waving, ONLY send the person label to C++
+                    msg = f"person {pose[0][2]:.2f} {xmin:.3f} {ymin:.3f} {xmax:.3f} {ymax:.3f}"
             
             # --- SEND TO C++ ---
             if msg:
