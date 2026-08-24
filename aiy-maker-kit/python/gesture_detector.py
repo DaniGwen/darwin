@@ -59,9 +59,14 @@ def detect_wave_gesture(keypoints):
     nose = keypoints[NOSE_IDX]
     wrist = keypoints[R_WRIST_IDX] if keypoints[R_WRIST_IDX][2] > keypoints[L_WRIST_IDX][2] else keypoints[L_WRIST_IDX]
 
-    # ANTI-GHOST: Must clearly see a human nose (>0.4) and a wrist (>0.4)
-    if nose[2] < 0.4 or wrist[2] < 0.4:
-        wrist_x_history.clear() # Kill ghosts instantly!
+    # ANTI-GHOST: If there is no human face (nose), delete history to kill ghosts!
+    if nose[2] < 0.3:
+        wrist_x_history.clear() 
+        return None
+
+    # MOTION BLUR TOLERANCE: If the wrist is blurry mid-wave, DO NOT clear the history.
+    # Just ignore this single frame so we don't forget the wave you started.
+    if wrist[2] < 0.4:
         return None
 
     wrist_x_history.append(wrist[1])
@@ -74,6 +79,7 @@ def detect_wave_gesture(keypoints):
         total_motion = np.sum(np.abs(deltas))
         span = np.max(wrist_x_history) - np.min(wrist_x_history)
 
+        # Ensure a wide, multi-directional wave
         if sign_changes >= 2 and total_motion > WAVE_MOTION_THRESHOLD and span > 0.15:
             wrist_x_history.clear()
             return "hand_wave"
