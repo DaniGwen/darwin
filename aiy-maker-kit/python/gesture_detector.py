@@ -17,9 +17,9 @@ MODEL_PATH = models.MOVENET_MODEL
 
 # Tuning
 WAVE_HISTORY_LEN = 12         
-WAVE_MOTION_THRESHOLD = 0.20  
+WAVE_MOTION_THRESHOLD = 0.12  # Lowered from 0.20 to be more sensitive
 WAVE_COOLDOWN = 3.0           
-SIGNAL_REPEAT_FRAMES = 30  
+SIGNAL_REPEAT_FRAMES = 30
 
 # ==============================
 # Global State
@@ -78,7 +78,11 @@ def detect_wave_gesture(keypoints):
         total_motion = np.sum(np.abs(deltas))
         span = np.max(wrist_x_history) - np.min(wrist_x_history)
 
-        if sign_changes >= 2 and total_motion > WAVE_MOTION_THRESHOLD and span > 0.15:
+        # UNCOMMENT THIS TO SEE EXACTLY WHAT YOUR WAVE SCORES:
+        # print(f"DEBUG MATH -> Signs: {sign_changes} | Motion: {total_motion:.2f} | Span: {span:.2f}", flush=True)
+
+        # Loosened the span from 0.15 down to 0.08
+        if sign_changes >= 2 and total_motion > WAVE_MOTION_THRESHOLD and span > 0.08:
             wrist_x_history.clear()
             return "hand_wave"
 
