@@ -60,16 +60,14 @@ def detect_wave_gesture(keypoints):
     wrist = keypoints[R_WRIST_IDX] if keypoints[R_WRIST_IDX][2] > keypoints[L_WRIST_IDX][2] else keypoints[L_WRIST_IDX]
 
     # ANTI-GHOST: If there is no human face (nose), delete history to kill ghosts!
-    if nose[2] < 0.3:
+    if nose[2] < 0.2:
         wrist_x_history.clear() 
         return None
 
-    # MOTION BLUR TOLERANCE: If the wrist is blurry mid-wave, DO NOT clear the history.
-    if wrist[2] < 0.4:
-        return None
-
-    wrist_x_history.append(wrist[1])
-    wrist_x_history = wrist_x_history[-WAVE_HISTORY_LEN:]
+    # BLUR TOLERANCE: Accept blurry wrists down to 0.15 confidence so fast waves aren't ignored
+    if wrist[2] > 0.15:
+        wrist_x_history.append(wrist[1])
+        wrist_x_history = wrist_x_history[-WAVE_HISTORY_LEN:]
 
     if len(wrist_x_history) >= WAVE_HISTORY_LEN:
         deltas = np.diff(wrist_x_history)
@@ -78,11 +76,11 @@ def detect_wave_gesture(keypoints):
         total_motion = np.sum(np.abs(deltas))
         span = np.max(wrist_x_history) - np.min(wrist_x_history)
 
-        # UNCOMMENT THIS TO SEE EXACTLY WHAT YOUR WAVE SCORES:
-        # print(f"DEBUG MATH -> Signs: {sign_changes} | Motion: {total_motion:.2f} | Span: {span:.2f}", flush=True)
+        # Print the wave stats to the terminal so we can see what it's doing
+        print(f"DEBUG MATH -> Signs: {sign_changes} | Motion: {total_motion:.2f} | Span: {span:.2f}", flush=True)
 
-        # Loosened the span from 0.15 down to 0.08
-        if sign_changes >= 2 and total_motion > WAVE_MOTION_THRESHOLD and span > 0.08:
+        # Extremely forgiving wave logic
+        if sign_changes >= 2 and total_motion > 0.10 and span > 0.08:
             wrist_x_history.clear()
             return "hand_wave"
 

@@ -53,6 +53,10 @@ bool MotionManager::Initialize(CM730 *cm730)
 
         if (m_CM730->ReadWord(id, MX28::P_PRESENT_POSITION_L, &value, &error) == CM730::SUCCESS)
         {
+            if (id == 23 || id == 24) {
+                value *= 4; 
+            }
+            
             MotionStatus::m_CurrentJoints.SetValue(id, value);
             MotionStatus::m_CurrentJoints.SetEnable(id, true);
 
