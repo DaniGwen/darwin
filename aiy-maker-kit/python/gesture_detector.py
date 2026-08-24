@@ -18,14 +18,17 @@ MODEL_PATH = models.MOVENET_MODEL
 
 # Tuning
 WAVE_HISTORY_LEN = 12         
-WAVE_MOTION_THRESHOLD = 0.12  
+WAVE_MOTION_THRESHOLD = 1.5   # Raised to ignore ambient shifting
+WAVE_SPAN_THRESHOLD = 0.3     # Raised to require a deliberate, wide wave
+WAVE_MIN_SIGNS = 4            # Must change directions at least 4 times
 WAVE_COOLDOWN = 3.0           
 SIGNAL_REPEAT_FRAMES = 30  
 
 # ==============================
 # Global State
 # ==============================
-wrist_x_history = []
+right_wrist_history = []
+left_wrist_history = []
 last_wave_time = 0.0
 frames_remaining_to_send = 0
 
@@ -51,39 +54,53 @@ def recvall(sock, count):
             return None
     return buf
 
+def check_single_wrist_wave(wrist, history):
+    # STRICT CONFIDENCE FLOOR: Ignore blurry or noisy wrist data
+    if wrist[2] >= 0.50:
+        history.append(wrist[1])
+        # Keep history to max length
+        while len(history) > WAVE_HISTORY_LEN:
+            history.pop(0)
+    else:
+        # If confidence drops, clear history to prevent noise buildup
+        history.clear()
+        return False
+
+    if len(history) >= WAVE_HISTORY_LEN:
+        deltas = np.diff(history)
+        sign_changes = np.sum(np.diff(np.sign(deltas)) != 0)
+        total_motion = np.sum(np.abs(deltas))
+        span = np.max(history) - np.min(history)
+
+        if sign_changes >= WAVE_MIN_SIGNS and total_motion > WAVE_MOTION_THRESHOLD and span > WAVE_SPAN_THRESHOLD:
+            history.clear()
+            return True
+            
+    return False
+
 def detect_wave_gesture(keypoints):
-    global wrist_x_history
+    global right_wrist_history, left_wrist_history
     R_WRIST_IDX = 10
     L_WRIST_IDX = 9
     NOSE_IDX = 0
     
     nose = keypoints[NOSE_IDX]
-    wrist = keypoints[R_WRIST_IDX] if keypoints[R_WRIST_IDX][2] > keypoints[L_WRIST_IDX][2] else keypoints[L_WRIST_IDX]
-
-    # ANTI-GHOST: If there is no human face (nose), delete history to kill ghosts!
-    if nose[2] < 0.2:
-        wrist_x_history.clear() 
+    
+    # ANTI-GHOST: Must clearly see a face to allow waving
+    if nose[2] < 0.40:
+        right_wrist_history.clear()
+        left_wrist_history.clear()
         return None
 
-    # BLUR TOLERANCE: Accept blurry wrists so fast waves aren't ignored
-    if wrist[2] > 0.15:
-        wrist_x_history.append(wrist[1])
-        wrist_x_history = wrist_x_history[-WAVE_HISTORY_LEN:]
+    # Check right and left wrists COMPLETELY INDEPENDENTLY
+    r_wrist = keypoints[R_WRIST_IDX]
+    l_wrist = keypoints[L_WRIST_IDX]
 
-    if len(wrist_x_history) >= WAVE_HISTORY_LEN:
-        deltas = np.diff(wrist_x_history)
-        
-        sign_changes = np.sum(np.diff(np.sign(deltas)) != 0)
-        total_motion = np.sum(np.abs(deltas))
-        span = np.max(wrist_x_history) - np.min(wrist_x_history)
+    r_wave = check_single_wrist_wave(r_wrist, right_wrist_history)
+    l_wave = check_single_wrist_wave(l_wrist, left_wrist_history)
 
-        # Print the wave stats to the terminal so we can see what it's doing
-        print(f"DEBUG MATH -> Signs: {sign_changes} | Motion: {total_motion:.2f} | Span: {span:.2f}", flush=True)
-
-        # Forgiving wave logic
-        if sign_changes >= 2 and total_motion > 0.10 and span > 0.08:
-            wrist_x_history.clear()
-            return "hand_wave"
+    if r_wave or l_wave:
+        return "hand_wave"
 
     return None
 
@@ -99,7 +116,7 @@ def main():
         sock = connect_to_cpp_server()
         time.sleep(1)
 
-    print("[INFO] Gesture Detector Running (Tracking + Voice Mode)", flush=True)
+    print("[INFO] Gesture Detector Running (Independent Wrists + Voice)", flush=True)
 
     try:
         while True:
@@ -124,9 +141,9 @@ def main():
                 frames_remaining_to_send = SIGNAL_REPEAT_FRAMES
                 print(f"\n[SEND] >>> WAVE DETECTED! <<<\n", flush=True)
                 
-                # --- NEW: VOICE TRIGGER ---
-                # This runs in the background (&) so it doesn't freeze the camera feed
-                os.system('espeak "Hey! Hi!" 2>/dev/null &')
+                # --- SYNCHRONOUS VOICE TRIGGER ---
+                # This will intentionally pause the script for a second to speak before triggering the physical wave
+                os.system('espeak "Hey! Hi!" 2>/dev/null')
 
             msg = ""
             
@@ -138,18 +155,17 @@ def main():
                 ymin, ymax = max(0.0, min(ys)), min(1.0, max(ys))
                 xmin, xmax = max(0.0, min(xs)), min(1.0, max(xs))
                 
-                # --- NEW: CLEAN LABEL SWAPPING ---
                 if frames_remaining_to_send > 0:
                     frames_remaining_to_send -= 1
+                    
+                    # Grab the highest confidence wrist just to pass coordinates to C++
                     live_wrist = pose[10] if pose[10][2] > pose[9][2] else pose[9]
                     
-                    # When waving, ONLY send the hand_wave label to C++
                     msg = f"hand_wave {live_wrist[2]:.2f} {xmin:.3f} {ymin:.3f} {xmax:.3f} {ymax:.3f}"
                     
                     if frames_remaining_to_send == 0:
                         print("[INFO] Wave signal end.", flush=True)
                 else:
-                    # When not waving, ONLY send the person label to C++
                     msg = f"person {pose[0][2]:.2f} {xmin:.3f} {ymin:.3f} {xmax:.3f} {ymax:.3f}"
             
             # --- SEND TO C++ ---
