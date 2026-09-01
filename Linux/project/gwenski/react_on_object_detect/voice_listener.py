@@ -36,7 +36,7 @@ def listen_loop():
 
     try:
         # Using native sample rate for crystal clear AI understanding
-        mic = sr.Microphone(device_index=3)
+        mic = sr.Microphone(device_index=4)
         
         with mic as source:
             print("    [Hardware connected and locked successfully]")
