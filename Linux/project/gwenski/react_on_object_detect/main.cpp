@@ -455,6 +455,9 @@ int main(void)
     int dog_detect_count = 0;
     int cat_detect_count = 0;
     int sports_ball_detect_count = 0;
+    
+    // NEW: Hard lock state for holding items
+    bool is_holding_item = false;
 
     const int detect_threshold = 4;
 
@@ -480,78 +483,54 @@ int main(void)
         auto current_time = std::chrono::steady_clock::now();
         bool can_perform_action = (current_time - last_action_time) >= action_cooldown;
 
-        if (detected_object_label == "person")
-            person_detect_count++;
-        else if (person_detect_count > 0)
-            person_detect_count--;
+        if (detected_object_label == "person") person_detect_count++; else if (person_detect_count > 0) person_detect_count--;
+        if (detected_object_label == "bottle") bottle_detect_count++; else if (bottle_detect_count > 0) bottle_detect_count--;
+        if (detected_object_label == "dog") dog_detect_count++; else if (dog_detect_count > 0) dog_detect_count--;
+        if (detected_object_label == "cat") cat_detect_count++; else if (cat_detect_count > 0) cat_detect_count--;
+        if (detected_object_label == "sportsball") sports_ball_detect_count++; else if (sports_ball_detect_count > 0) sports_ball_detect_count--;
 
-        if (detected_object_label == "bottle")
-            bottle_detect_count++;
-        else if (bottle_detect_count > 0)
-            bottle_detect_count--;
-
-        if (detected_object_label == "dog")
-            dog_detect_count++;
-        else if (dog_detect_count > 0)
-            dog_detect_count--;
-
-        if (detected_object_label == "cat")
-            cat_detect_count++;
-        else if (cat_detect_count > 0)
-            cat_detect_count--;
-
-        if (detected_object_label == "sportsball")
-            sports_ball_detect_count++;
-        else if (sports_ball_detect_count > 0)
-            sports_ball_detect_count--;
-
-        // Vision-based triggers
-        if (detected_object_label == "person" && person_detect_count >= detect_threshold && current_action_label != "person" && can_perform_action)
+        // =========================================================================
+        // --- VISION TRIGGERS (ONLY IF NOT HOLDING AN ITEM) ---
+        // =========================================================================
+        if (!is_holding_item)
         {
-            handlePersonDetected(left_arm_controller, current_action_label, last_action_time, person_detect_count, current_time);
-        }
-        else if (detected_object_label == "dog" && dog_detect_count >= detect_threshold && current_action_label != "dog" && can_perform_action)
-        {
-            handleGenericObjectDetected("dog", ACTION_PAGE_HAPPY, current_action_label, last_action_time, dog_detect_count, current_time);
-        }
-        else if (detected_object_label == "cat" && cat_detect_count >= detect_threshold && current_action_label != "cat" && can_perform_action)
-        {
-            handleGenericObjectDetected("cat", ACTION_PAGE_HAPPY, current_action_label, last_action_time, cat_detect_count, current_time);
-        }
-        else if (detected_object_label == "sportsball" && sports_ball_detect_count >= detect_threshold && current_action_label != "sports ball" && can_perform_action)
-        {
-            handleGenericObjectDetected("sports ball", ACTION_PAGE_SPORTS_BALL, current_action_label, last_action_time, sports_ball_detect_count, current_time);
-        }
-        else if (detected_object_label == "bottle" && bottle_detect_count >= detect_threshold && current_action_label != "bottle" && can_perform_action)
-        {
-            std::cout << GREEN << "INFO: Detected bottle. Playing hold action." << RESET << std::endl;
-            run_action_non_blocking(ACTION_PAGE_HOLD_ITEM);
-            system("espeak \"Thank you\" &");
-            current_action_label = "bottle";
-            last_action_time = current_time;
-            bottle_detect_count = 0;
-        }
-        else if (bottle_detect_count == 0 && person_detect_count == 0 && dog_detect_count == 0 && cat_detect_count == 0 && sports_ball_detect_count == 0 && current_action_label != "standby" && can_perform_action)
-        {
-            std::cout << YELLOW << "INFO: Target lost. Returning to standby." << RESET << std::endl;
-            if (current_action_label == "bottle")
+            if (detected_object_label == "person" && person_detect_count >= detect_threshold && current_action_label != "person" && can_perform_action)
             {
-                Action::GetInstance()->m_Joint.SetEnable(22, false);
-                right_arm_controller.OpenGripper();
-                std::this_thread::sleep_for(std::chrono::milliseconds(1500));
-                run_action(ACTION_PAGE_STAND);
-                Action::GetInstance()->m_Joint.SetEnable(22, true);
+                handlePersonDetected(left_arm_controller, current_action_label, last_action_time, person_detect_count, current_time);
             }
-            else
+            else if (detected_object_label == "dog" && dog_detect_count >= detect_threshold && current_action_label != "dog" && can_perform_action)
             {
-                run_action(ACTION_PAGE_STAND);
+                handleGenericObjectDetected("dog", ACTION_PAGE_HAPPY, current_action_label, last_action_time, dog_detect_count, current_time);
             }
-            current_action_label = "standby";
-            last_action_time = current_time;
-        }
-        else if (detected_object_label == "none" && current_action_label != "standby" && can_perform_action)
-        {
-            handleNoTargetOrStandby(current_action_label, last_action_time, current_time);
+            else if (detected_object_label == "cat" && cat_detect_count >= detect_threshold && current_action_label != "cat" && can_perform_action)
+            {
+                handleGenericObjectDetected("cat", ACTION_PAGE_HAPPY, current_action_label, last_action_time, cat_detect_count, current_time);
+            }
+            else if (detected_object_label == "sportsball" && sports_ball_detect_count >= detect_threshold && current_action_label != "sports ball" && can_perform_action)
+            {
+                handleGenericObjectDetected("sports ball", ACTION_PAGE_SPORTS_BALL, current_action_label, last_action_time, sports_ball_detect_count, current_time);
+            }
+            else if (detected_object_label == "bottle" && bottle_detect_count >= detect_threshold && current_action_label != "bottle" && can_perform_action)
+            {
+                std::cout << GREEN << "INFO: Detected bottle visually. Playing hold action." << RESET << std::endl;
+                run_action_non_blocking(ACTION_PAGE_HOLD_ITEM);
+                system("espeak \"Thank you\" &");
+                current_action_label = "bottle";
+                last_action_time = current_time;
+                bottle_detect_count = 0;
+                is_holding_item = true; // Lock state
+            }
+            else if (bottle_detect_count == 0 && person_detect_count == 0 && dog_detect_count == 0 && cat_detect_count == 0 && sports_ball_detect_count == 0 && current_action_label != "standby" && can_perform_action)
+            {
+                std::cout << YELLOW << "INFO: Target lost. Returning to standby." << RESET << std::endl;
+                run_action(ACTION_PAGE_STAND);
+                current_action_label = "standby";
+                last_action_time = current_time;
+            }
+            else if (detected_object_label == "none" && current_action_label != "standby" && can_perform_action)
+            {
+                handleNoTargetOrStandby(current_action_label, last_action_time, current_time);
+            }
         }
 
         // =========================================================================
@@ -577,17 +556,22 @@ int main(void)
                 // 2. GREETING COMMAND (hi / hello / hey)
                 else if (cmd.find("hi") != std::string::npos || cmd.find("hello") != std::string::npos || cmd.find("hey") != std::string::npos)
                 {
-                    std::cout << CYAN << "INFO: Greeting recognized. Responding..." << RESET << std::endl;
-                    system("espeak \"hey whats up\" &");
+                    std::cout << CYAN << "INFO: Greeting recognized." << RESET << std::endl;
+                    
+                    if (is_holding_item) {
+                        // Just speak, do not ruin the physical hold pose!
+                        system("espeak \"Hey what's up. I am currently holding something.\" &");
+                    } else {
+                        system("espeak \"hey whats up\" &");
+                        int wave_pages[3] = {ACTION_PAGE_WAVE3, ACTION_PAGE_WAVE, ACTION_PAGE_WAVE2}; // 4, 7, 8
+                        int chosen_wave = wave_pages[rand() % 3];
 
-                    int wave_pages[3] = {ACTION_PAGE_WAVE3, ACTION_PAGE_WAVE, ACTION_PAGE_WAVE2}; // 4, 7, 8
-                    int chosen_wave = wave_pages[rand() % 3];
+                        run_action(chosen_wave);
+                        run_action(ACTION_PAGE_STAND);
 
-                    run_action(chosen_wave);
-                    run_action(ACTION_PAGE_STAND);
-
-                    current_action_label = "standby";
-                    last_action_time = current_time;
+                        current_action_label = "standby";
+                        last_action_time = current_time;
+                    }
                 }
                 // 3. HOLD / CATCH COMMAND
                 else if (cmd.find("hold") != std::string::npos || cmd.find("catch") != std::string::npos || cmd.find("grab") != std::string::npos || cmd.find("take") != std::string::npos)
@@ -603,27 +587,36 @@ int main(void)
 
                     current_action_label = "bottle";
                     last_action_time = current_time;
+                    is_holding_item = true; // Lock state
                 }
                 // 4. RELEASE COMMAND
                 else if (cmd.find("release") != std::string::npos || cmd.find("drop") != std::string::npos || cmd.find("let go") != std::string::npos)
                 {
-                    std::cout << GREEN << "INFO: Releasing gripper and standing..." << RESET << std::endl;
-                    system("espeak \"Releasing\" &");
+                    if (is_holding_item) 
+                    {
+                        std::cout << GREEN << "INFO: Releasing gripper and standing..." << RESET << std::endl;
+                        system("espeak \"Releasing\" &");
 
-                    // Open gripper
-                    Action::GetInstance()->m_Joint.SetEnable(22, false);
-                    right_arm_controller.OpenGripper();
+                        // Open gripper
+                        Action::GetInstance()->m_Joint.SetEnable(22, false);
+                        right_arm_controller.OpenGripper();
 
-                    // Wait for 2 seconds
-                    std::this_thread::sleep_for(std::chrono::seconds(2));
+                        // Wait for 2 seconds
+                        std::this_thread::sleep_for(std::chrono::seconds(2));
 
-                    // Return to Stand (Page 1) and restore joint 22
-                    run_action(ACTION_PAGE_STAND);
-                    Action::GetInstance()->m_Joint.SetEnable(22, true);
+                        // Return to Stand (Page 1) and restore joint 22
+                        run_action(ACTION_PAGE_STAND);
+                        Action::GetInstance()->m_Joint.SetEnable(22, true);
 
-                    current_action_label = "standby";
-                    last_action_time = current_time;
-                    bottle_detect_count = 0;
+                        current_action_label = "standby";
+                        last_action_time = current_time;
+                        bottle_detect_count = 0;
+                        is_holding_item = false; // Unlock state
+                    }
+                    else 
+                    {
+                        std::cout << YELLOW << "INFO: Ignored release command (not holding anything)." << RESET << std::endl;
+                    }
                 }
 
                 // Consume and clear the file
