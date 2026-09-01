@@ -40,6 +40,7 @@
 // Define action page numbers for different detected objects
 #define ACTION_PAGE_WAVE 7
 #define ACTION_PAGE_WAVE2 8
+#define ACTION_PAGE_WAVE3 4
 #define ACTION_PAGE_HAPPY 14
 #define ACTION_PAGE_CAT 12
 #define ACTION_PAGE_SPORTS_BALL 13
@@ -107,11 +108,9 @@ void run_action_non_blocking(int action_page)
     Action::GetInstance()->Start(action_page);
 }
 
-// Thread entry point function for HeadTracking
 void *HeadTrackingThread(void *arg)
 {
     HeadTracking *head_tracker = static_cast<HeadTracking *>(arg);
-
     if (head_tracker)
     {
         head_tracker->Run();
@@ -120,11 +119,8 @@ void *HeadTrackingThread(void *arg)
     {
         std::cerr << "ERROR: HeadTrackingThread received a null pointer." << std::endl;
     }
-
     return NULL;
 }
-
-// --- Action Handler Functions ---
 
 void handlePersonDetected(LeftArmController &left_arm_controller,
                           std::string &current_action_label,
@@ -145,8 +141,12 @@ void handlePersonDetected(LeftArmController &left_arm_controller,
         system("espeak \"I can see you\" &");
         run_action(ACTION_PAGE_WAVE2);
     }
+    else
+    {
+        system("espeak \"Hello\" &");
+        run_action(ACTION_PAGE_WAVE3);
+    }
 
-    std::chrono::milliseconds wave_duration(1000);
     run_action(ACTION_PAGE_STAND);
 
     current_action_label = "person";
@@ -273,19 +273,16 @@ void handleGenericObjectDetected(const std::string &label, int action_page,
 
     if (label == "dog")
     {
-        std::cout << "INFO: Dog detected, playing dog action." << std::endl;
         system("espeak \"Such a nice doggy\" &");
         run_action(action_page);
     }
     else if (label == "cat")
     {
-        std::cout << "INFO: Cat detected, playing cat action." << std::endl;
         system("espeak \"Here kitty kitty\" &");
         run_action(action_page);
     }
     else if (label == "sports_ball")
     {
-        std::cout << "INFO: Sports ball detected, playing sports ball action." << std::endl;
         system("espeak \"Let's play ball\" &");
         run_action(action_page);
     }
@@ -305,12 +302,10 @@ void handleNoTargetOrStandby(std::string &current_action_label,
     last_action_time = current_time;
 }
 
-// --- Safe Shutdown Handler for Ctrl+C ---
 void sigint_handler(int sig)
 {
-    std::cout << "\n\nINFO: Caught Ctrl+C! Shutting down safely..." << std::endl;
+    std::cout << "\n\nINFO: Shutting down safely..." << std::endl;
 
-    // Audibly announce shutdown (runs in background so it doesn't delay the actual shutdown process)
     system("espeak \"Shutting down safely\" &");
 
     system("pkill -2 -f voice_listener.py");
@@ -322,8 +317,6 @@ void sigint_handler(int sig)
     std::cout << "INFO: Background scripts killed and motors relaxed. Goodbye!" << std::endl;
     exit(0);
 }
-
-// ----------------------------------------
 
 BottleTaskState current_bottle_task_state = BottleTaskState::IDLE;
 
@@ -350,7 +343,6 @@ int main(void)
     if (!ini)
     {
         std::cerr << "ERROR: Failed to load INI file." << std::endl;
-        // Blocking espeak so it finishes saying the error before exiting
         system("espeak \"Fatal Error. Failed to load configuration file.\"");
         return -1;
     }
@@ -421,10 +413,8 @@ int main(void)
     }
     std::cout << "INFO: HeadTracking thread created successfully." << std::endl;
 
-    std::cout << "INFO: Main thread ready. Waiting for start command. Press Ctrl+C to exit." << std::endl;
-
     //=========================================================================
-    //VOICE STARTUP SEQUENCE
+    // VOICE STARTUP SEQUENCE
     //=========================================================================
     system("espeak \"Initialization complete. Waiting for start command.\"");
 
@@ -438,10 +428,9 @@ int main(void)
             std::getline(voice_cmd_file, cmd);
             voice_cmd_file.close();
 
-            if (cmd.find("start") != std::string::npos || cmd.find("go") != std::string::npos)
+            if (cmd.find("start") != std::string::npos || cmd.find("go") != std::string::npos || cmd.find("begin") != std::string::npos)
             {
                 std::cout << GREEN << "INFO: Start command received: '" << cmd << "'" << RESET << std::endl;
-
                 std::string speak_cmd = "espeak \"" + cmd + "\"";
                 system(speak_cmd.c_str());
 
@@ -516,7 +505,7 @@ int main(void)
         else if (sports_ball_detect_count > 0)
             sports_ball_detect_count--;
 
-        // 2. ACTION TRIGGERS
+        // Vision-based triggers
         if (detected_object_label == "person" && person_detect_count >= detect_threshold && current_action_label != "person" && can_perform_action)
         {
             handlePersonDetected(left_arm_controller, current_action_label, last_action_time, person_detect_count, current_time);
@@ -536,12 +525,8 @@ int main(void)
         else if (detected_object_label == "bottle" && bottle_detect_count >= detect_threshold && current_action_label != "bottle" && can_perform_action)
         {
             std::cout << GREEN << "INFO: Detected bottle. Playing hold action." << RESET << std::endl;
-
             run_action_non_blocking(ACTION_PAGE_HOLD_ITEM);
-
-            // Replaced MP3 with espeak in the background
             system("espeak \"Thank you\" &");
-
             current_action_label = "bottle";
             last_action_time = current_time;
             bottle_detect_count = 0;
@@ -549,13 +534,11 @@ int main(void)
         else if (bottle_detect_count == 0 && person_detect_count == 0 && dog_detect_count == 0 && cat_detect_count == 0 && sports_ball_detect_count == 0 && current_action_label != "standby" && can_perform_action)
         {
             std::cout << YELLOW << "INFO: Target lost. Returning to standby." << RESET << std::endl;
-
             if (current_action_label == "bottle")
             {
                 Action::GetInstance()->m_Joint.SetEnable(22, false);
                 right_arm_controller.OpenGripper();
                 std::this_thread::sleep_for(std::chrono::milliseconds(1500));
-
                 run_action(ACTION_PAGE_STAND);
                 Action::GetInstance()->m_Joint.SetEnable(22, true);
             }
@@ -563,33 +546,17 @@ int main(void)
             {
                 run_action(ACTION_PAGE_STAND);
             }
-
             current_action_label = "standby";
             last_action_time = current_time;
         }
-        // else if (detected_object_label == "bottle" && bottle_detect_count >= detect_threshold && current_action_label != "bottle" && can_perform_action)
-        // {
-        //     handleBottleInteraction(current_bottle_task_state,
-        //                             legs_controller,
-        //                             right_arm_controller,
-        //                             head_tracker,
-        //                             current_action_label,
-        //                             last_action_time,
-        //                             current_time);
-
-        //     if (current_bottle_task_state == BottleTaskState::DONE)
-        //     {
-        //         std::cout << "Task complete! Resetting to IDLE in 5 seconds." << std::endl;
-        //         std::this_thread::sleep_for(std::chrono::seconds(5));
-        //         current_bottle_task_state = BottleTaskState::IDLE;
-        //     }
-        // }
         else if (detected_object_label == "none" && current_action_label != "standby" && can_perform_action)
         {
             handleNoTargetOrStandby(current_action_label, last_action_time, current_time);
         }
 
-        // --- VOICE COMMAND BLOCK ---
+        // =========================================================================
+        // --- VOICE COMMAND PROCESSING BLOCK ---
+        // =========================================================================
         std::ifstream voice_cmd_file("/tmp/darwin_voice_cmd.txt");
         if (voice_cmd_file.is_open())
         {
@@ -597,31 +564,73 @@ int main(void)
             std::getline(voice_cmd_file, cmd);
             voice_cmd_file.close();
 
-            if (cmd.find("release") != std::string::npos && current_action_label == "bottle")
+            if (!cmd.empty())
             {
-                std::cout << GREEN << "INFO: Voice command '" << cmd << "' received." << RESET << std::endl;
+                std::cout << GREEN << "INFO: Processing voice command: '" << cmd << "'" << RESET << std::endl;
 
-                // Dynamically repeats what it heard
-                std::string speak_cmd = "espeak \"" + cmd + "\"";
-                system(speak_cmd.c_str());
+                // 1. STOP / SLEEP COMMAND
+                if (cmd.find("stop") != std::string::npos || cmd.find("sleep") != std::string::npos || cmd.find("quit") != std::string::npos || cmd.find("exit") != std::string::npos)
+                {
+                    std::remove("/tmp/darwin_voice_cmd.txt");
+                    sigint_handler(SIGINT);
+                }
+                // 2. GREETING COMMAND (hi / hello / hey)
+                else if (cmd.find("hi") != std::string::npos || cmd.find("hello") != std::string::npos || cmd.find("hey") != std::string::npos)
+                {
+                    std::cout << CYAN << "INFO: Greeting recognized. Responding..." << RESET << std::endl;
+                    system("espeak \"hey whats up\" &");
 
-                Action::GetInstance()->m_Joint.SetEnable(22, false);
-                right_arm_controller.OpenGripper();
-                std::this_thread::sleep_for(std::chrono::milliseconds(1500));
+                    int wave_pages[3] = {ACTION_PAGE_WAVE3, ACTION_PAGE_WAVE, ACTION_PAGE_WAVE2}; // 4, 7, 8
+                    int chosen_wave = wave_pages[rand() % 3];
 
-                run_action(ACTION_PAGE_STAND);
-                Action::GetInstance()->m_Joint.SetEnable(22, true);
+                    run_action(chosen_wave);
+                    run_action(ACTION_PAGE_STAND);
 
-                std::remove("/tmp/darwin_voice_cmd.txt");
-                current_action_label = "standby";
-                last_action_time = current_time;
-                bottle_detect_count = 0;
-            }
-            else if (!cmd.empty())
-            {
+                    current_action_label = "standby";
+                    last_action_time = current_time;
+                }
+                // 3. HOLD / CATCH COMMAND
+                else if (cmd.find("hold") != std::string::npos || cmd.find("catch") != std::string::npos || cmd.find("grab") != std::string::npos || cmd.find("take") != std::string::npos)
+                {
+                    std::cout << GREEN << "INFO: Executing Hold Item action..." << RESET << std::endl;
+                    system("espeak \"Holding\" &");
+
+                    run_action(ACTION_PAGE_HOLD_ITEM); // Page 35
+
+                    // Open the right gripper
+                    Action::GetInstance()->m_Joint.SetEnable(22, false);
+                    right_arm_controller.OpenGripper();
+
+                    current_action_label = "bottle";
+                    last_action_time = current_time;
+                }
+                // 4. RELEASE COMMAND
+                else if (cmd.find("release") != std::string::npos || cmd.find("drop") != std::string::npos || cmd.find("let go") != std::string::npos)
+                {
+                    std::cout << GREEN << "INFO: Releasing gripper and standing..." << RESET << std::endl;
+                    system("espeak \"Releasing\" &");
+
+                    // Open gripper
+                    Action::GetInstance()->m_Joint.SetEnable(22, false);
+                    right_arm_controller.OpenGripper();
+
+                    // Wait for 2 seconds
+                    std::this_thread::sleep_for(std::chrono::seconds(2));
+
+                    // Return to Stand (Page 1) and restore joint 22
+                    run_action(ACTION_PAGE_STAND);
+                    Action::GetInstance()->m_Joint.SetEnable(22, true);
+
+                    current_action_label = "standby";
+                    last_action_time = current_time;
+                    bottle_detect_count = 0;
+                }
+
+                // Consume and clear the file
                 std::remove("/tmp/darwin_voice_cmd.txt");
             }
         }
+        // =========================================================================
 
         std::this_thread::sleep_for(std::chrono::milliseconds(150));
     }
