@@ -92,7 +92,8 @@ namespace Robot
         int ids_to_configure[] = {
             JointData::ID_L_SHOULDER_ROLL,
             JointData::ID_L_SHOULDER_PITCH,
-            JointData::ID_L_ELBOW};
+            JointData::ID_L_ELBOW,
+            JointData::ID_L_GRIPPER}; // Added left gripper ID
 
         std::lock_guard<std::mutex> lock(cm730_mutex); // Protect CM730 access for multiple writes
 
@@ -110,5 +111,21 @@ namespace Robot
         }
 
         std::cout << "INFO: LeftArmController initialized." << std::endl;
+    }
+
+    void LeftArmController::CloseGripper(int moving_speed, int p_gain)
+    {
+        SetPID(p_gain);
+        std::cout << "INFO: Moving left arm to POSE_CLOSE_GRIPPER ..." << std::endl;
+        ApplyPose(POSE_CLOSE_GRIPPER, moving_speed);
+        std::this_thread::sleep_for(std::chrono::milliseconds(500));
+    }
+
+    void LeftArmController::OpenGripper(int moving_speed, int p_gain)
+    {
+        SetPID(p_gain);
+        std::cout << "INFO: Moving left arm to POSE_OPEN_GRIPPER ..." << std::endl;
+        ApplyPose(POSE_OPEN_GRIPPER, moving_speed);
+        std::this_thread::sleep_for(std::chrono::milliseconds(500));
     }
 }

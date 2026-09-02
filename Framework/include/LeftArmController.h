@@ -17,6 +17,8 @@ namespace Robot
     public:
         LeftArmController(CM730 *cm730);
         void ToDefaultPose();
+        void CloseGripper(int moving_speed = 200, int p_gain = 30);
+        void OpenGripper(int moving_speed = 200, int p_gain = 30);
 
     private:
         CM730 *cm730_; // Pointer to the CM730 instance for direct motor control
@@ -31,6 +33,13 @@ namespace Robot
         // Helper method to apply a single arm pose
         void ApplyPose(const Pose &pose, int speed = 100);
         void SetPID(int p_gain = 15);
+        const Pose POSE_CLOSE_GRIPPER = {
+            std::map<int, int>{
+                {JointData::ID_L_GRIPPER, 2109}}};
+
+        const Pose POSE_OPEN_GRIPPER = {
+            std::map<int, int>{
+                {JointData::ID_L_GRIPPER, 1516}}};
     };
 }
 

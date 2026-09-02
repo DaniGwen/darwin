@@ -455,7 +455,7 @@ int main(void)
     int dog_detect_count = 0;
     int cat_detect_count = 0;
     int sports_ball_detect_count = 0;
-    
+
     // NEW: Hard lock state for holding items
     bool is_holding_item = false;
 
@@ -483,11 +483,26 @@ int main(void)
         auto current_time = std::chrono::steady_clock::now();
         bool can_perform_action = (current_time - last_action_time) >= action_cooldown;
 
-        if (detected_object_label == "person") person_detect_count++; else if (person_detect_count > 0) person_detect_count--;
-        if (detected_object_label == "bottle") bottle_detect_count++; else if (bottle_detect_count > 0) bottle_detect_count--;
-        if (detected_object_label == "dog") dog_detect_count++; else if (dog_detect_count > 0) dog_detect_count--;
-        if (detected_object_label == "cat") cat_detect_count++; else if (cat_detect_count > 0) cat_detect_count--;
-        if (detected_object_label == "sportsball") sports_ball_detect_count++; else if (sports_ball_detect_count > 0) sports_ball_detect_count--;
+        if (detected_object_label == "person")
+            person_detect_count++;
+        else if (person_detect_count > 0)
+            person_detect_count--;
+        if (detected_object_label == "bottle")
+            bottle_detect_count++;
+        else if (bottle_detect_count > 0)
+            bottle_detect_count--;
+        if (detected_object_label == "dog")
+            dog_detect_count++;
+        else if (dog_detect_count > 0)
+            dog_detect_count--;
+        if (detected_object_label == "cat")
+            cat_detect_count++;
+        else if (cat_detect_count > 0)
+            cat_detect_count--;
+        if (detected_object_label == "sportsball")
+            sports_ball_detect_count++;
+        else if (sports_ball_detect_count > 0)
+            sports_ball_detect_count--;
 
         // =========================================================================
         // --- VISION TRIGGERS (ONLY IF NOT HOLDING AN ITEM) ---
@@ -514,7 +529,12 @@ int main(void)
             {
                 std::cout << GREEN << "INFO: Detected bottle visually. Playing hold action." << RESET << std::endl;
                 run_action_non_blocking(ACTION_PAGE_HOLD_ITEM);
-                system("espeak \"Thank you\" &");
+
+                // Open gripper to wait for the bottle
+                Action::GetInstance()->m_Joint.SetEnable(22, false);
+                right_arm_controller.OpenGripper();
+
+                system("espeak \"Holding\" &");
                 current_action_label = "bottle";
                 last_action_time = current_time;
                 bottle_detect_count = 0;
@@ -536,7 +556,7 @@ int main(void)
         // =========================================================================
         // --- VOICE COMMAND PROCESSING BLOCK ---
         // =========================================================================
-        std::ifstream voice_cmd_file("/tmp/darwin_voice_cmd.txt");
+      std::ifstream voice_cmd_file("/tmp/darwin_voice_cmd.txt");
         if (voice_cmd_file.is_open())
         {
             std::string cmd;
@@ -553,17 +573,62 @@ int main(void)
                     std::remove("/tmp/darwin_voice_cmd.txt");
                     sigint_handler(SIGINT);
                 }
-                // 2. GREETING COMMAND (hi / hello / hey)
+                // 2. STAND / CENTER / DEFAULT
+                else if (cmd.find("stand") != std::string::npos || cmd.find("center") != std::string::npos || cmd.find("default") != std::string::npos)
+                {
+                    std::cout << GREEN << "INFO: Returning to stand position..." << RESET << std::endl;
+                    system("espeak \"Standing\" &");
+
+                    run_action(ACTION_PAGE_STAND);
+
+                    // Restore joint control to the Action framework for both grippers
+                    Action::GetInstance()->m_Joint.SetEnable(22, true);
+                    Action::GetInstance()->m_Joint.SetEnable(24, true);
+
+                    current_action_label = "standby";
+                    last_action_time = current_time;
+                    bottle_detect_count = 0;
+                    is_holding_item = false; // Reset any holding state
+                }
+                // 3. INDEPENDENT GRIPPER COMMANDS
+                else if (cmd.find("open left") != std::string::npos)
+                {
+                    std::cout << GREEN << "INFO: Opening left gripper..." << RESET << std::endl;
+                    system("espeak \"Opening left\" &");
+                    Action::GetInstance()->m_Joint.SetEnable(24, false); // ID 24 is Left Gripper
+                    left_arm_controller.OpenGripper();
+                }
+                else if (cmd.find("close left") != std::string::npos)
+                {
+                    std::cout << GREEN << "INFO: Closing left gripper..." << RESET << std::endl;
+                    system("espeak \"Closing left\" &");
+                    Action::GetInstance()->m_Joint.SetEnable(24, false);
+                    left_arm_controller.CloseGripper();
+                }
+                else if (cmd.find("open right") != std::string::npos)
+                {
+                    std::cout << GREEN << "INFO: Opening right gripper..." << RESET << std::endl;
+                    system("espeak \"Opening right\" &");
+                    Action::GetInstance()->m_Joint.SetEnable(22, false); // ID 22 is Right Gripper
+                    right_arm_controller.OpenGripper();
+                }
+                else if (cmd.find("close right") != std::string::npos)
+                {
+                    std::cout << GREEN << "INFO: Closing right gripper..." << RESET << std::endl;
+                    system("espeak \"Closing right\" &");
+                    Action::GetInstance()->m_Joint.SetEnable(22, false);
+                    right_arm_controller.CloseGripper();
+                }
+                // 4. GREETING COMMAND (hi / hello / hey)
                 else if (cmd.find("hi") != std::string::npos || cmd.find("hello") != std::string::npos || cmd.find("hey") != std::string::npos)
                 {
                     std::cout << CYAN << "INFO: Greeting recognized." << RESET << std::endl;
                     
                     if (is_holding_item) {
-                        // Just speak, do not ruin the physical hold pose!
                         system("espeak \"Hey what's up. I am currently holding something.\" &");
                     } else {
                         system("espeak \"hey whats up\" &");
-                        int wave_pages[3] = {ACTION_PAGE_WAVE3, ACTION_PAGE_WAVE, ACTION_PAGE_WAVE2}; // 4, 7, 8
+                        int wave_pages[3] = {ACTION_PAGE_WAVE3, ACTION_PAGE_WAVE, ACTION_PAGE_WAVE2}; 
                         int chosen_wave = wave_pages[rand() % 3];
 
                         run_action(chosen_wave);
@@ -573,45 +638,57 @@ int main(void)
                         last_action_time = current_time;
                     }
                 }
-                // 3. HOLD / CATCH COMMAND
+                // 5. HOLD / CATCH COMMAND
                 else if (cmd.find("hold") != std::string::npos || cmd.find("catch") != std::string::npos || cmd.find("grab") != std::string::npos || cmd.find("take") != std::string::npos)
                 {
                     std::cout << GREEN << "INFO: Executing Hold Item action..." << RESET << std::endl;
                     system("espeak \"Holding\" &");
 
-                    run_action(ACTION_PAGE_HOLD_ITEM); // Page 35
+                    run_action(ACTION_PAGE_HOLD_ITEM);
 
-                    // Open the right gripper
                     Action::GetInstance()->m_Joint.SetEnable(22, false);
                     right_arm_controller.OpenGripper();
 
                     current_action_label = "bottle";
                     last_action_time = current_time;
-                    is_holding_item = true; // Lock state
+                    is_holding_item = true; 
                 }
-                // 4. RELEASE COMMAND
+                // 6. GENERIC CLOSE COMMAND (For the right hand while holding)
+                else if (cmd.find("close") != std::string::npos || cmd.find("shut") != std::string::npos)
+                {
+                    if (is_holding_item) 
+                    {
+                        std::cout << GREEN << "INFO: Closing gripper..." << RESET << std::endl;
+                        system("espeak \"Closing\" &");
+
+                        Action::GetInstance()->m_Joint.SetEnable(22, false);
+                        right_arm_controller.CloseGripper(); 
+                    }
+                    else 
+                    {
+                        std::cout << YELLOW << "INFO: Ignored general close command (not holding anything). Try 'close right' or 'close left'." << RESET << std::endl;
+                    }
+                }
+                // 7. GENERIC RELEASE COMMAND
                 else if (cmd.find("release") != std::string::npos || cmd.find("drop") != std::string::npos || cmd.find("let go") != std::string::npos)
                 {
                     if (is_holding_item) 
                     {
-                        std::cout << GREEN << "INFO: Releasing gripper and standing..." << RESET << std::endl;
-                        system("espeak \"Releasing\" &");
+                        std::cout << GREEN << "INFO: Dropping item and standing..." << RESET << std::endl;
+                        system("espeak \"Dropping\" &");
 
-                        // Open gripper
                         Action::GetInstance()->m_Joint.SetEnable(22, false);
                         right_arm_controller.OpenGripper();
 
-                        // Wait for 2 seconds
                         std::this_thread::sleep_for(std::chrono::seconds(2));
 
-                        // Return to Stand (Page 1) and restore joint 22
                         run_action(ACTION_PAGE_STAND);
                         Action::GetInstance()->m_Joint.SetEnable(22, true);
 
                         current_action_label = "standby";
                         last_action_time = current_time;
                         bottle_detect_count = 0;
-                        is_holding_item = false; // Unlock state
+                        is_holding_item = false; 
                     }
                     else 
                     {

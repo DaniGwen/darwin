@@ -58,8 +58,14 @@ def listen_loop():
                         "hi", "hello", "hey",
                         # Stop / Sleep
                         "stop", "sleep", "quit", "exit", "shut down",
+                        # Stand / Reset
+                        "stand", "center", "default",
+                        # Independent Grippers
+                        "open left", "close left", "open right", "close right",
                         # Hold / Catch
                         "hold", "catch", "grab", "take",
+                        # General Close Gripper
+                        "close", "shut",
                         # Release
                         "release", "drop", "let go"
                     ]
