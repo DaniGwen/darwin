@@ -128,31 +128,23 @@ namespace Robot
     {
         if (!cm730_) return;
 
-        const int LEFT_GRIPPER_ID = JointData::ID_L_GRIPPER;
-        // AX-18 range is 0-1023 (380 is ~1516 / 4)
-        const int OPEN_POS = 380; 
+        // Reversed for the left side mirror orientation
+        const int OPEN_POS = 527; 
 
         int error = 0;
 
         std::lock_guard<std::mutex> lock(cm730_mutex);
 
-        // 1. Enable Torque (Address 24)
-        cm730_->WriteByte(LEFT_GRIPPER_ID, MX28::P_TORQUE_ENABLE, 1, &error);
+        cm730_->WriteByte(JointData::ID_L_GRIPPER, MX28::P_TORQUE_ENABLE, 1, &error);
+        cm730_->WriteWord(JointData::ID_L_GRIPPER, MX28::P_MOVING_SPEED_L, moving_speed, &error);
+        
+        int result = cm730_->WriteWord(JointData::ID_L_GRIPPER, MX28::P_GOAL_POSITION_L, OPEN_POS, &error);
 
-        // 2. Set Moving Speed (Address 32)
-        cm730_->WriteWord(LEFT_GRIPPER_ID, MX28::P_MOVING_SPEED_L, moving_speed, &error);
-
-        // 3. Command Goal Position (Address 30)
-        int result = cm730_->WriteWord(LEFT_GRIPPER_ID, MX28::P_GOAL_POSITION_L, OPEN_POS, &error);
-
-        if (result != CM730::SUCCESS || error != 0)
-        {
-            std::cerr << BOLDRED << "ERROR: Failed to open Left Gripper (ID 24). Result: " 
-                      << result << ", Error byte: " << error << RESET << std::endl;
-        }
-        else
-        {
-            std::cout << BOLDGREEN << "SUCCESS: Left Gripper (ID 24) moved to position " 
+        if (result != CM730::SUCCESS || error != 0) {
+            std::cerr << BOLDRED << "ERROR: Failed to open Left Gripper (ID " << JointData::ID_L_GRIPPER << "). Result: " 
+                      << result << ", Error: " << error << RESET << std::endl;
+        } else {
+            std::cout << BOLDGREEN << "SUCCESS: Left Gripper (ID " << JointData::ID_L_GRIPPER << ") OPENED to position " 
                       << OPEN_POS << RESET << std::endl;
         }
 
@@ -163,31 +155,23 @@ namespace Robot
     {
         if (!cm730_) return;
 
-        const int LEFT_GRIPPER_ID = JointData::ID_L_GRIPPER;
-        // AX-18 range is 0-1023 (527 is ~2109 / 4)
-        const int CLOSE_POS = 527; 
+        // Reversed for the left side mirror orientation
+        const int CLOSE_POS = 380; 
 
         int error = 0;
 
         std::lock_guard<std::mutex> lock(cm730_mutex);
 
-        // 1. Enable Torque (Address 24)
-        cm730_->WriteByte(LEFT_GRIPPER_ID, MX28::P_TORQUE_ENABLE, 1, &error);
+        cm730_->WriteByte(JointData::ID_L_GRIPPER, MX28::P_TORQUE_ENABLE, 1, &error);
+        cm730_->WriteWord(JointData::ID_L_GRIPPER, MX28::P_MOVING_SPEED_L, moving_speed, &error);
+        
+        int result = cm730_->WriteWord(JointData::ID_L_GRIPPER, MX28::P_GOAL_POSITION_L, CLOSE_POS, &error);
 
-        // 2. Set Moving Speed (Address 32)
-        cm730_->WriteWord(LEFT_GRIPPER_ID, MX28::P_MOVING_SPEED_L, moving_speed, &error);
-
-        // 3. Command Goal Position (Address 30)
-        int result = cm730_->WriteWord(LEFT_GRIPPER_ID, MX28::P_GOAL_POSITION_L, CLOSE_POS, &error);
-
-        if (result != CM730::SUCCESS || error != 0)
-        {
-            std::cerr << BOLDRED << "ERROR: Failed to close Left Gripper (ID 24). Result: " 
-                      << result << ", Error byte: " << error << RESET << std::endl;
-        }
-        else
-        {
-            std::cout << BOLDGREEN << "SUCCESS: Left Gripper (ID 24) moved to position " 
+        if (result != CM730::SUCCESS || error != 0) {
+            std::cerr << BOLDRED << "ERROR: Failed to close Left Gripper (ID " << JointData::ID_L_GRIPPER << "). Result: " 
+                      << result << ", Error: " << error << RESET << std::endl;
+        } else {
+            std::cout << BOLDGREEN << "SUCCESS: Left Gripper (ID " << JointData::ID_L_GRIPPER << ") CLOSED to position " 
                       << CLOSE_POS << RESET << std::endl;
         }
 
