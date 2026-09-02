@@ -95,43 +95,102 @@ namespace Robot
             return;
         }
 
-        int ids_to_configure[] = {
+        // Configure standard arm MX-28 joints
+        int arm_joints[] = {
             JointData::ID_L_SHOULDER_ROLL,
             JointData::ID_L_SHOULDER_PITCH,
-            JointData::ID_L_ELBOW,
-            JointData::ID_L_GRIPPER}; // Added left gripper ID
+            JointData::ID_L_ELBOW
+        };
 
-        std::lock_guard<std::mutex> lock(cm730_mutex); // Protect CM730 access for multiple writes
+        std::lock_guard<std::mutex> lock(cm730_mutex);
 
-        for (int joint_id : ids_to_configure)
+        for (int joint_id : arm_joints)
         {
             int error = 0;
             cm730_->WriteByte(joint_id, MX28::P_TORQUE_ENABLE, 1, &error);
-            cm730_->WriteByte(joint_id, MX28::P_P_GAIN, p_gain, &error); // P-gain values from 8 ~ 128 , more P-gain means more backlash towards the goal position.
+            cm730_->WriteByte(joint_id, MX28::P_P_GAIN, p_gain, &error);
 
             if (error != CM730::SUCCESS)
             {
-                std::cerr << "ERROR: Failed to enable torque for Joint ID " << joint_id << std::endl;
+                std::cerr << "ERROR: Failed to configure Joint ID " << joint_id << std::endl;
                 return;
             }
         }
 
+        // Explicitly enable torque for the AX-18 left gripper
+        int error = 0;
+        cm730_->WriteByte(JointData::ID_L_GRIPPER, MX28::P_TORQUE_ENABLE, 1, &error);
+
         std::cout << "INFO: LeftArmController initialized." << std::endl;
+    }
+
+   void LeftArmController::OpenGripper(int moving_speed, int p_gain)
+    {
+        if (!cm730_) return;
+
+        const int LEFT_GRIPPER_ID = JointData::ID_L_GRIPPER;
+        // AX-18 range is 0-1023 (380 is ~1516 / 4)
+        const int OPEN_POS = 380; 
+
+        int error = 0;
+
+        std::lock_guard<std::mutex> lock(cm730_mutex);
+
+        // 1. Enable Torque (Address 24)
+        cm730_->WriteByte(LEFT_GRIPPER_ID, MX28::P_TORQUE_ENABLE, 1, &error);
+
+        // 2. Set Moving Speed (Address 32)
+        cm730_->WriteWord(LEFT_GRIPPER_ID, MX28::P_MOVING_SPEED_L, moving_speed, &error);
+
+        // 3. Command Goal Position (Address 30)
+        int result = cm730_->WriteWord(LEFT_GRIPPER_ID, MX28::P_GOAL_POSITION_L, OPEN_POS, &error);
+
+        if (result != CM730::SUCCESS || error != 0)
+        {
+            std::cerr << BOLDRED << "ERROR: Failed to open Left Gripper (ID 24). Result: " 
+                      << result << ", Error byte: " << error << RESET << std::endl;
+        }
+        else
+        {
+            std::cout << BOLDGREEN << "SUCCESS: Left Gripper (ID 24) moved to position " 
+                      << OPEN_POS << RESET << std::endl;
+        }
+
+        std::this_thread::sleep_for(std::chrono::milliseconds(500));
     }
 
     void LeftArmController::CloseGripper(int moving_speed, int p_gain)
     {
-        SetPID(p_gain);
-        std::cout << "INFO: Moving left arm to POSE_CLOSE_GRIPPER ..." << std::endl;
-        ApplyPose(POSE_CLOSE_GRIPPER, moving_speed);
-        std::this_thread::sleep_for(std::chrono::milliseconds(500));
-    }
+        if (!cm730_) return;
 
-    void LeftArmController::OpenGripper(int moving_speed, int p_gain)
-    {
-        SetPID(p_gain);
-        std::cout << "INFO: Moving left arm to POSE_OPEN_GRIPPER ..." << std::endl;
-        ApplyPose(POSE_OPEN_GRIPPER, moving_speed);
+        const int LEFT_GRIPPER_ID = JointData::ID_L_GRIPPER;
+        // AX-18 range is 0-1023 (527 is ~2109 / 4)
+        const int CLOSE_POS = 527; 
+
+        int error = 0;
+
+        std::lock_guard<std::mutex> lock(cm730_mutex);
+
+        // 1. Enable Torque (Address 24)
+        cm730_->WriteByte(LEFT_GRIPPER_ID, MX28::P_TORQUE_ENABLE, 1, &error);
+
+        // 2. Set Moving Speed (Address 32)
+        cm730_->WriteWord(LEFT_GRIPPER_ID, MX28::P_MOVING_SPEED_L, moving_speed, &error);
+
+        // 3. Command Goal Position (Address 30)
+        int result = cm730_->WriteWord(LEFT_GRIPPER_ID, MX28::P_GOAL_POSITION_L, CLOSE_POS, &error);
+
+        if (result != CM730::SUCCESS || error != 0)
+        {
+            std::cerr << BOLDRED << "ERROR: Failed to close Left Gripper (ID 24). Result: " 
+                      << result << ", Error byte: " << error << RESET << std::endl;
+        }
+        else
+        {
+            std::cout << BOLDGREEN << "SUCCESS: Left Gripper (ID 24) moved to position " 
+                      << CLOSE_POS << RESET << std::endl;
+        }
+
         std::this_thread::sleep_for(std::chrono::milliseconds(500));
     }
 }
