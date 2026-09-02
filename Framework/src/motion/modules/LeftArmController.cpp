@@ -41,6 +41,12 @@ namespace Robot
             int joint_id = joint_pair.first;
             int goal_value = joint_pair.second;
 
+            // --- VIRTUALIZATION FIX FOR AX-18 ---
+            // If the joint is the left hand (23 or 24), scale the 4095 value down to 1023
+            if (joint_id == 23 || joint_id == 24) {
+                goal_value /= 4; 
+            }
+
             params.push_back(joint_id);                         // Item 1: ID
             params.push_back(DEFAULT_D_GAIN);                   // Item 2: D Gain
             params.push_back(DEFAULT_I_GAIN);                   // Item 3: I Gain
