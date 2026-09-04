@@ -537,13 +537,6 @@ int main(void)
 
     VoiceCommander voice;
 
-       //=========================================================================
-    // REGISTER VOICE COMMAND ACTIONS
-    //=========================================================================
-    RegisterAllVoiceCommands(voice, left_arm_controller, right_arm_controller, 
-                             is_holding_item, current_action_label, 
-                             last_action_time, bottle_detect_count);
-                             
     //=========================================================================
     // VOICE STARTUP SEQUENCE
     //=========================================================================
@@ -576,6 +569,13 @@ int main(void)
     // NEW: Hard lock state for holding items
     bool is_holding_item = false;
     const int detect_threshold = 4;
+
+    //=========================================================================
+    // REGISTER VOICE COMMAND ACTIONS
+    //=========================================================================
+    RegisterAllVoiceCommands(voice, left_arm_controller, right_arm_controller, 
+                             is_holding_item, current_action_label, 
+                             last_action_time, bottle_detect_count);
 
     while (1)
     {
