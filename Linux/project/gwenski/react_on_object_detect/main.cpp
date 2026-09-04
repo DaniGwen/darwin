@@ -370,7 +370,8 @@ void RegisterAllVoiceCommands(VoiceCommander& voice,
 
     // 4. Independent Grippers
     voice.RegisterCommand("отвори лява", [&]() {
-        system("espeak -v bg \"Отварям лявата\" &");
+        //system("espeak -v bg \"Отварям лявата\" &");
+        std::cout << "EXECUTE: Open left gripper intent triggered." << std::endl;
         Action::GetInstance()->m_Joint.SetEnable(24, false);
         left_arm_controller.OpenGripper();
     });
