@@ -331,17 +331,17 @@ void RegisterAllVoiceCommands(VoiceCommander& voice,
 {
     // 1. System Commands
     auto exit_action = []() { sigint_handler(SIGINT); };
-    voice.RegisterCommand("stop", exit_action);
-    voice.RegisterCommand("sleep", exit_action);
-    voice.RegisterCommand("quit", exit_action);
-    voice.RegisterCommand("exit", exit_action);
+    voice.RegisterCommand("спри", exit_action);
+    voice.RegisterCommand("спи", exit_action);
+    voice.RegisterCommand("изключи", exit_action);
+    voice.RegisterCommand("край", exit_action);
 
     // 2. Greetings
     auto greet_action = [&]() {
         if (is_holding_item) {
-            system("espeak \"Hey what's up. I am currently holding something.\" &");
+            system("espeak -v bg \"Здрасти. В момента държа нещо.\" &");
         } else {
-            system("espeak \"hey whats up\" &");
+            system("espeak -v bg \"Здравей\" &");
             int wave_pages[3] = {ACTION_PAGE_WAVE3, ACTION_PAGE_WAVE, ACTION_PAGE_WAVE2}; 
             run_action(wave_pages[rand() % 3]);
             run_action(ACTION_PAGE_STAND);
@@ -349,14 +349,14 @@ void RegisterAllVoiceCommands(VoiceCommander& voice,
             last_action_time = std::chrono::steady_clock::now();
         }
     };
-    voice.RegisterCommand("hi", greet_action);
-    voice.RegisterCommand("hello", greet_action);
-    voice.RegisterCommand("hey", greet_action);
+    voice.RegisterCommand("здравей", greet_action);
+    voice.RegisterCommand("здрасти", greet_action);
+    voice.RegisterCommand("хей", greet_action);
 
     // 3. Stand / Reset
     auto stand_action = [&]() {
         std::cout << GREEN << "INFO: Returning to stand position..." << RESET << std::endl;
-        system("espeak \"Standing\" &");
+        system("espeak -v bg \"Изправям се\" &");
         run_action(ACTION_PAGE_STAND);
         Action::GetInstance()->m_Joint.SetEnable(22, true);
         Action::GetInstance()->m_Joint.SetEnable(24, true);
@@ -365,38 +365,37 @@ void RegisterAllVoiceCommands(VoiceCommander& voice,
         bottle_detect_count = 0;
         is_holding_item = false;
     };
-    voice.RegisterCommand("stand", stand_action);
-    voice.RegisterCommand("center", stand_action);
-    voice.RegisterCommand("default", stand_action);
+    voice.RegisterCommand("изправи се", stand_action);
+    voice.RegisterCommand("център", stand_action);
 
     // 4. Independent Grippers
-    voice.RegisterCommand("open left", [&]() {
-        system("espeak \"Opening left\" &");
+    voice.RegisterCommand("отвори лявата", [&]() {
+        system("espeak -v bg \"Отварям лявата\" &");
         Action::GetInstance()->m_Joint.SetEnable(24, false);
         left_arm_controller.OpenGripper();
     });
     
-    voice.RegisterCommand("close left", [&]() {
-        system("espeak \"Closing left\" &");
+    voice.RegisterCommand("затвори лявата", [&]() {
+        system("espeak -v bg \"Затварям лявата\" &");
         Action::GetInstance()->m_Joint.SetEnable(24, false);
         left_arm_controller.CloseGripper();
     });
 
-    voice.RegisterCommand("open right", [&]() {
-        system("espeak \"Opening right\" &");
+    voice.RegisterCommand("отвори дясната", [&]() {
+        system("espeak -v bg \"Отварям дясната\" &");
         Action::GetInstance()->m_Joint.SetEnable(22, false);
         right_arm_controller.OpenGripper();
     });
 
-    voice.RegisterCommand("close right", [&]() {
-        system("espeak \"Closing right\" &");
+    voice.RegisterCommand("затвори дясната", [&]() {
+        system("espeak -v bg \"Затварям дясната\" &");
         Action::GetInstance()->m_Joint.SetEnable(22, false);
         right_arm_controller.CloseGripper();
     });
 
     // 5. Holding Item Workflows
     auto hold_action = [&]() {
-        system("espeak \"Holding\" &");
+        system("espeak -v bg \"Държа\" &");
         run_action(ACTION_PAGE_HOLD_ITEM);
         Action::GetInstance()->m_Joint.SetEnable(22, false);
         right_arm_controller.OpenGripper();
@@ -404,14 +403,13 @@ void RegisterAllVoiceCommands(VoiceCommander& voice,
         last_action_time = std::chrono::steady_clock::now();
         is_holding_item = true; 
     };
-    voice.RegisterCommand("hold", hold_action);
-    voice.RegisterCommand("catch", hold_action);
-    voice.RegisterCommand("grab", hold_action);
-    voice.RegisterCommand("take", hold_action);
+    voice.RegisterCommand("дръж", hold_action);
+    voice.RegisterCommand("хвани", hold_action);
+    voice.RegisterCommand("вземи", hold_action);
 
     auto release_action = [&]() {
         if (is_holding_item) {
-            system("espeak \"Dropping\" &");
+            system("espeak -v bg \"Пускам\" &");
             Action::GetInstance()->m_Joint.SetEnable(22, false);
             right_arm_controller.OpenGripper();
             std::this_thread::sleep_for(std::chrono::seconds(2));
@@ -425,20 +423,22 @@ void RegisterAllVoiceCommands(VoiceCommander& voice,
             is_holding_item = false; 
         }
     };
-    voice.RegisterCommand("release", release_action);
-    voice.RegisterCommand("drop", release_action);
-    voice.RegisterCommand("let go", release_action);
+    voice.RegisterCommand("пусни", release_action);
+    voice.RegisterCommand("остави", release_action);
 
-    // 6. Generic Close (Catch-all for the right hand during hold state)
+    // 6. Generic Close (Closes both grippers)
     auto close_action = [&]() {
-        if (is_holding_item) {
-            system("espeak \"Closing\" &");
-            Action::GetInstance()->m_Joint.SetEnable(22, false);
-            right_arm_controller.CloseGripper(); 
-        }
+        system("espeak -v bg \"Затварям\" &"); 
+        Action::GetInstance()->m_Joint.SetEnable(22, false);
+        Action::GetInstance()->m_Joint.SetEnable(24, false);
+        right_arm_controller.CloseGripper(); 
+        left_arm_controller.CloseGripper();
     };
-    voice.RegisterCommand("close", close_action);
-    voice.RegisterCommand("shut", close_action);
+    
+    // Note: Generic matches must go AFTER specific matches in the sequence
+    voice.RegisterCommand("затвори двете", close_action);
+    voice.RegisterCommand("затвори всичко", close_action);
+    voice.RegisterCommand("затвори", close_action);
 }
 
 int main(void)
@@ -537,31 +537,17 @@ int main(void)
     //=========================================================================
     // VOICE STARTUP SEQUENCE
     //=========================================================================
-    system("espeak \"Initialization complete. Waiting for start command.\"");
-
+    system("espeak -v bg \"Инициализацията завърши. Чакам команда за старт.\" &");
     bool start_command_received = false;
     while (!start_command_received)
     {
-        std::ifstream voice_cmd_file("/tmp/darwin_voice_cmd.txt");
-        if (voice_cmd_file.is_open())
+        std::string cmd = voice.GetRawCommand();
+        if (cmd.find("старт") != std::string::npos || cmd.find("започни") != std::string::npos || cmd.find("тръгвай") != std::string::npos)
         {
-            std::string cmd;
-            std::getline(voice_cmd_file, cmd);
-            voice_cmd_file.close();
-
-            if (cmd.find("start") != std::string::npos || cmd.find("go") != std::string::npos || cmd.find("begin") != std::string::npos)
-            {
-                std::cout << GREEN << "INFO: Start command received: '" << cmd << "'" << RESET << std::endl;
-                std::string speak_cmd = "espeak \"" + cmd + "\"";
-                system(speak_cmd.c_str());
-
-                std::remove("/tmp/darwin_voice_cmd.txt");
-                start_command_received = true;
-            }
-            else if (!cmd.empty())
-            {
-                std::remove("/tmp/darwin_voice_cmd.txt");
-            }
+            std::cout << GREEN << "INFO: Start command received: '" << cmd << "'" << RESET << std::endl;
+            std::string speak_cmd = "espeak -v bg \"" + cmd + "\" &";
+            system(speak_cmd.c_str());
+            start_command_received = true;
         }
         std::this_thread::sleep_for(std::chrono::milliseconds(200));
     }
@@ -755,7 +741,7 @@ int main(void)
                     if (is_holding_item) {
                         system("espeak \"Hey what's up. I am currently holding something.\" &");
                     } else {
-                        system("espeak \"hey whats up\" &");
+                        system("espeak -v bg \"опа ко става\" &");
                         int wave_pages[3] = {ACTION_PAGE_WAVE3, ACTION_PAGE_WAVE, ACTION_PAGE_WAVE2}; 
                         int chosen_wave = wave_pages[rand() % 3];
 

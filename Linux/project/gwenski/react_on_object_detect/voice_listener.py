@@ -51,31 +51,29 @@ def listen_loop():
                     print("    [Processing audio...]")
                     
                     # --- TWEAK 2: Lock the language model to prevent regional phonetic drift ---
-                    text = r.recognize_google(audio, language="en-US").lower()
+                    text = r.recognize_google(audio, language="bg-BG").lower()
                     
                     print(f"    [GOOGLE HEARD]: '{text}'") 
                     
                     # --- TWEAK 3: Add the exact phonetic mistakes Google makes ---
                     trigger_words = [
                         # Startup
-                        "start", "go", "begin", "darwin start", "let's go", "star", "dart",
+                        "старт", "тръгвай", "започни",
                         # Greetings
-                        "hi", "hello", "hey",
+                        "здравей", "здрасти", "хей",
                         # Stop / Sleep
-                        "stop", "sleep", "quit", "exit", "shut down",
+                        "спри", "заспи", "изключи",
                         # Stand / Reset
-                        "stand", "center", "default",
-                        # Independent Grippers (with aliases)
-                        "open left", "oppa left", "open lieut", 
-                        "close left", "clothes left",
-                        "open right", "oppa right", 
-                        "close right", "clothes right",
+                        "изправи се", "център", 
+                        # Independent Grippers
+                        "отвори лявата", "затвори лявата", 
+                        "отвори дясната", "затвори дясната",
                         # Hold / Catch
-                        "hold", "catch", "grab", "take",
+                        "дръж", "хвани", "вземи",
                         # General Close Gripper
-                        "close", "shut",
+                        "затвори", "затвори всички",
                         # Release
-                        "release", "drop", "let go"
+                        "пусни", "остави"
                     ]
                     
                     if any(word in text for word in trigger_words):
