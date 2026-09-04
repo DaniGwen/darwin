@@ -31,6 +31,7 @@
 #include "LegsController.h"
 #include "LinuxDARwIn.h" // Include for Motion Framework components (MotionManager, Action)
 #include "LinuxActionScript.h"
+#include "VoiceCommander.h"
 
 // --- Configuration ---
 #define INI_FILE_PATH "../../../../Data/config.ini"
@@ -320,6 +321,126 @@ void sigint_handler(int sig)
 
 BottleTaskState current_bottle_task_state = BottleTaskState::IDLE;
 
+void RegisterAllVoiceCommands(VoiceCommander& voice, 
+                              LeftArmController& left_arm_controller, 
+                              RightArmController& right_arm_controller, 
+                              bool& is_holding_item, 
+                              std::string& current_action_label, 
+                              std::chrono::steady_clock::time_point& last_action_time, 
+                              int& bottle_detect_count) 
+{
+    // 1. System Commands
+    auto exit_action = []() { sigint_handler(SIGINT); };
+    voice.RegisterCommand("stop", exit_action);
+    voice.RegisterCommand("sleep", exit_action);
+    voice.RegisterCommand("quit", exit_action);
+    voice.RegisterCommand("exit", exit_action);
+
+    // 2. Greetings
+    auto greet_action = [&]() {
+        if (is_holding_item) {
+            system("espeak \"Hey what's up. I am currently holding something.\" &");
+        } else {
+            system("espeak \"hey whats up\" &");
+            int wave_pages[3] = {ACTION_PAGE_WAVE3, ACTION_PAGE_WAVE, ACTION_PAGE_WAVE2}; 
+            run_action(wave_pages[rand() % 3]);
+            run_action(ACTION_PAGE_STAND);
+            current_action_label = "standby";
+            last_action_time = std::chrono::steady_clock::now();
+        }
+    };
+    voice.RegisterCommand("hi", greet_action);
+    voice.RegisterCommand("hello", greet_action);
+    voice.RegisterCommand("hey", greet_action);
+
+    // 3. Stand / Reset
+    auto stand_action = [&]() {
+        std::cout << GREEN << "INFO: Returning to stand position..." << RESET << std::endl;
+        system("espeak \"Standing\" &");
+        run_action(ACTION_PAGE_STAND);
+        Action::GetInstance()->m_Joint.SetEnable(22, true);
+        Action::GetInstance()->m_Joint.SetEnable(24, true);
+        current_action_label = "standby";
+        last_action_time = std::chrono::steady_clock::now();
+        bottle_detect_count = 0;
+        is_holding_item = false;
+    };
+    voice.RegisterCommand("stand", stand_action);
+    voice.RegisterCommand("center", stand_action);
+    voice.RegisterCommand("default", stand_action);
+
+    // 4. Independent Grippers
+    voice.RegisterCommand("open left", [&]() {
+        system("espeak \"Opening left\" &");
+        Action::GetInstance()->m_Joint.SetEnable(24, false);
+        left_arm_controller.OpenGripper();
+    });
+    
+    voice.RegisterCommand("close left", [&]() {
+        system("espeak \"Closing left\" &");
+        Action::GetInstance()->m_Joint.SetEnable(24, false);
+        left_arm_controller.CloseGripper();
+    });
+
+    voice.RegisterCommand("open right", [&]() {
+        system("espeak \"Opening right\" &");
+        Action::GetInstance()->m_Joint.SetEnable(22, false);
+        right_arm_controller.OpenGripper();
+    });
+
+    voice.RegisterCommand("close right", [&]() {
+        system("espeak \"Closing right\" &");
+        Action::GetInstance()->m_Joint.SetEnable(22, false);
+        right_arm_controller.CloseGripper();
+    });
+
+    // 5. Holding Item Workflows
+    auto hold_action = [&]() {
+        system("espeak \"Holding\" &");
+        run_action(ACTION_PAGE_HOLD_ITEM);
+        Action::GetInstance()->m_Joint.SetEnable(22, false);
+        right_arm_controller.OpenGripper();
+        current_action_label = "bottle";
+        last_action_time = std::chrono::steady_clock::now();
+        is_holding_item = true; 
+    };
+    voice.RegisterCommand("hold", hold_action);
+    voice.RegisterCommand("catch", hold_action);
+    voice.RegisterCommand("grab", hold_action);
+    voice.RegisterCommand("take", hold_action);
+
+    auto release_action = [&]() {
+        if (is_holding_item) {
+            system("espeak \"Dropping\" &");
+            Action::GetInstance()->m_Joint.SetEnable(22, false);
+            right_arm_controller.OpenGripper();
+            std::this_thread::sleep_for(std::chrono::seconds(2));
+            
+            run_action(ACTION_PAGE_STAND);
+            Action::GetInstance()->m_Joint.SetEnable(22, true);
+            
+            current_action_label = "standby";
+            last_action_time = std::chrono::steady_clock::now();
+            bottle_detect_count = 0;
+            is_holding_item = false; 
+        }
+    };
+    voice.RegisterCommand("release", release_action);
+    voice.RegisterCommand("drop", release_action);
+    voice.RegisterCommand("let go", release_action);
+
+    // 6. Generic Close (Catch-all for the right hand during hold state)
+    auto close_action = [&]() {
+        if (is_holding_item) {
+            system("espeak \"Closing\" &");
+            Action::GetInstance()->m_Joint.SetEnable(22, false);
+            right_arm_controller.CloseGripper(); 
+        }
+    };
+    voice.RegisterCommand("close", close_action);
+    voice.RegisterCommand("shut", close_action);
+}
+
 int main(void)
 {
     signal(SIGINT, sigint_handler);
@@ -458,8 +579,15 @@ int main(void)
 
     // NEW: Hard lock state for holding items
     bool is_holding_item = false;
-
     const int detect_threshold = 4;
+    VoiceCommander voice;
+
+    //=========================================================================
+    // REGISTER VOICE COMMAND ACTIONS
+    //=========================================================================
+    RegisterAllVoiceCommands(voice, left_arm_controller, right_arm_controller, 
+                             is_holding_item, current_action_label, 
+                             last_action_time, bottle_detect_count);
 
     while (1)
     {
