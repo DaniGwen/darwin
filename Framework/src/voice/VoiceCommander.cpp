@@ -29,6 +29,10 @@ void VoiceCommander::ProcessCommands() {
     std::string cmd = GetRawCommand();
     if (cmd.empty()) return;
 
+    while (!cmd.empty() && (cmd.back() == '\n' || cmd.back() == '\r' || cmd.back() == ' ')) {
+        cmd.pop_back();
+    }
+
     std::cout << GREEN << "INFO: Voice command received: '" << cmd << "'" << RESET << std::endl;
 
     bool handled = false;
@@ -42,7 +46,11 @@ void VoiceCommander::ProcessCommands() {
         }
     }
     
-    if (!handled) {
-        std::cout << YELLOW << "INFO: Ignored command (No behavior registered for '" << cmd << "')" << RESET << std::endl;
+   if (!handled) {
+        std::cout << BOLDRED << "NO MATCH for: '" << cmd << "'. Registered triggers count: " 
+                  << callbacks_.size() << RESET << std::endl;
+        for (const auto& pair : callbacks_) {
+            std::cout << "  Candidate: '" << pair.first << "'" << std::endl;
+        }
     }
 }
