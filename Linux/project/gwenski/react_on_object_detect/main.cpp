@@ -534,6 +534,8 @@ int main(void)
     }
     std::cout << "INFO: HeadTracking thread created successfully." << std::endl;
 
+    VoiceCommander voice;
+    
     //=========================================================================
     // VOICE STARTUP SEQUENCE
     //=========================================================================
@@ -566,7 +568,6 @@ int main(void)
     // NEW: Hard lock state for holding items
     bool is_holding_item = false;
     const int detect_threshold = 4;
-    VoiceCommander voice;
 
     //=========================================================================
     // REGISTER VOICE COMMAND ACTIONS
