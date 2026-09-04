@@ -369,25 +369,25 @@ void RegisterAllVoiceCommands(VoiceCommander& voice,
     voice.RegisterCommand("център", stand_action);
 
     // 4. Independent Grippers
-    voice.RegisterCommand("отвори лявата", [&]() {
+    voice.RegisterCommand("отвори лява", [&]() {
         system("espeak -v bg \"Отварям лявата\" &");
         Action::GetInstance()->m_Joint.SetEnable(24, false);
         left_arm_controller.OpenGripper();
     });
     
-    voice.RegisterCommand("затвори лявата", [&]() {
+    voice.RegisterCommand("затвори лява", [&]() {
         system("espeak -v bg \"Затварям лявата\" &");
         Action::GetInstance()->m_Joint.SetEnable(24, false);
         left_arm_controller.CloseGripper();
     });
 
-    voice.RegisterCommand("отвори дясната", [&]() {
+    voice.RegisterCommand("отвори дясна", [&]() {
         system("espeak -v bg \"Отварям дясната\" &");
         Action::GetInstance()->m_Joint.SetEnable(22, false);
         right_arm_controller.OpenGripper();
     });
 
-    voice.RegisterCommand("затвори дясната", [&]() {
+    voice.RegisterCommand("затвори дясна", [&]() {
         system("espeak -v bg \"Затварям дясната\" &");
         Action::GetInstance()->m_Joint.SetEnable(22, false);
         right_arm_controller.CloseGripper();
@@ -535,7 +535,7 @@ int main(void)
     std::cout << "INFO: HeadTracking thread created successfully." << std::endl;
 
     VoiceCommander voice;
-    
+
     //=========================================================================
     // VOICE STARTUP SEQUENCE
     //=========================================================================
