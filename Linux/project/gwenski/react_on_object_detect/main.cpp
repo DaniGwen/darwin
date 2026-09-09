@@ -98,10 +98,10 @@ void run_action(int action_page)
     MotionManager::GetInstance()->SetEnable(false);
 }
 
-void robot_speak(const std::string &text)
+void robot_speak(const std::string& text)
 {
-    // Temporarily using espeak in English to test Vosk latency
-    std::string cmd = "espeak -v en \"" + text + "\" 2>/dev/null &";
+    // 1. touch flag -> 2. speak -> 3. sleep 0.3s for echo -> 4. remove flag
+    std::string cmd = "(touch /tmp/darwin_speaking; espeak -v en \"" + text + "\" 2>/dev/null; sleep 0.3; rm -f /tmp/darwin_speaking) &";
     system(cmd.c_str());
 }
 
