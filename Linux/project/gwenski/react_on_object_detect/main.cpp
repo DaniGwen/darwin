@@ -456,7 +456,7 @@ void RegisterAllVoiceCommands(VoiceCommander &voice,
     voice.RegisterCommand("close everything", close_action);
 
     // 7. Walking Commands
-    auto walk_action = [=](double x, double y, const std::string& reply) {
+   auto walk_action = [&](double x, double y, const std::string& reply) {
         if (is_holding_item) {
             robot_speak("I cannot walk while holding an item.");
             return;
@@ -491,7 +491,7 @@ void RegisterAllVoiceCommands(VoiceCommander &voice,
         last_action_time = std::chrono::steady_clock::now();
     };
 
-    // 2. Explicitly capture ONLY the walk_action variable by copy!
+    // MUST BE [walk_action] HERE to prevent the memory hallucination!
     voice.RegisterCommand("go forward", [walk_action]() { walk_action(10.0, 0.0, "Moving forward"); });
     voice.RegisterCommand("go backward", [walk_action]() { walk_action(-10.0, 0.0, "Moving backward"); });
     
