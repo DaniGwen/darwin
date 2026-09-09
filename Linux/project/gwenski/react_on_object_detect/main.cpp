@@ -468,7 +468,7 @@ void RegisterAllVoiceCommands(VoiceCommander &voice,
         set_enable_motion_manager_and_walking(true);
 
         // Walk speed (higher = slower, smoother leg movements)
-        Walking::GetInstance()->PERIOD_TIME = 850; 
+        Walking::GetInstance()->PERIOD_TIME = 950; 
         
         Walking::GetInstance()->X_MOVE_AMPLITUDE = x;
         Walking::GetInstance()->Y_MOVE_AMPLITUDE = y;
@@ -492,14 +492,14 @@ void RegisterAllVoiceCommands(VoiceCommander &voice,
     };
 
     // MUST BE [walk_action] HERE to prevent the memory hallucination!
-    voice.RegisterCommand("go forward", [walk_action]() { walk_action(10.0, 0.0, "Moving forward"); });
-    voice.RegisterCommand("go backward", [walk_action]() { walk_action(-10.0, 0.0, "Moving backward"); });
+    voice.RegisterCommand("go forward", [walk_action]() { walk_action(15.0, 0.0, "Moving forward"); });
+    voice.RegisterCommand("go backward", [walk_action]() { walk_action(-15.0, 0.0, "Moving backward"); });
     
-    voice.RegisterCommand("step left", [walk_action]() { walk_action(0.0, 15.0, "Stepping left"); });
-    voice.RegisterCommand("go left", [walk_action]() { walk_action(0.0, 15.0, "Stepping left"); });
+    voice.RegisterCommand("step left", [walk_action]() { walk_action(0.0, 20.0, "Stepping left"); });
+    voice.RegisterCommand("go left", [walk_action]() { walk_action(0.0, 20.0, "Stepping left"); });
     
-    voice.RegisterCommand("step right", [walk_action]() { walk_action(0.0, -15.0, "Stepping right"); });
-    voice.RegisterCommand("go right", [walk_action]() { walk_action(0.0, -15.0, "Stepping right"); });
+    voice.RegisterCommand("step right", [walk_action]() { walk_action(0.0, -20.0, "Stepping right"); });
+    voice.RegisterCommand("go right", [walk_action]() { walk_action(0.0, -20.0, "Stepping right"); });
 }
 
 int main(void)
