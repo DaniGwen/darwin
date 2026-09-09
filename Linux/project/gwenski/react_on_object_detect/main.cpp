@@ -456,11 +456,8 @@ void RegisterAllVoiceCommands(VoiceCommander &voice,
     voice.RegisterCommand("close everything", close_action);
 
     // 7. Walking Commands
-    auto walk_action = [&](double x, double y, const std::string &reply)
-    {
-        // Safety check: Do not walk if the center of gravity is shifted!
-        if (is_holding_item)
-        {
+    auto walk_action = [=](double x, double y, const std::string& reply) {
+        if (is_holding_item) {
             robot_speak("I cannot walk while holding an item.");
             return;
         }
@@ -468,30 +465,27 @@ void RegisterAllVoiceCommands(VoiceCommander &voice,
         robot_speak(reply);
         std::cout << GREEN << "INFO: Walking triggered (X: " << x << ", Y: " << y << ")" << RESET << std::endl;
 
-        // Strip Action module control and enable the kinematic Walking module
         set_enable_motion_manager_and_walking(true);
 
-        // Set walk vector amplitudes (in mm)
+        // --- NEW: Slow down the gait ---
+        // Default is usually 600. Higher = slower, smoother leg movements
+        Walking::GetInstance()->PERIOD_TIME = 850; 
+        
         Walking::GetInstance()->X_MOVE_AMPLITUDE = x;
         Walking::GetInstance()->Y_MOVE_AMPLITUDE = y;
-        Walking::GetInstance()->A_MOVE_AMPLITUDE = 0.0; // No rotation
+        Walking::GetInstance()->A_MOVE_AMPLITUDE = 0.0;
 
-        // Start the walk cycle
         Walking::GetInstance()->Start();
 
-        // Let it execute steps for a short duration (2.5 seconds)
-        std::this_thread::sleep_for(std::chrono::milliseconds(2500));
+        // Give it 3.5 seconds to walk instead of 2.5, since the steps are slower now
+        std::this_thread::sleep_for(std::chrono::milliseconds(3500));
 
-        // Command the walking engine to halt
         Walking::GetInstance()->Stop();
 
-        // IMPORTANT: Wait until both feet are planted safely on the ground
-        while (Walking::GetInstance()->IsRunning())
-        {
+        while (Walking::GetInstance()->IsRunning()) {
             std::this_thread::sleep_for(std::chrono::milliseconds(10));
         }
 
-        // Return control back to the Action module
         set_enable_motion_manager_and_walking(false);
         run_action(ACTION_PAGE_STAND);
 
@@ -500,14 +494,14 @@ void RegisterAllVoiceCommands(VoiceCommander &voice,
     };
 
     // Change [&] to [=] so it saves a permanent copy in memory!
-    voice.RegisterCommand("go forward", [=]() { walk_action(15.0, 0.0, "Moving forward"); });
-    voice.RegisterCommand("go backward", [=]() { walk_action(-15.0, 0.0, "Moving backward"); });
+   voice.RegisterCommand("go forward", [=]() { walk_action(10.0, 0.0, "Moving forward"); });
+    voice.RegisterCommand("go backward", [=]() { walk_action(-10.0, 0.0, "Moving backward"); });
     
-    voice.RegisterCommand("step left", [=]() { walk_action(0.0, 20.0, "Stepping left"); });
-    voice.RegisterCommand("go left", [=]() { walk_action(0.0, 20.0, "Stepping left"); }); // Added Alias
+    voice.RegisterCommand("step left", [=]() { walk_action(0.0, 15.0, "Stepping left"); });
+    voice.RegisterCommand("go left", [=]() { walk_action(0.0, 15.0, "Stepping left"); });
     
-    voice.RegisterCommand("step right", [=]() { walk_action(0.0, -20.0, "Stepping right"); });
-    voice.RegisterCommand("go right", [=]() { walk_action(0.0, -20.0, "Stepping right"); }); // Added Alias
+    voice.RegisterCommand("step right", [=]() { walk_action(0.0, -15.0, "Stepping right"); });
+    voice.RegisterCommand("go right", [=]() { walk_action(0.0, -15.0, "Stepping right"); });
 }
 
 int main(void)
