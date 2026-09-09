@@ -98,6 +98,12 @@ void run_action(int action_page)
     MotionManager::GetInstance()->SetEnable(false);
 }
 
+void robot_speak(const std::string& text)
+{
+    std::string cmd = "echo \"" + text + "\" | /home/darwin/piper_tts/piper/piper --model /home/darwin/piper_tts/en_US-lessac-medium.onnx --output_raw 2>/dev/null | aplay -r 22050 -f S16_LE -t raw -q &";
+    system(cmd.c_str());
+}
+
 void run_action_non_blocking(int action_page)
 {
     MotionManager::GetInstance()->RemoveModule(static_cast<MotionModule *>(Walking::GetInstance()));
@@ -134,17 +140,17 @@ void handlePersonDetected(LeftArmController &left_arm_controller,
     int random = rand() % 3;
     if (random == 0)
     {
-        system("espeak \"Hello there\" &");
+        robot_speak("Здравей");
         run_action(ACTION_PAGE_WAVE);
     }
     else if (random == 1)
     {
-        system("espeak \"I can see you\" &");
+        robot_speak("Виждам те");
         run_action(ACTION_PAGE_WAVE2);
     }
     else
     {
-        system("espeak \"Hello\" &");
+        robot_speak("Опа здрасти");
         run_action(ACTION_PAGE_WAVE3);
     }
 
@@ -274,17 +280,17 @@ void handleGenericObjectDetected(const std::string &label, int action_page,
 
     if (label == "dog")
     {
-        system("espeak \"Such a nice doggy\" &");
+        robot_speak("Such a good doggy");
         run_action(action_page);
     }
     else if (label == "cat")
     {
-        system("espeak \"Here kitty kitty\" &");
+        robot_speak("Such a good kitty");
         run_action(action_page);
     }
     else if (label == "sports_ball")
     {
-        system("espeak \"Let's play ball\" &");
+        robot_speak("Let's play with the ball");
         run_action(action_page);
     }
 
@@ -307,7 +313,7 @@ void sigint_handler(int sig)
 {
     std::cout << "\n\nINFO: Shutting down..." << std::endl;
 
-    system("espeak -v bg \"спирам\" &");
+    robot_speak("I am shutting down");
 
     system("pkill -2 -f voice_listener.py");
     system("pkill -f custom_detect_objects.py");
@@ -331,17 +337,17 @@ void RegisterAllVoiceCommands(VoiceCommander& voice,
 {
     // 1. System Commands
     auto exit_action = []() { sigint_handler(SIGINT); };
-    voice.RegisterCommand("спри", exit_action);
-    voice.RegisterCommand("спи", exit_action);
-    voice.RegisterCommand("изключи", exit_action);
-    voice.RegisterCommand("край", exit_action);
+    voice.RegisterCommand("stop", exit_action);
+    voice.RegisterCommand("sleep", exit_action);
+    voice.RegisterCommand("shut down", exit_action);
+    voice.RegisterCommand("end", exit_action);
 
     // 2. Greetings
     auto greet_action = [&]() {
         if (is_holding_item) {
-            system("espeak -v bg \"Здрасти. В момента държа нещо.\" &");
+            robot_speak("Hello there. I am currently holding something.");
         } else {
-            system("espeak -v bg \"Здравей\" &");
+            robot_speak("Hello");
             int wave_pages[3] = {ACTION_PAGE_WAVE3, ACTION_PAGE_WAVE, ACTION_PAGE_WAVE2}; 
             run_action(wave_pages[rand() % 3]);
             run_action(ACTION_PAGE_STAND);
@@ -349,14 +355,14 @@ void RegisterAllVoiceCommands(VoiceCommander& voice,
             last_action_time = std::chrono::steady_clock::now();
         }
     };
-    voice.RegisterCommand("здравей", greet_action);
-    voice.RegisterCommand("здрасти", greet_action);
-    voice.RegisterCommand("хей", greet_action);
+    voice.RegisterCommand("hello", greet_action);
+    voice.RegisterCommand("hi", greet_action);
+    voice.RegisterCommand("hey", greet_action);
 
     // 3. Stand / Reset
     auto stand_action = [&]() {
         std::cout << GREEN << "INFO: Returning to stand position..." << RESET << std::endl;
-        system("espeak -v bg \"Изправям се\" &");
+        robot_speak("I am standing up");
         run_action(ACTION_PAGE_STAND);
         Action::GetInstance()->m_Joint.SetEnable(22, true);
         Action::GetInstance()->m_Joint.SetEnable(24, true);
@@ -365,37 +371,37 @@ void RegisterAllVoiceCommands(VoiceCommander& voice,
         bottle_detect_count = 0;
         is_holding_item = false;
     };
-    voice.RegisterCommand("изправи се", stand_action);
-    voice.RegisterCommand("център", stand_action);
+    voice.RegisterCommand("stand up", stand_action);
+    voice.RegisterCommand("center", stand_action);
 
     // 4. Independent Grippers
-    voice.RegisterCommand("отвори лява", [&]() {
-        system("espeak -v bg \"Отварям лявата\" &");
+    voice.RegisterCommand("open left", [&]() {
+        robot_speak("Opening left gripper");
         Action::GetInstance()->m_Joint.SetEnable(24, false);
         left_arm_controller.OpenGripper();
     });
     
-    voice.RegisterCommand("затвори лява", [&]() {
-        system("espeak -v bg \"Затварям лявата\" &");
+    voice.RegisterCommand("close left", [&]() {
+        robot_speak("Closing left gripper");
         Action::GetInstance()->m_Joint.SetEnable(24, false);
         left_arm_controller.CloseGripper();
     });
 
-    voice.RegisterCommand("отвори дясна", [&]() {
-        system("espeak -v bg \"Отварям дясната\" &");
+    voice.RegisterCommand("open right", [&]() {
+        robot_speak("Opening right gripper");
         Action::GetInstance()->m_Joint.SetEnable(22, false);
         right_arm_controller.OpenGripper();
     });
 
-    voice.RegisterCommand("затвори дясна", [&]() {
-        system("espeak -v bg \"Затварям дясната\" &");
+    voice.RegisterCommand("close right", [&]() {
+        robot_speak("Closing right gripper");
         Action::GetInstance()->m_Joint.SetEnable(22, false);
         right_arm_controller.CloseGripper();
     });
 
     // 5. Holding Item Workflows
     auto hold_action = [&]() {
-        system("espeak -v bg \"Държа\" &");
+        robot_speak("Holding item");
         run_action(ACTION_PAGE_HOLD_ITEM);
         Action::GetInstance()->m_Joint.SetEnable(22, false);
         right_arm_controller.OpenGripper();
@@ -403,13 +409,13 @@ void RegisterAllVoiceCommands(VoiceCommander& voice,
         last_action_time = std::chrono::steady_clock::now();
         is_holding_item = true; 
     };
-    voice.RegisterCommand("дръж", hold_action);
-    voice.RegisterCommand("хвани", hold_action);
-    voice.RegisterCommand("вземи", hold_action);
+    voice.RegisterCommand("hold", hold_action);
+    voice.RegisterCommand("grab", hold_action);
+    voice.RegisterCommand("take", hold_action);
 
     auto release_action = [&]() {
         if (is_holding_item) {
-            system("espeak -v bg \"Пускам\" &");
+            robot_speak("Releasing item");
             Action::GetInstance()->m_Joint.SetEnable(22, false);
             right_arm_controller.OpenGripper();
             std::this_thread::sleep_for(std::chrono::seconds(2));
@@ -423,12 +429,12 @@ void RegisterAllVoiceCommands(VoiceCommander& voice,
             is_holding_item = false; 
         }
     };
-    voice.RegisterCommand("пусни", release_action);
-    voice.RegisterCommand("остави", release_action);
+    voice.RegisterCommand("release", release_action);
+    voice.RegisterCommand("let go", release_action);
 
     // 6. Generic Close (Closes both grippers)
     auto close_action = [&]() {
-        system("espeak -v bg \"Затварям\" &"); 
+        robot_speak("closing both grippers"); 
         Action::GetInstance()->m_Joint.SetEnable(22, false);
         Action::GetInstance()->m_Joint.SetEnable(24, false);
         right_arm_controller.CloseGripper(); 
@@ -436,9 +442,9 @@ void RegisterAllVoiceCommands(VoiceCommander& voice,
     };
     
     // Note: Generic matches must go AFTER specific matches in the sequence
-    voice.RegisterCommand("затвори двете", close_action);
-    voice.RegisterCommand("затвори всичко", close_action);
-    voice.RegisterCommand("затвори", close_action);
+    voice.RegisterCommand("close both", close_action);
+    voice.RegisterCommand("close everything", close_action);
+    voice.RegisterCommand("close", close_action);
 }
 
 int main(void)
@@ -464,7 +470,7 @@ int main(void)
     if (!ini)
     {
         std::cerr << "ERROR: Failed to load INI file." << std::endl;
-        system("espeak \"Fatal Error. Failed to load configuration file.\"");
+        robot_speak("Fatal error. The settings file could not be loaded.\"");
         return -1;
     }
 
@@ -484,7 +490,7 @@ int main(void)
     if (motion_manager->Initialize(&cm730) == false)
     {
         std::cerr << "ERROR: Failed to initialize Motion Manager in main!" << std::endl;
-        system("espeak \"Fatal Error. Servo connection failed.\"");
+        robot_speak("Fatal error. The connection with the servo motors failed.\"");
         delete ini;
         return -1;
     }
@@ -504,7 +510,7 @@ int main(void)
     if (!head_tracker->Initialize(ini, &cm730))
     {
         std::cerr << "ERROR: HeadTracking initialization failed. Exiting." << std::endl;
-        system("espeak \"Fatal Error. Camera initialization failed.\"");
+        robot_speak("Fatal error. The camera could not be initialized.\"");
         motion_timer->Stop();
         MotionManager::GetInstance()->SetEnable(false);
         MotionManager::GetInstance()->RemoveModule((MotionModule *)action_module);
@@ -523,7 +529,7 @@ int main(void)
     if (thread_create_status != 0)
     {
         std::cerr << "ERROR: Failed to create HeadTracking thread: " << strerror(thread_create_status) << std::endl;
-        system("espeak \"Fatal Error. Failed to launch background vision process.\"");
+        robot_speak("Fatal error. The background process for vision could not start.\"");
         head_tracker->Cleanup();
         motion_timer->Stop();
         MotionManager::GetInstance()->SetEnable(false);
@@ -539,15 +545,15 @@ int main(void)
     //=========================================================================
     // VOICE STARTUP SEQUENCE
     //=========================================================================
-    system("espeak -v bg \"Инициализацията завърши. Чакам команда за старт.\" &");
+    robot_speak("Initialization complete. Awaiting start command.");
     bool start_command_received = false;
     while (!start_command_received)
     {
         std::string cmd = voice.GetRawCommand();
-        if (cmd.find("старт") != std::string::npos || cmd.find("започни") != std::string::npos || cmd.find("тръгвай") != std::string::npos)
+        if (cmd.find("start") != std::string::npos || cmd.find("begin") != std::string::npos || cmd.find("go") != std::string::npos)
         {
             std::cout << GREEN << "INFO: Start command received: '" << cmd << "'" << RESET << std::endl;
-            std::string speak_cmd = "espeak -v bg \"" + cmd + "\" &";
+            std::string speak_cmd = "espeak -v bg \"" + cmd + "";
             system(speak_cmd.c_str());
             start_command_received = true;
         }
@@ -649,7 +655,7 @@ int main(void)
                 Action::GetInstance()->m_Joint.SetEnable(22, false);
                 right_arm_controller.OpenGripper();
 
-                system("espeak \"Holding\" &");
+                robot_speak("Holding");
                 current_action_label = "bottle";
                 last_action_time = current_time;
                 bottle_detect_count = 0;
