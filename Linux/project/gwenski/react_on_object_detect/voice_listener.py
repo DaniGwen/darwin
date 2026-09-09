@@ -16,7 +16,7 @@ def listen_loop():
     
     # NEW: Restrict the vocabulary to ONLY the commands we care about!
     # This stops motor noise from being hallucinated into random words.
-    grammar = '["hello", "hi", "hey", "begin", "wake up", "stop", "sleep", "shut down", "stand up", "center", "open left", "close left", "open right", "close right", "hold", "grab", "take", "release", "let go", "close both", "close hands", "[unk]"]'
+    grammar = '["hello", "hi", "hey", "begin", "wake up", "stop", "sleep", "shut down", "stand up", "center", "open left", "close left", "open right", "close right", "hold", "grab", "take", "release", "let go", "close both", "close hands", "go forward", "go backward", "step left", "step right", "[unk]"]'
     
     rec = KaldiRecognizer(model, 16000, grammar)
 

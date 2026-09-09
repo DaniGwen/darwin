@@ -98,7 +98,7 @@ void run_action(int action_page)
     MotionManager::GetInstance()->SetEnable(false);
 }
 
-void robot_speak(const std::string& text)
+void robot_speak(const std::string &text)
 {
     // Temporarily using espeak in English to test Vosk latency
     std::string cmd = "espeak -v en \"" + text + "\" 2>/dev/null &";
@@ -328,28 +328,33 @@ void sigint_handler(int sig)
 
 BottleTaskState current_bottle_task_state = BottleTaskState::IDLE;
 
-void RegisterAllVoiceCommands(VoiceCommander& voice, 
-                              LeftArmController& left_arm_controller, 
-                              RightArmController& right_arm_controller, 
-                              bool& is_holding_item, 
-                              std::string& current_action_label, 
-                              std::chrono::steady_clock::time_point& last_action_time, 
-                              int& bottle_detect_count) 
+void RegisterAllVoiceCommands(VoiceCommander &voice,
+                              LeftArmController &left_arm_controller,
+                              RightArmController &right_arm_controller,
+                              bool &is_holding_item,
+                              std::string &current_action_label,
+                              std::chrono::steady_clock::time_point &last_action_time,
+                              int &bottle_detect_count)
 {
     // 1. System Commands
-    auto exit_action = []() { sigint_handler(SIGINT); };
+    auto exit_action = []()
+    { sigint_handler(SIGINT); };
     voice.RegisterCommand("stop", exit_action);
     voice.RegisterCommand("sleep", exit_action);
     voice.RegisterCommand("shut down", exit_action);
     voice.RegisterCommand("end", exit_action);
 
     // 2. Greetings
-    auto greet_action = [&]() {
-        if (is_holding_item) {
+    auto greet_action = [&]()
+    {
+        if (is_holding_item)
+        {
             robot_speak("Hello there. I am currently holding something.");
-        } else {
+        }
+        else
+        {
             robot_speak("Hello");
-            int wave_pages[3] = {ACTION_PAGE_WAVE3, ACTION_PAGE_WAVE, ACTION_PAGE_WAVE2}; 
+            int wave_pages[3] = {ACTION_PAGE_WAVE3, ACTION_PAGE_WAVE, ACTION_PAGE_WAVE2};
             run_action(wave_pages[rand() % 3]);
             run_action(ACTION_PAGE_STAND);
             current_action_label = "standby";
@@ -361,7 +366,8 @@ void RegisterAllVoiceCommands(VoiceCommander& voice,
     voice.RegisterCommand("hey", greet_action);
 
     // 3. Stand / Reset
-    auto stand_action = [&]() {
+    auto stand_action = [&]()
+    {
         std::cout << GREEN << "INFO: Returning to stand position..." << RESET << std::endl;
         robot_speak("I am standing up");
         run_action(ACTION_PAGE_STAND);
@@ -376,75 +382,132 @@ void RegisterAllVoiceCommands(VoiceCommander& voice,
     voice.RegisterCommand("center", stand_action);
 
     // 4. Independent Grippers
-    voice.RegisterCommand("open left", [&]() {
+    voice.RegisterCommand("open left", [&]()
+                          {
         robot_speak("Opening left gripper");
         Action::GetInstance()->m_Joint.SetEnable(24, false);
-        left_arm_controller.OpenGripper();
-    });
-    
-    voice.RegisterCommand("close left", [&]() {
+        left_arm_controller.OpenGripper(); });
+
+    voice.RegisterCommand("close left", [&]()
+                          {
         robot_speak("Closing left gripper");
         Action::GetInstance()->m_Joint.SetEnable(24, false);
-        left_arm_controller.CloseGripper();
-    });
+        left_arm_controller.CloseGripper(); });
 
-    voice.RegisterCommand("open right", [&]() {
+    voice.RegisterCommand("open right", [&]()
+                          {
         robot_speak("Opening right gripper");
         Action::GetInstance()->m_Joint.SetEnable(22, false);
-        right_arm_controller.OpenGripper();
-    });
+        right_arm_controller.OpenGripper(); });
 
-    voice.RegisterCommand("close right", [&]() {
+    voice.RegisterCommand("close right", [&]()
+                          {
         robot_speak("Closing right gripper");
         Action::GetInstance()->m_Joint.SetEnable(22, false);
-        right_arm_controller.CloseGripper();
-    });
+        right_arm_controller.CloseGripper(); });
 
     // 5. Holding Item Workflows
-    auto hold_action = [&]() {
+    auto hold_action = [&]()
+    {
         robot_speak("Holding item");
         run_action(ACTION_PAGE_HOLD_ITEM);
         Action::GetInstance()->m_Joint.SetEnable(22, false);
         right_arm_controller.OpenGripper();
         current_action_label = "bottle";
         last_action_time = std::chrono::steady_clock::now();
-        is_holding_item = true; 
+        is_holding_item = true;
     };
     voice.RegisterCommand("hold", hold_action);
     voice.RegisterCommand("grab", hold_action);
     voice.RegisterCommand("take", hold_action);
 
-    auto release_action = [&]() {
-        if (is_holding_item) {
+    auto release_action = [&]()
+    {
+        if (is_holding_item)
+        {
             robot_speak("Releasing item");
             Action::GetInstance()->m_Joint.SetEnable(22, false);
             right_arm_controller.OpenGripper();
             std::this_thread::sleep_for(std::chrono::seconds(2));
-            
+
             run_action(ACTION_PAGE_STAND);
             Action::GetInstance()->m_Joint.SetEnable(22, true);
-            
+
             current_action_label = "standby";
             last_action_time = std::chrono::steady_clock::now();
             bottle_detect_count = 0;
-            is_holding_item = false; 
+            is_holding_item = false;
         }
     };
     voice.RegisterCommand("release", release_action);
     voice.RegisterCommand("let go", release_action);
 
     // 6. Generic Close (Closes both grippers)
-    auto close_action = [&]() {
-        robot_speak("closing both grippers"); 
+    auto close_action = [&]()
+    {
+        robot_speak("closing both grippers");
         Action::GetInstance()->m_Joint.SetEnable(22, false);
         Action::GetInstance()->m_Joint.SetEnable(24, false);
-        right_arm_controller.CloseGripper(); 
+        right_arm_controller.CloseGripper();
         left_arm_controller.CloseGripper();
     };
-    
+
     // Note: Generic matches must go AFTER specific matches in the sequence
     voice.RegisterCommand("close both", close_action);
     voice.RegisterCommand("close everything", close_action);
+
+    // 7. Walking Commands
+    auto walk_action = [&](double x, double y, const std::string &reply)
+    {
+        // Safety check: Do not walk if the center of gravity is shifted!
+        if (is_holding_item)
+        {
+            robot_speak("I cannot walk while holding an item.");
+            return;
+        }
+
+        robot_speak(reply);
+        std::cout << GREEN << "INFO: Walking triggered (X: " << x << ", Y: " << y << ")" << RESET << std::endl;
+
+        // Strip Action module control and enable the kinematic Walking module
+        set_enable_motion_manager_and_walking(true);
+
+        // Set walk vector amplitudes (in mm)
+        Walking::GetInstance()->X_MOVE_AMPLITUDE = x;
+        Walking::GetInstance()->Y_MOVE_AMPLITUDE = y;
+        Walking::GetInstance()->A_MOVE_AMPLITUDE = 0.0; // No rotation
+
+        // Start the walk cycle
+        Walking::GetInstance()->Start();
+
+        // Let it execute steps for a short duration (2.5 seconds)
+        std::this_thread::sleep_for(std::chrono::milliseconds(2500));
+
+        // Command the walking engine to halt
+        Walking::GetInstance()->Stop();
+
+        // IMPORTANT: Wait until both feet are planted safely on the ground
+        while (Walking::GetInstance()->IsRunning())
+        {
+            std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        }
+
+        // Return control back to the Action module
+        set_enable_motion_manager_and_walking(false);
+        run_action(ACTION_PAGE_STAND);
+
+        current_action_label = "standby";
+        last_action_time = std::chrono::steady_clock::now();
+    };
+
+    voice.RegisterCommand("go forward", [&]()
+                          { walk_action(15.0, 0.0, "Moving forward"); });
+    voice.RegisterCommand("go backward", [&]()
+                          { walk_action(-15.0, 0.0, "Moving backward"); });
+    voice.RegisterCommand("step left", [&]()
+                          { walk_action(0.0, 20.0, "Stepping left"); });
+    voice.RegisterCommand("step right", [&]()
+                          { walk_action(0.0, -20.0, "Stepping right"); });
 }
 
 int main(void)
@@ -550,14 +613,14 @@ int main(void)
     while (!start_command_received)
     {
         std::string cmd = voice.GetRawCommand();
-        
+
         // Changed "start" to "begin" (see explanation below!)
         if (cmd.find("begin") != std::string::npos || cmd.find("wake up") != std::string::npos)
         {
             std::cout << GREEN << "INFO: Start command received: '" << cmd << "'" << RESET << std::endl;
-            
+
             // Hardcode the voice output instead of passing the 'cmd' variable
-            robot_speak("Starting systems."); 
+            robot_speak("Starting systems.");
             start_command_received = true;
         }
         std::this_thread::sleep_for(std::chrono::milliseconds(200));
@@ -580,8 +643,8 @@ int main(void)
     //=========================================================================
     // REGISTER VOICE COMMAND ACTIONS
     //=========================================================================
-    RegisterAllVoiceCommands(voice, left_arm_controller, right_arm_controller, 
-                             is_holding_item, current_action_label, 
+    RegisterAllVoiceCommands(voice, left_arm_controller, right_arm_controller,
+                             is_holding_item, current_action_label,
                              last_action_time, bottle_detect_count);
 
     while (1)
