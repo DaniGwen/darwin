@@ -13,7 +13,12 @@ def listen_loop():
 
     print("[VOICE] Loading English Neural STT Model...")
     model = Model(MODEL_PATH)
-    rec = KaldiRecognizer(model, 16000)
+    
+    # NEW: Restrict the vocabulary to ONLY the commands we care about!
+    # This stops motor noise from being hallucinated into random words.
+    grammar = '["hello", "hi", "hey", "begin", "wake up", "stop", "sleep", "shut down", "stand up", "center", "open left", "close left", "open right", "close right", "hold", "grab", "take", "release", "let go", "close both", "close hands", "[unk]"]'
+    
+    rec = KaldiRecognizer(model, 16000, grammar)
 
     p = pyaudio.PyAudio()
     stream = p.open(format=pyaudio.paInt16, 

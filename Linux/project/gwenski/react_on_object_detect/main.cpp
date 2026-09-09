@@ -445,7 +445,6 @@ void RegisterAllVoiceCommands(VoiceCommander& voice,
     // Note: Generic matches must go AFTER specific matches in the sequence
     voice.RegisterCommand("close both", close_action);
     voice.RegisterCommand("close everything", close_action);
-    voice.RegisterCommand("close", close_action);
 }
 
 int main(void)
@@ -546,21 +545,23 @@ int main(void)
     //=========================================================================
     // VOICE STARTUP SEQUENCE
     //=========================================================================
-    robot_speak("Initialization complete. Awaiting start command.");
+    robot_speak("Initialization complete. Waiting for begin command.");
     bool start_command_received = false;
     while (!start_command_received)
     {
         std::string cmd = voice.GetRawCommand();
-        if (cmd.find("start") != std::string::npos || cmd.find("begin") != std::string::npos || cmd.find("go") != std::string::npos)
+        
+        // Changed "start" to "begin" (see explanation below!)
+        if (cmd.find("begin") != std::string::npos || cmd.find("wake up") != std::string::npos)
         {
             std::cout << GREEN << "INFO: Start command received: '" << cmd << "'" << RESET << std::endl;
-            std::string speak_cmd = "espeak -v bg \"" + cmd + "";
-            system(speak_cmd.c_str());
+            
+            // Hardcode the voice output instead of passing the 'cmd' variable
+            robot_speak("Starting systems."); 
             start_command_received = true;
         }
         std::this_thread::sleep_for(std::chrono::milliseconds(200));
     }
-    //=========================================================================
 
     std::string current_action_label = "standby";
     auto last_action_time = std::chrono::steady_clock::now();

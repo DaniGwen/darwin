@@ -156,7 +156,7 @@ namespace Robot
         if (!cm730_) return;
 
         // Reversed for the left side mirror orientation
-        const int CLOSE_POS = 380; 
+        const int CLOSE_POS = 410; 
 
         int error = 0;
 
