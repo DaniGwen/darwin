@@ -100,7 +100,8 @@ void run_action(int action_page)
 
 void robot_speak(const std::string& text)
 {
-    std::string cmd = "echo \"" + text + "\" | /home/darwin/piper_tts/piper/piper --model /home/darwin/piper_tts/en_US-lessac-medium.onnx --output_raw 2>/dev/null | aplay -r 22050 -f S16_LE -t raw -q &";
+    // Temporarily using espeak in English to test Vosk latency
+    std::string cmd = "espeak -v en \"" + text + "\" 2>/dev/null &";
     system(cmd.c_str());
 }
 
