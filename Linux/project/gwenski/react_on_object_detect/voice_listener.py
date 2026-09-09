@@ -16,7 +16,7 @@ def listen_loop():
     model = Model(MODEL_PATH)
     
     # Changed "stop" to two-word triggers: "robot stop" and "emergency stop"
-    grammar = '["hello", "hi", "hey", "begin", "wake up", "robot stop", "emergency stop", "sleep", "shut down", "stand up", "center", "open left", "close left", "open right", "close right", "hold", "grab", "take", "release", "let go", "close both", "close hands", "go forward", "go backward", "step left", "step right", "[unk]"]'
+    grammar = '["hello", "hi", "hey", "begin", "wake up", "robot stop", "sleep", "shut down", "stand up", "center", "open left", "close left", "open right", "close right", "hold", "grab", "take", "release", "let go", "close both", "close hands", "go forward", "go backward", "step left", "step right", "[unk]"]'
     
     rec = KaldiRecognizer(model, 16000, grammar)
 

@@ -141,17 +141,17 @@ void handlePersonDetected(LeftArmController &left_arm_controller,
     int random = rand() % 3;
     if (random == 0)
     {
-        robot_speak("Здравей");
+        robot_speak("Hello");
         run_action(ACTION_PAGE_WAVE);
     }
     else if (random == 1)
     {
-        robot_speak("Виждам те");
+        robot_speak("I see you");
         run_action(ACTION_PAGE_WAVE2);
     }
     else
     {
-        robot_speak("Опа здрасти");
+        robot_speak("Oh, hello");
         run_action(ACTION_PAGE_WAVE3);
     }
 
@@ -314,8 +314,7 @@ void sigint_handler(int sig)
 {
     std::cout << "\n\nINFO: Shutting down..." << std::endl;
 
-    robot_speak("I am shutting down");
-
+    system("rm -f /tmp/darwin_speaking");
     system("pkill -2 -f voice_listener.py");
     system("pkill -f custom_detect_objects.py");
     system("pkill mjpg_streamer");
@@ -339,7 +338,7 @@ void RegisterAllVoiceCommands(VoiceCommander &voice,
     // 1. System Commands
     auto exit_action = []()
     { sigint_handler(SIGINT); };
-    voice.RegisterCommand("stop", exit_action);
+    voice.RegisterCommand("robotstop", exit_action);
     voice.RegisterCommand("sleep", exit_action);
     voice.RegisterCommand("shut down", exit_action);
     voice.RegisterCommand("end", exit_action);
@@ -500,14 +499,15 @@ void RegisterAllVoiceCommands(VoiceCommander &voice,
         last_action_time = std::chrono::steady_clock::now();
     };
 
-    voice.RegisterCommand("go forward", [&]()
-                          { walk_action(15.0, 0.0, "Moving forward"); });
-    voice.RegisterCommand("go backward", [&]()
-                          { walk_action(-15.0, 0.0, "Moving backward"); });
-    voice.RegisterCommand("step left", [&]()
-                          { walk_action(0.0, 20.0, "Stepping left"); });
-    voice.RegisterCommand("step right", [&]()
-                          { walk_action(0.0, -20.0, "Stepping right"); });
+    // Change [&] to [=] so it saves a permanent copy in memory!
+    voice.RegisterCommand("go forward", [=]() { walk_action(15.0, 0.0, "Moving forward"); });
+    voice.RegisterCommand("go backward", [=]() { walk_action(-15.0, 0.0, "Moving backward"); });
+    
+    voice.RegisterCommand("step left", [=]() { walk_action(0.0, 20.0, "Stepping left"); });
+    voice.RegisterCommand("go left", [=]() { walk_action(0.0, 20.0, "Stepping left"); }); // Added Alias
+    
+    voice.RegisterCommand("step right", [=]() { walk_action(0.0, -20.0, "Stepping right"); });
+    voice.RegisterCommand("go right", [=]() { walk_action(0.0, -20.0, "Stepping right"); }); // Added Alias
 }
 
 int main(void)
