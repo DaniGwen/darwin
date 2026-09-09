@@ -467,8 +467,7 @@ void RegisterAllVoiceCommands(VoiceCommander &voice,
 
         set_enable_motion_manager_and_walking(true);
 
-        // --- NEW: Slow down the gait ---
-        // Default is usually 600. Higher = slower, smoother leg movements
+        // Walk speed (higher = slower, smoother leg movements)
         Walking::GetInstance()->PERIOD_TIME = 850; 
         
         Walking::GetInstance()->X_MOVE_AMPLITUDE = x;
@@ -477,8 +476,7 @@ void RegisterAllVoiceCommands(VoiceCommander &voice,
 
         Walking::GetInstance()->Start();
 
-        // Give it 3.5 seconds to walk instead of 2.5, since the steps are slower now
-        std::this_thread::sleep_for(std::chrono::milliseconds(3500));
+        std::this_thread::sleep_for(std::chrono::milliseconds(2500));
 
         Walking::GetInstance()->Stop();
 
@@ -493,15 +491,15 @@ void RegisterAllVoiceCommands(VoiceCommander &voice,
         last_action_time = std::chrono::steady_clock::now();
     };
 
-    // Change [&] to [=] so it saves a permanent copy in memory!
-   voice.RegisterCommand("go forward", [=]() { walk_action(10.0, 0.0, "Moving forward"); });
-    voice.RegisterCommand("go backward", [=]() { walk_action(-10.0, 0.0, "Moving backward"); });
+    // 2. Explicitly capture ONLY the walk_action variable by copy!
+    voice.RegisterCommand("go forward", [walk_action]() { walk_action(10.0, 0.0, "Moving forward"); });
+    voice.RegisterCommand("go backward", [walk_action]() { walk_action(-10.0, 0.0, "Moving backward"); });
     
-    voice.RegisterCommand("step left", [=]() { walk_action(0.0, 15.0, "Stepping left"); });
-    voice.RegisterCommand("go left", [=]() { walk_action(0.0, 15.0, "Stepping left"); });
+    voice.RegisterCommand("step left", [walk_action]() { walk_action(0.0, 15.0, "Stepping left"); });
+    voice.RegisterCommand("go left", [walk_action]() { walk_action(0.0, 15.0, "Stepping left"); });
     
-    voice.RegisterCommand("step right", [=]() { walk_action(0.0, -15.0, "Stepping right"); });
-    voice.RegisterCommand("go right", [=]() { walk_action(0.0, -15.0, "Stepping right"); });
+    voice.RegisterCommand("step right", [walk_action]() { walk_action(0.0, -15.0, "Stepping right"); });
+    voice.RegisterCommand("go right", [walk_action]() { walk_action(0.0, -15.0, "Stepping right"); });
 }
 
 int main(void)
