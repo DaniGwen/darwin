@@ -472,6 +472,7 @@ void RegisterAllVoiceCommands(VoiceCommander &voice,
         
         Walking::GetInstance()->X_MOVE_AMPLITUDE = x;
         Walking::GetInstance()->Y_MOVE_AMPLITUDE = y;
+        Walking::GetInstance()->Z_MOVE_AMPLITUDE = 40.0;
         Walking::GetInstance()->A_MOVE_AMPLITUDE = 0.0;
 
         Walking::GetInstance()->Start();
