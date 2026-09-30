@@ -468,16 +468,16 @@ void RegisterAllVoiceCommands(VoiceCommander &voice,
         set_enable_motion_manager_and_walking(true);
 
         // Walk speed (higher = slower, smoother leg movements)
-        Walking::GetInstance()->PERIOD_TIME = 1450; 
+        Walking::GetInstance()->PERIOD_TIME = 1350; 
         
         Walking::GetInstance()->X_MOVE_AMPLITUDE = x;
         Walking::GetInstance()->Y_MOVE_AMPLITUDE = y;
-        Walking::GetInstance()->Z_MOVE_AMPLITUDE = 40.0;
+        Walking::GetInstance()->Z_MOVE_AMPLITUDE = 35.0;
         Walking::GetInstance()->A_MOVE_AMPLITUDE = 0.0;
 
         Walking::GetInstance()->Start();
 
-        std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+        std::this_thread::sleep_for(std::chrono::milliseconds(1300));
 
         Walking::GetInstance()->Stop();
 
