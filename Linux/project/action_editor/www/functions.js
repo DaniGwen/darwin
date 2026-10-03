@@ -433,12 +433,19 @@ async function saveLiveToCurrentStep() {
     if (currentStep === 7) return;
 
     try {
-        // Instantly save to the backend without interrupting the user with a pop-up!
+        // 1. Force a "Play Step" to ensure the C++ backend step buffer matches your UI edits
+        if (pendingEditsNotPlayed || needsPlayToSync) {
+            await fetch(`/api/play_step/${currentStep}`, { method: 'POST' });
+        }
+
+        // 2. Instantly save to the backend without interrupting the user
         await fetch(`/api/save_live_step/${currentStep}`, { method: 'POST' });
         fetchRobotState();
 
         // Reset tracking states
         pendingSave = false;
+        pendingEditsNotPlayed = false;
+        needsPlayToSync = false;
 
         // Provide a slick, 1.5-second visual confirmation directly on the button
         const btnSave = document.getElementById('btn-save-step');

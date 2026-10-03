@@ -85,13 +85,13 @@
                 <button onclick="newPage()" style="background:var(--danger);">New/Clear</button>
             </div>
 
-            <div class="control-group">
+            <div class="control-group" title="Page Playback Speed: Scales the execution speed of the entire action page. Default is 32. Higher values mean faster movements. (Range: 1-255)">
                 <label>Speed:</label>
-                <input type="number" id="inp-speed" onchange="updatePageParam('speed', this.value)">
+                <input type="number" max="255" min="1" id="inp-speed" onchange="updatePageParam('speed', this.value)">
             </div>
-            <div class="control-group">
+            <div class="control-group" title="Page Acceleration: Controls the smoothness of the robot's movements. Higher values create a smoother ramp-up and a softer slow-down. Default is 32. (Range: 0-255)">
                 <label>Accel:</label>
-                <input type="number" id="inp-accel" onchange="updatePageParam('accel', this.value)">
+                <input type="number" max="255" min="0" id="inp-accel" onchange="updatePageParam('accel', this.value)">
             </div>
 
             <button id="btn-main-save" onclick="saveToFile()" style="background:#444; color:#fff; font-weight:bold;">💾 Saved</button>
