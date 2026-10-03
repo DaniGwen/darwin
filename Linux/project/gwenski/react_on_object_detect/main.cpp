@@ -8,7 +8,6 @@
  * Runs HeadTracking in a separate thread, with Head control
  * managed directly by HeadTracking, NOT MotionManager or Head.cpp.
  */
-
 #include "ConsoleColors.h"
 #include <stdio.h>
 #include <unistd.h>
