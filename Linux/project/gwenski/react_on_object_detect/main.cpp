@@ -42,6 +42,7 @@
 #define ACTION_PAGE_WAVE 7
 #define ACTION_PAGE_WAVE2 8
 #define ACTION_PAGE_WAVE3 4
+#define ACTION_PAGE_BACK_STANDUP 11
 #define ACTION_PAGE_HAPPY 14
 #define ACTION_PAGE_CAT 12
 #define ACTION_PAGE_SPORTS_BALL 13
@@ -50,6 +51,7 @@
 #define ACTION_PAGE_PICKUP_ITEM 33
 #define ACTION_PAGE_PASS_ITEM 34
 #define ACTION_PAGE_HOLD_ITEM 35
+#define ACTION_PAGE_LAY_FACE_UP 91
 
 enum class BottleTaskState
 {
@@ -98,7 +100,7 @@ void run_action(int action_page)
     MotionManager::GetInstance()->SetEnable(false);
 }
 
-void robot_speak(const std::string& text)
+void robot_speak(const std::string &text)
 {
     // 1. touch flag -> 2. speak -> 3. sleep 0.3s for echo -> 4. remove flag
     std::string cmd = "(touch /tmp/darwin_speaking; espeak -v en \"" + text + "\" 2>/dev/null; sleep 0.3; rm -f /tmp/darwin_speaking) &";
@@ -330,6 +332,7 @@ BottleTaskState current_bottle_task_state = BottleTaskState::IDLE;
 void RegisterAllVoiceCommands(VoiceCommander &voice,
                               LeftArmController &left_arm_controller,
                               RightArmController &right_arm_controller,
+                              CM730 &cm730,
                               bool &is_holding_item,
                               std::string &current_action_label,
                               std::chrono::steady_clock::time_point &last_action_time,
@@ -367,11 +370,19 @@ void RegisterAllVoiceCommands(VoiceCommander &voice,
     // 3. Stand / Reset
     auto stand_action = [&]()
     {
-        std::cout << GREEN << "INFO: Returning to stand position..." << RESET << std::endl;
-        robot_speak("I am standing up");
-        run_action(ACTION_PAGE_STAND);
+        std::cout << GREEN << "INFO: Getting up..." << RESET << std::endl;
+        robot_speak("I am getting up");
+
+        // 1. Re-enable torque across all servos
+        cm730.WriteByte(CM730::ID_BROADCAST, MX28::P_TORQUE_ENABLE, 1, 0);
+        MotionManager::GetInstance()->SetEnable(true);
+
+        run_action(ACTION_PAGE_BACK_STANDUP);
+
+        // 3. Ensure grippers are re-enabled for the Action module
         Action::GetInstance()->m_Joint.SetEnable(22, true);
         Action::GetInstance()->m_Joint.SetEnable(24, true);
+
         current_action_label = "standby";
         last_action_time = std::chrono::steady_clock::now();
         bottle_detect_count = 0;
@@ -379,6 +390,26 @@ void RegisterAllVoiceCommands(VoiceCommander &voice,
     };
     voice.RegisterCommand("stand up", stand_action);
     voice.RegisterCommand("center", stand_action);
+    voice.RegisterCommand("stand by", stand_action);
+    voice.RegisterCommand("get up", stand_action);
+
+    auto rest_action = [&]() {
+        robot_speak("Resting");
+        std::cout << GREEN << "INFO: Laying down..." << RESET << std::endl;
+        
+        run_action(ACTION_PAGE_LAY_FACE_UP);
+        
+        // Drop torque to all servos instantly so the robot relaxes
+        cm730.WriteByte(CM730::ID_BROADCAST, MX28::P_TORQUE_ENABLE, 0, 0);
+        MotionManager::GetInstance()->SetEnable(false); 
+        
+        current_action_label = "resting";
+        last_action_time = std::chrono::steady_clock::now();
+        is_holding_item = false;
+    };
+    voice.RegisterCommand("lay down", rest_action);
+    voice.RegisterCommand("rest", rest_action);
+    voice.RegisterCommand("sit down", rest_action);
 
     // 4. Independent Grippers
     voice.RegisterCommand("open left", [&]()
@@ -387,11 +418,20 @@ void RegisterAllVoiceCommands(VoiceCommander &voice,
         Action::GetInstance()->m_Joint.SetEnable(24, false);
         left_arm_controller.OpenGripper(); });
 
-    voice.RegisterCommand("close left", [&]()
-                          {
-        robot_speak("Closing left gripper");
+   voice.RegisterCommand("close left", [&]() {
+        cm730.WriteWord(JointData::ID_HEAD_PAN, MX28::P_GOAL_POSITION_L, 2600, 0);
+        
+        // Ask the vision system what it sees
+        std::string obj = HeadTracking::GetInstance()->GetDetectedLabel();
+        if (obj != "none" && !obj.empty()) {
+            robot_speak("It is " + obj);
+        } else {
+            robot_speak("Closing left gripper");
+        }
+        
         Action::GetInstance()->m_Joint.SetEnable(24, false);
-        left_arm_controller.CloseGripper(); });
+        left_arm_controller.CloseGripper(); 
+    });
 
     voice.RegisterCommand("open right", [&]()
                           {
@@ -399,11 +439,20 @@ void RegisterAllVoiceCommands(VoiceCommander &voice,
         Action::GetInstance()->m_Joint.SetEnable(22, false);
         right_arm_controller.OpenGripper(); });
 
-    voice.RegisterCommand("close right", [&]()
-                          {
-        robot_speak("Closing right gripper");
+    voice.RegisterCommand("close right", [&]() {
+        cm730.WriteWord(JointData::ID_HEAD_PAN, MX28::P_GOAL_POSITION_L, 1500, 0);
+
+        // Ask the vision system what it sees
+        std::string obj = HeadTracking::GetInstance()->GetDetectedLabel();
+        if (obj != "none" && !obj.empty()) {
+            robot_speak("It is " + obj);
+        } else {
+            robot_speak("Closing right gripper");
+        }
+        
         Action::GetInstance()->m_Joint.SetEnable(22, false);
-        right_arm_controller.CloseGripper(); });
+        right_arm_controller.CloseGripper(); 
+    });
 
     // 5. Holding Item Workflows
     auto hold_action = [&]()
@@ -456,8 +505,10 @@ void RegisterAllVoiceCommands(VoiceCommander &voice,
     voice.RegisterCommand("close everything", close_action);
 
     // 7. Walking Commands
-   auto walk_action = [&](double x, double y, const std::string& reply) {
-        if (is_holding_item) {
+    auto walk_action = [&](double x, double y, const std::string &reply)
+    {
+        if (is_holding_item)
+        {
             robot_speak("I cannot walk while holding an item.");
             return;
         }
@@ -468,8 +519,8 @@ void RegisterAllVoiceCommands(VoiceCommander &voice,
         set_enable_motion_manager_and_walking(true);
 
         // Walk speed (higher = slower, smoother leg movements)
-        Walking::GetInstance()->PERIOD_TIME = 1350; 
-        
+        Walking::GetInstance()->PERIOD_TIME = 1350;
+
         Walking::GetInstance()->X_MOVE_AMPLITUDE = x;
         Walking::GetInstance()->Y_MOVE_AMPLITUDE = y;
         Walking::GetInstance()->Z_MOVE_AMPLITUDE = 35.0;
@@ -481,7 +532,8 @@ void RegisterAllVoiceCommands(VoiceCommander &voice,
 
         Walking::GetInstance()->Stop();
 
-        while (Walking::GetInstance()->IsRunning()) {
+        while (Walking::GetInstance()->IsRunning())
+        {
             std::this_thread::sleep_for(std::chrono::milliseconds(10));
         }
 
@@ -493,14 +545,20 @@ void RegisterAllVoiceCommands(VoiceCommander &voice,
     };
 
     // MUST BE [walk_action] HERE to prevent the memory hallucination!
-    voice.RegisterCommand("go forward", [walk_action]() { walk_action(15.0, 0.0, "Moving forward"); });
-    voice.RegisterCommand("go backward", [walk_action]() { walk_action(-15.0, 0.0, "Moving backward"); });
-    
-    voice.RegisterCommand("step left", [walk_action]() { walk_action(0.0, 20.0, "Stepping left"); });
-    voice.RegisterCommand("go left", [walk_action]() { walk_action(0.0, 20.0, "Stepping left"); });
-    
-    voice.RegisterCommand("step right", [walk_action]() { walk_action(0.0, -20.0, "Stepping right"); });
-    voice.RegisterCommand("go right", [walk_action]() { walk_action(0.0, -20.0, "Stepping right"); });
+    voice.RegisterCommand("go forward", [walk_action]()
+                          { walk_action(15.0, 0.0, "Moving forward"); });
+    voice.RegisterCommand("go backward", [walk_action]()
+                          { walk_action(-15.0, 0.0, "Moving backward"); });
+
+    voice.RegisterCommand("step left", [walk_action]()
+                          { walk_action(0.0, 20.0, "Stepping left"); });
+    voice.RegisterCommand("go left", [walk_action]()
+                          { walk_action(0.0, 20.0, "Stepping left"); });
+
+    voice.RegisterCommand("step right", [walk_action]()
+                          { walk_action(0.0, -20.0, "Stepping right"); });
+    voice.RegisterCommand("go right", [walk_action]()
+                          { walk_action(0.0, -20.0, "Stepping right"); });
 }
 
 int main(void)
@@ -636,7 +694,7 @@ int main(void)
     //=========================================================================
     // REGISTER VOICE COMMAND ACTIONS
     //=========================================================================
-    RegisterAllVoiceCommands(voice, left_arm_controller, right_arm_controller,
+    RegisterAllVoiceCommands(voice, left_arm_controller, right_arm_controller, cm730,
                              is_holding_item, current_action_label,
                              last_action_time, bottle_detect_count);
 
