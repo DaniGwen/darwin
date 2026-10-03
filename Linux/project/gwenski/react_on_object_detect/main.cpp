@@ -364,22 +364,21 @@ void RegisterAllVoiceCommands(VoiceCommander &voice,
         }
     };
     voice.RegisterCommand("hello", greet_action);
-    voice.RegisterCommand("hi", greet_action);
     voice.RegisterCommand("hey", greet_action);
 
-    // 3. Stand / Reset
+   // 3. Stand / Reset
     auto stand_action = [&]()
     {
-        std::cout << GREEN << "INFO: Getting up..." << RESET << std::endl;
-        robot_speak("I am getting up");
+        std::cout << GREEN << "INFO: Standing by..." << RESET << std::endl;
+        robot_speak("Standing by");
 
-        // 1. Re-enable torque across all servos
+        // Re-enable torque across all servos
         cm730.WriteByte(CM730::ID_BROADCAST, MX28::P_TORQUE_ENABLE, 1, 0);
         MotionManager::GetInstance()->SetEnable(true);
 
-        run_action(ACTION_PAGE_BACK_STANDUP);
+        run_action(ACTION_PAGE_STAND); // Play standard stand (ID 1)
 
-        // 3. Ensure grippers are re-enabled for the Action module
+        // Ensure grippers are re-enabled for the Action module
         Action::GetInstance()->m_Joint.SetEnable(22, true);
         Action::GetInstance()->m_Joint.SetEnable(24, true);
 
@@ -391,7 +390,29 @@ void RegisterAllVoiceCommands(VoiceCommander &voice,
     voice.RegisterCommand("stand up", stand_action);
     voice.RegisterCommand("center", stand_action);
     voice.RegisterCommand("stand by", stand_action);
-    voice.RegisterCommand("get up", stand_action);
+
+    // 3.5 Get Up (From laying down)
+    auto get_up_action = [&]()
+    {
+        std::cout << GREEN << "INFO: Getting up..." << RESET << std::endl;
+        robot_speak("I am getting up");
+
+        // Re-enable torque across all servos
+        cm730.WriteByte(CM730::ID_BROADCAST, MX28::P_TORQUE_ENABLE, 1, 0);
+        MotionManager::GetInstance()->SetEnable(true);
+
+        run_action(ACTION_PAGE_BACK_STANDUP); // Play get up (ID 11)
+
+        // Ensure grippers are re-enabled
+        Action::GetInstance()->m_Joint.SetEnable(22, true);
+        Action::GetInstance()->m_Joint.SetEnable(24, true);
+
+        current_action_label = "standby";
+        last_action_time = std::chrono::steady_clock::now();
+        bottle_detect_count = 0;
+        is_holding_item = false;
+    };
+    voice.RegisterCommand("get up", get_up_action);
 
     auto rest_action = [&]() {
         robot_speak("Resting");
@@ -419,18 +440,31 @@ void RegisterAllVoiceCommands(VoiceCommander &voice,
         left_arm_controller.OpenGripper(); });
 
    voice.RegisterCommand("close left", [&]() {
+        // 1. Temporarily strip head control from the tracking loop so it doesn't fight us
+        MotionManager::GetInstance()->SetJointEnableState(JointData::ID_HEAD_PAN, false);
+        MotionManager::GetInstance()->SetJointEnableState(JointData::ID_HEAD_TILT, false);
+
+        // 2. Jerk the head left (approx 2600)
         cm730.WriteWord(JointData::ID_HEAD_PAN, MX28::P_GOAL_POSITION_L, 2600, 0);
         
-        // Ask the vision system what it sees
+        // 3. Give the camera and AI 1 second to capture and process the new frame
+        std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+
+        // 4. Ask the vision system what it sees
         std::string obj = HeadTracking::GetInstance()->GetDetectedLabel();
         if (obj != "none" && !obj.empty()) {
-            robot_speak("It is " + obj);
+            robot_speak("It is a " + obj);
         } else {
             robot_speak("Closing left gripper");
         }
         
+        // 5. Close the gripper
         Action::GetInstance()->m_Joint.SetEnable(24, false);
         left_arm_controller.CloseGripper(); 
+
+        // 6. Return head control to the tracking loop
+        MotionManager::GetInstance()->SetJointEnableState(JointData::ID_HEAD_PAN, true);
+        MotionManager::GetInstance()->SetJointEnableState(JointData::ID_HEAD_TILT, true);
     });
 
     voice.RegisterCommand("open right", [&]()
@@ -439,19 +473,32 @@ void RegisterAllVoiceCommands(VoiceCommander &voice,
         Action::GetInstance()->m_Joint.SetEnable(22, false);
         right_arm_controller.OpenGripper(); });
 
-    voice.RegisterCommand("close right", [&]() {
+   voice.RegisterCommand("close right", [&]() {
+        // 1. Temporarily strip head control from the tracking loop
+        MotionManager::GetInstance()->SetJointEnableState(JointData::ID_HEAD_PAN, false);
+        MotionManager::GetInstance()->SetJointEnableState(JointData::ID_HEAD_TILT, false);
+
+        // 2. Jerk the head right (approx 1500)
         cm730.WriteWord(JointData::ID_HEAD_PAN, MX28::P_GOAL_POSITION_L, 1500, 0);
 
-        // Ask the vision system what it sees
+        // 3. Give the camera and AI 1 second to process the frame
+        std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+
+        // 4. Ask the vision system what it sees
         std::string obj = HeadTracking::GetInstance()->GetDetectedLabel();
         if (obj != "none" && !obj.empty()) {
-            robot_speak("It is " + obj);
+            robot_speak("It is a " + obj);
         } else {
             robot_speak("Closing right gripper");
         }
         
+        // 5. Close the gripper
         Action::GetInstance()->m_Joint.SetEnable(22, false);
         right_arm_controller.CloseGripper(); 
+
+        // 6. Return head control to the tracking loop
+        MotionManager::GetInstance()->SetJointEnableState(JointData::ID_HEAD_PAN, true);
+        MotionManager::GetInstance()->SetJointEnableState(JointData::ID_HEAD_TILT, true);
     });
 
     // 5. Holding Item Workflows
