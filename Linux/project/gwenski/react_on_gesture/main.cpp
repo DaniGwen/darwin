@@ -119,7 +119,6 @@ int main(void)
     // 2. Set permissive socket permissions and launch gesture detector
     chmod("/tmp/darwin_detector.sock", 0666);
     std::cout << "[INFO] Launching gesture_detector.py..." << std::endl;
-    system("python3 -u /home/darwin/darwin/aiy-maker-kit/python/gesture_detector.py &");
 
     std::cout << "INFO: Initial Pose..." << std::endl;
     run_action(ACTION_PAGE_READY);
