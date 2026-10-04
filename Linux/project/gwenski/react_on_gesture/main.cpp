@@ -1,7 +1,7 @@
 /*
  * main.cpp
  *
- * Debug Mode: Prints every detection state.
+ * Debug Mode: Prints every detection state with automated gesture detector launch.
  */
 
 #include "ConsoleColors.h"
@@ -16,6 +16,7 @@
 #include <chrono>
 #include <thread>
 #include <signal.h>
+#include <sys/stat.h>
 
 #include "minIni.h"
 #include "HeadTracking.h"
@@ -37,10 +38,17 @@ using namespace Robot;
 
 volatile bool is_running = true;
 
+void cleanup_processes()
+{
+    system("pkill -9 -f gesture_detector.py 2>/dev/null");
+    system("pkill -9 mjpg_streamer 2>/dev/null");
+}
+
 void sighandler(int sig)
 {
     std::cout << "\n[INFO] Caught signal " << sig << ", shutting down gracefully..." << std::endl;
     is_running = false;
+    cleanup_processes();
 }
 
 void change_current_dir()
@@ -73,13 +81,14 @@ void *HeadTrackingThread(void *arg)
 
 int main(void)
 {
-    printf("\n===== Darwin-OP Gesture Mode (Pixel Fix) =====\n\n");
+    printf("\n===== Darwin-OP Gesture Mode (Auto-Launch) =====\n\n");
     
     signal(SIGPIPE, SIG_IGN);
     change_current_dir();
 
-    system("pkill -9 -f gesture_detector.py");
-    system("pkill -9 mjpg_streamer");
+    // 1. Terminate any previous instances
+    cleanup_processes();
+    std::this_thread::sleep_for(std::chrono::milliseconds(300));
 
     minIni *ini = new minIni(INI_FILE_PATH);
     
@@ -107,6 +116,11 @@ int main(void)
     HeadTracking *head_tracker = HeadTracking::GetInstance();
     if (!head_tracker->Initialize(ini, &cm730, 3)) return -1; 
 
+    // 2. Set permissive socket permissions and launch gesture detector
+    chmod("/tmp/darwin_detector.sock", 0666);
+    std::cout << "[INFO] Launching gesture_detector.py..." << std::endl;
+    system("python3 -u /home/darwin/darwin/aiy-maker-kit/python/gesture_detector.py &");
+
     std::cout << "INFO: Initial Pose..." << std::endl;
     run_action(ACTION_PAGE_READY);
 
@@ -126,7 +140,6 @@ int main(void)
     {
         std::string label = head_tracker->GetDetectedLabel();
 
-        // DEBUG: Print current status if it's not none, to verify we see ANY input
         if (label != "none" && !label.empty()) {
              std::cout << "DEBUG: Main loop sees: " << label << std::endl;
         }
@@ -152,6 +165,10 @@ int main(void)
  
         std::this_thread::sleep_for(std::chrono::milliseconds(20));
     }
+
+    cleanup_processes();
+    motion_timer->Stop();
+    MotionManager::GetInstance()->SetEnable(false);
 
     return 0;
 }
