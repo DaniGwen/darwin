@@ -186,6 +186,8 @@ namespace Robot
         void UpdateHeadAngles(Robot::Point2D err);       // Calculate new angles based on error (replaces MoveTracking(Point2D err))
         void ApplyHeadAngles();                          // Apply calculated angles to motors (replaces Head::Process())
         void SetMotorPIDAndSpeed();
+        double m_detected_center_x;
+        double m_detected_width;
     };
 }
 
