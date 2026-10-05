@@ -1,6 +1,7 @@
 #include "RightArmController.h"
 #include "ConsoleColors.h"
-#include "cmath"
+#include <cmath>
+#include <algorithm>
 #include "HeadTracking.h" // Needed for Value2Deg
 #include "Point.h"
 

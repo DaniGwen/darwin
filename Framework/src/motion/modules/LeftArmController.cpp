@@ -1,5 +1,7 @@
 #include "LeftArmController.h"
 #include "ConsoleColors.h"
+#include <cmath>
+#include <algorithm>
 
 namespace Robot
 {

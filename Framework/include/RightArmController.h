@@ -15,6 +15,14 @@
 
 namespace Robot
 {
+     struct ArmTicks
+    {
+        int shoulder_pitch;
+        int shoulder_roll;
+        int elbow_pitch;
+        bool out_of_reach;
+    };
+    
     class RightArmController
     {
     public:
@@ -73,14 +81,6 @@ namespace Robot
 
         void ApplyPose(const Pose &pose, int speed = 200);
         void SetPID(int p_gain = 30);
-    };
-
-    struct ArmTicks
-    {
-        int shoulder_pitch;
-        int shoulder_roll;
-        int elbow_pitch;
-        bool out_of_reach;
     };
 }
 

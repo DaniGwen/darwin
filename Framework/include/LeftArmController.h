@@ -13,6 +13,14 @@
 
 namespace Robot
 {
+    struct ArmTicks
+    {
+        int shoulder_pitch;
+        int shoulder_roll;
+        int elbow_pitch;
+        bool out_of_reach;
+    };
+    
     class LeftArmController
     {
     public:
@@ -43,14 +51,6 @@ namespace Robot
         const Pose POSE_OPEN_GRIPPER = {
             std::map<int, int>{
                 {JointData::ID_L_GRIPPER, 1516}}};
-    };
-
-    struct ArmTicks
-    {
-        int shoulder_pitch;
-        int shoulder_roll;
-        int elbow_pitch;
-        bool out_of_reach;
     };
 }
 
