@@ -9,6 +9,7 @@
 #include <thread>      // For std::this_thread::sleep_for
 #include <chrono>      // For std::chrono::milliseconds
 #include "Globals.h"
+#include "MotionManager.h"
 
 namespace Robot
 {
@@ -19,6 +20,8 @@ namespace Robot
         void ToDefaultPose();
         void CloseGripper(int moving_speed = 200, int p_gain = 30);
         void OpenGripper(int moving_speed = 200, int p_gain = 30);
+        ArmTicks CalculateIK(double x, double y, double z);
+        void SmoothMoveToIK(double x, double y, double z, int duration_ms);
 
     private:
         CM730 *cm730_; // Pointer to the CM730 instance for direct motor control
@@ -40,6 +43,14 @@ namespace Robot
         const Pose POSE_OPEN_GRIPPER = {
             std::map<int, int>{
                 {JointData::ID_L_GRIPPER, 1516}}};
+    };
+
+    struct ArmTicks
+    {
+        int shoulder_pitch;
+        int shoulder_roll;
+        int elbow_pitch;
+        bool out_of_reach;
     };
 }
 

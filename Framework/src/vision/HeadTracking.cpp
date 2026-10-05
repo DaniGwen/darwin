@@ -631,6 +631,16 @@ namespace Robot
         current_detected_label_ = primary_detected_label;
         current_tracked_object_center_ = tracked_object_center_for_head;
         detection_score_ = current_detection_score_val;
+        
+        if (target_found_in_frame) {
+            // Calculate normalized values (0.0 to 1.0) using the winning detection
+            m_detected_center_x = (primary_detection.xmin + primary_detection.xmax) / 2.0;
+            m_detected_width = (primary_detection.xmax - primary_detection.xmin);
+        } else {
+            // Reset to defaults if nothing is tracked
+            m_detected_center_x = 0.5;
+            m_detected_width = 0.0;
+        }
 
         if (primary_detected_label != "none")
         {
@@ -1072,5 +1082,15 @@ namespace Robot
     double HeadTracking::GetFocalLengthPx() const
     {
         return camera_focal_length_px_;
+    }
+
+    double HeadTracking::GetDetectedCenterX() const
+    {
+        return m_detected_center_x;
+    }
+
+    double HeadTracking::GetDetectedWidth() const
+    {
+        return m_detected_width;
     }
 }

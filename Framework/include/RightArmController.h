@@ -11,6 +11,7 @@
 #include "Globals.h"
 #include "Point.h"
 #include "HeadTracking.h"
+#include "MotionManager.h"
 
 namespace Robot
 {
@@ -27,6 +28,8 @@ namespace Robot
         void RotateWristCCW90Deg(int moving_speed = 100, int p_gain = 30);
         void HoldItem(int moving_speed = 100, int p_gain = 30);
         void Default();
+        ArmTicks CalculateIK(double x, double y, double z);
+        void SmoothMoveToIK(double x, double y, double z, int duration_ms);
 
     private:
         CM730 *cm730_;
@@ -70,6 +73,14 @@ namespace Robot
 
         void ApplyPose(const Pose &pose, int speed = 200);
         void SetPID(int p_gain = 30);
+    };
+
+    struct ArmTicks
+    {
+        int shoulder_pitch;
+        int shoulder_roll;
+        int elbow_pitch;
+        bool out_of_reach;
     };
 }
 

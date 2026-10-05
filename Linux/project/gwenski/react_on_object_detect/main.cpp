@@ -60,6 +60,14 @@ enum class BottleTaskState
     DONE
 };
 
+enum DoorState
+{
+    STATE_READY,
+    STATE_SEARCH,
+    STATE_APPROACH,
+    STATE_ACTION
+};
+
 void set_enable_motion_manager_and_walking(bool enable)
 {
     if (enable)
@@ -335,7 +343,8 @@ void RegisterAllVoiceCommands(VoiceCommander &voice,
                               bool &is_holding_item,
                               std::string &current_action_label,
                               std::chrono::steady_clock::time_point &last_action_time,
-                              int &bottle_detect_count)
+                              int &bottle_detect_count,
+                              bool &trigger_door_task)
 {
     // 1. System Commands
     auto exit_action = []()
@@ -365,7 +374,7 @@ void RegisterAllVoiceCommands(VoiceCommander &voice,
     voice.RegisterCommand("hello", greet_action);
     voice.RegisterCommand("hey", greet_action);
 
-   // 3. Stand / Reset
+    // 3. Stand / Reset
     auto stand_action = [&]()
     {
         std::cout << GREEN << "INFO: Standing by..." << RESET << std::endl;
@@ -413,16 +422,17 @@ void RegisterAllVoiceCommands(VoiceCommander &voice,
     };
     voice.RegisterCommand("get up", get_up_action);
 
-    auto rest_action = [&]() {
+    auto rest_action = [&]()
+    {
         robot_speak("Resting");
         std::cout << GREEN << "INFO: Laying down..." << RESET << std::endl;
-        
+
         run_action(ACTION_PAGE_LAY_FACE_UP);
-        
+
         // Drop torque to all servos instantly so the robot relaxes
         cm730.WriteByte(CM730::ID_BROADCAST, MX28::P_TORQUE_ENABLE, 0, 0);
-        MotionManager::GetInstance()->SetEnable(false); 
-        
+        MotionManager::GetInstance()->SetEnable(false);
+
         current_action_label = "resting";
         last_action_time = std::chrono::steady_clock::now();
         is_holding_item = false;
@@ -438,7 +448,8 @@ void RegisterAllVoiceCommands(VoiceCommander &voice,
         Action::GetInstance()->m_Joint.SetEnable(24, false);
         left_arm_controller.OpenGripper(); });
 
-   voice.RegisterCommand("close left", [&]() {
+    voice.RegisterCommand("close left", [&]()
+                          {
         // 1. Temporarily strip head control from the tracking loop so it doesn't fight us
         MotionManager::GetInstance()->SetJointEnableState(JointData::ID_HEAD_PAN, false);
         MotionManager::GetInstance()->SetJointEnableState(JointData::ID_HEAD_TILT, false);
@@ -463,8 +474,7 @@ void RegisterAllVoiceCommands(VoiceCommander &voice,
 
         // 6. Return head control to the tracking loop
         MotionManager::GetInstance()->SetJointEnableState(JointData::ID_HEAD_PAN, true);
-        MotionManager::GetInstance()->SetJointEnableState(JointData::ID_HEAD_TILT, true);
-    });
+        MotionManager::GetInstance()->SetJointEnableState(JointData::ID_HEAD_TILT, true); });
 
     voice.RegisterCommand("open right", [&]()
                           {
@@ -472,7 +482,8 @@ void RegisterAllVoiceCommands(VoiceCommander &voice,
         Action::GetInstance()->m_Joint.SetEnable(22, false);
         right_arm_controller.OpenGripper(); });
 
-   voice.RegisterCommand("close right", [&]() {
+    voice.RegisterCommand("close right", [&]()
+                          {
         // 1. Temporarily strip head control from the tracking loop
         MotionManager::GetInstance()->SetJointEnableState(JointData::ID_HEAD_PAN, false);
         MotionManager::GetInstance()->SetJointEnableState(JointData::ID_HEAD_TILT, false);
@@ -497,8 +508,7 @@ void RegisterAllVoiceCommands(VoiceCommander &voice,
 
         // 6. Return head control to the tracking loop
         MotionManager::GetInstance()->SetJointEnableState(JointData::ID_HEAD_PAN, true);
-        MotionManager::GetInstance()->SetJointEnableState(JointData::ID_HEAD_TILT, true);
-    });
+        MotionManager::GetInstance()->SetJointEnableState(JointData::ID_HEAD_TILT, true); });
 
     // 5. Holding Item Workflows
     auto hold_action = [&]()
@@ -590,7 +600,16 @@ void RegisterAllVoiceCommands(VoiceCommander &voice,
         last_action_time = std::chrono::steady_clock::now();
     };
 
-    // MUST BE [walk_action] HERE to prevent the memory hallucination!
+    // 8. ADD THIS: Door Task Command
+    voice.RegisterCommand("close the door", [&]()
+                          {
+        if (is_holding_item) {
+            robot_speak("I cannot close the door while holding an item.");
+            return;
+        }
+        robot_speak("Looking for the door");
+        trigger_door_task = true; });
+
     voice.RegisterCommand("go forward", [walk_action]()
                           { walk_action(15.0, 0.0, "Moving forward"); });
     voice.RegisterCommand("go backward", [walk_action]()
@@ -737,12 +756,16 @@ int main(void)
     bool is_holding_item = false;
     const int detect_threshold = 4;
 
+    DoorState current_state = STATE_READY;
+    int lost_frames = 0;
+    bool trigger_door_task = false;
+
     //=========================================================================
     // REGISTER VOICE COMMAND ACTIONS
     //=========================================================================
     RegisterAllVoiceCommands(voice, left_arm_controller, right_arm_controller, cm730,
                              is_holding_item, current_action_label,
-                             last_action_time, bottle_detect_count);
+                             last_action_time, bottle_detect_count, trigger_door_task);
 
     while (1)
     {
@@ -786,6 +809,104 @@ int main(void)
             sports_ball_detect_count++;
         else if (sports_ball_detect_count > 0)
             sports_ball_detect_count--;
+
+        // =========================================================================
+        // --- DOOR TASK STATE MACHINE ---
+        // =========================================================================
+        if (trigger_door_task && current_door_state == DoorState::READY)
+        {
+            std::cout << MAGENTA << "\n>>> VOICE COMMAND: Initiating Door Task <<<" << RESET << std::endl;
+            current_door_state = DoorState::SEARCH;
+            trigger_door_task = false;
+
+            // Wake up the walking engine
+            set_enable_motion_manager_and_walking(true);
+        }
+
+        if (current_door_state != DoorState::READY)
+        {
+
+            // NOTE: You must add these getters to HeadTracking.h/cpp to pull the socket data!
+            double door_center_x = head_tracker->GetDetectedCenterX();
+            double door_width = head_tracker->GetDetectedWidth();
+
+            switch (current_door_state)
+            {
+            case DoorState::SEARCH:
+                Walking::GetInstance()->X_MOVE_AMPLITUDE = 0.0;
+                Walking::GetInstance()->A_MOVE_AMPLITUDE = 10.0; // Spin left
+
+                if (detected_object_label == "door")
+                {
+                    std::cout << "[STATE] Door spotted! Transitioning to APPROACH." << std::endl;
+                    current_door_state = DoorState::APPROACH;
+                }
+                break;
+
+            case DoorState::APPROACH:
+                if (detected_object_label == "door")
+                {
+                    door_lost_frames = 0;
+                    double pan_error = (0.5 - door_center_x) * 25.0;
+                    Walking::GetInstance()->A_MOVE_AMPLITUDE = pan_error;
+                    Walking::GetInstance()->X_MOVE_AMPLITUDE = 12.0; // Walk forward
+
+                    if (door_width > 0.35)
+                    {
+                        std::cout << "[STATE] Reached door! Stopping." << std::endl;
+                        Walking::GetInstance()->Stop();
+
+                        // Wait for physical balance to settle
+                        while (Walking::GetInstance()->IsRunning())
+                        {
+                            std::this_thread::sleep_for(std::chrono::milliseconds(10));
+                        }
+                        current_door_state = DoorState::ACTION;
+                    }
+                }
+                else
+                {
+                    door_lost_frames++;
+                    if (door_lost_frames > 15)
+                    {
+                        std::cout << "[STATE] Lost door. Resuming SEARCH." << std::endl;
+                        current_door_state = DoorState::SEARCH;
+                    }
+                }
+                break;
+
+            case DoorState::ACTION:
+                set_enable_motion_manager_and_walking(false);
+                std::this_thread::sleep_for(std::chrono::milliseconds(500));
+
+                if (door_center_x > 0.5)
+                {
+                    std::cout << "[IK] Right Arm Activating." << std::endl;
+                    right_arm_controller.SmoothMoveToIK(120.0, 0.0, -20.0, 1000);
+                    right_arm_controller.SmoothMoveToIK(220.0, 0.0, -20.0, 600);
+                    right_arm_controller.Default();
+                }
+                else
+                {
+                    std::cout << "[IK] Left Arm Activating." << std::endl;
+                    left_arm_controller.SmoothMoveToIK(120.0, 0.0, -20.0, 1000);
+                    left_arm_controller.SmoothMoveToIK(220.0, 0.0, -20.0, 600);
+                    left_arm_controller.ToDefaultPose();
+                }
+
+                run_action(ACTION_PAGE_STAND);
+                current_door_state = DoorState::READY;
+                break;
+
+            default:
+                break;
+            }
+
+            // Skip the standard vision triggers while we are busy with the door
+            voice.ProcessCommands();
+            std::this_thread::sleep_for(std::chrono::milliseconds(150));
+            continue;
+        }
 
         // =========================================================================
         // --- VISION TRIGGERS (ONLY IF NOT HOLDING AN ITEM) ---

@@ -150,7 +150,7 @@ namespace Robot
         double elbow_rad = Robot::HeadTracking::GetInstance()->Value2Deg(elbow_val) * (M_PI / 180.0);
 
         // ... (Step 2: Forward Kinematics remains the same) ...
-          // All dimensions are converted from mm to meters.
+        // All dimensions are converted from mm to meters.
         // The origin (0,0,0) is at the robot's shoulder roll joint.
 
         // Length of the upper arm segment (shoulder roll to elbow).
@@ -158,27 +158,27 @@ namespace Robot
         const double ARM_UPPER_LENGTH_M = 0.069;
         const double ARM_LOWER_LENGTH_M = 0.060;
 
-         // Simplified forward kinematics calculation.
+        // Simplified forward kinematics calculation.
         // Assumes X is forward, Y is to the left, and Z is up, relative to the torso.
         double hand_x = cos(shoulder_pitch_rad) * (ARM_UPPER_LENGTH_M * cos(shoulder_roll_rad) + ARM_LOWER_LENGTH_M * cos(shoulder_roll_rad + elbow_rad));
         double hand_y = sin(shoulder_pitch_rad) * (ARM_UPPER_LENGTH_M * cos(shoulder_roll_rad) + ARM_LOWER_LENGTH_M * cos(shoulder_roll_rad + elbow_rad));
         double hand_z = -ARM_UPPER_LENGTH_M * sin(shoulder_roll_rad) - ARM_LOWER_LENGTH_M * sin(shoulder_roll_rad + elbow_rad);
 
-         // --- Step 3: Transform Hand Position to Camera's Coordinate Frame ---
+        // --- Step 3: Transform Hand Position to Camera's Coordinate Frame ---
         // These offsets are the camera's position relative to our origin (the shoulder roll joint).
 
         // Sideways offset (X in camera frame). Assumed to be centered.
         const double CAM_X_OFFSET_M = 0.0;
 
-         // Vertical offset (Y in camera frame).
+        // Vertical offset (Y in camera frame).
         // From schematic: 50.5mm from shoulder pitch axis to camera level.
         const double CAM_Y_OFFSET_M = 0.0505;
 
-         // Forward offset (Z in camera frame).
+        // Forward offset (Z in camera frame).
         // From your measurement: ~3cm forward offset.
         const double CAM_Z_OFFSET_M = 0.030;
 
-         // Calculate the hand's position from the camera's perspective by translating the origin.
+        // Calculate the hand's position from the camera's perspective by translating the origin.
         // This also involves rotating the coordinate system axes to match the camera's view.
         double hand_in_cam_x = hand_y - CAM_X_OFFSET_M;
         double hand_in_cam_y = hand_z - CAM_Y_OFFSET_M;
@@ -278,5 +278,106 @@ namespace Robot
         }
 
         std::cout << "INFO: RightArmController PID gains set for all joints." << std::endl;
+    }
+
+    ArmTicks RightArmController::CalculateIK(double x, double y, double z) {
+        ArmTicks ticks = {2048, 2048, 2048, false};
+        
+        const double L1 = 69.0; 
+        const double L2 = 60.0; 
+
+        double d_squared = (x * x) + (y * y) + (z * z);
+        double d = std::sqrt(d_squared);
+
+        if (d >= (L1 + L2)) {
+            ticks.out_of_reach = true;
+            return ticks;
+        }
+
+        double q_roll = std::atan2(y, x);
+        double cos_elbow = (d_squared - (L1 * L1) - (L2 * L2)) / (2.0 * L1 * L2);
+        double q_elbow = std::acos(cos_elbow);
+
+        double angle_to_target = std::atan2(z, std::sqrt((x * x) + (y * y)));
+        double cos_shoulder_interior = (d_squared + (L1 * L1) - (L2 * L2)) / (2.0 * L1 * d);
+        double q_shoulder = angle_to_target + std::acos(cos_shoulder_interior);
+
+        const double TICKS_PER_RADIAN = 2048.0 / M_PI;
+
+        ticks.shoulder_pitch = 2048 - static_cast<int>(q_shoulder * TICKS_PER_RADIAN);
+        ticks.shoulder_roll  = 2048 + static_cast<int>(q_roll * TICKS_PER_RADIAN);
+        ticks.elbow_pitch    = 2048 - static_cast<int>(q_elbow * TICKS_PER_RADIAN);
+
+        // --- HARDWARE SAFETY LIMITS ---
+        // Pitch: Limit to roughly +/- 90 degrees from straight down (prevents swinging over the head or far backwards)
+        ticks.shoulder_pitch = std::max(1024, std::min(3072, ticks.shoulder_pitch));
+        
+        // Roll: 2048 is straight down. 1700 prevents digging into the ribs. 2500 limits the outward raise to ~40 degrees.
+        ticks.shoulder_roll  = std::max(1700, std::min(2500, ticks.shoulder_roll));
+        
+        // Elbow: Prevents hyperextension (bending backwards) and crushing the forearm into the bicep.
+        ticks.elbow_pitch    = std::max(1024, std::min(3072, ticks.elbow_pitch));
+
+        return ticks;
+    }
+
+    void RightArmController::SmoothMoveToIK(double x, double y, double z, int duration_ms) {
+        ArmTicks target = CalculateIK(x, y, z);
+        if (target.out_of_reach) {
+            std::cout << BOLDRED << "WARN: IK Target (" << x << "," << y << "," << z << ") is out of reach!" << RESET << std::endl;
+            return;
+        }
+
+        int start_pitch = 2048, start_roll = 2048, start_elbow = 2048;
+        cm730_->ReadWord(JointData::ID_R_SHOULDER_PITCH, MX28::P_PRESENT_POSITION_L, &start_pitch, 0);
+        cm730_->ReadWord(JointData::ID_R_SHOULDER_ROLL, MX28::P_PRESENT_POSITION_L, &start_roll, 0);
+        cm730_->ReadWord(JointData::ID_R_ELBOW, MX28::P_PRESENT_POSITION_L, &start_elbow, 0);
+
+        // --- DYNAMIC VELOCITY CAPPING ---
+        // Find the single joint that has to move the furthest
+        int max_travel = std::max({
+            std::abs(target.shoulder_pitch - start_pitch),
+            std::abs(target.shoulder_roll - start_roll),
+            std::abs(target.elbow_pitch - start_elbow)
+        });
+
+        // Define maximum safe velocity (e.g., 1500 ticks per second ~130 deg/sec)
+        const int MAX_TICKS_PER_SECOND = 1500;
+        int minimum_safe_duration = (max_travel * 1000) / MAX_TICKS_PER_SECOND;
+
+        // Override the user's duration if it demands a dangerous speed
+        if (duration_ms < minimum_safe_duration) {
+            std::cout << BOLDYELLOW << "WARN: Requested IK speed too high. Overriding duration to " 
+                      << minimum_safe_duration << "ms to protect servos." << RESET << std::endl;
+            duration_ms = minimum_safe_duration;
+        }
+
+        MotionManager::GetInstance()->SetJointEnableState(JointData::ID_R_SHOULDER_PITCH, false);
+        MotionManager::GetInstance()->SetJointEnableState(JointData::ID_R_SHOULDER_ROLL, false);
+        MotionManager::GetInstance()->SetJointEnableState(JointData::ID_R_ELBOW, false);
+
+        // Increase interpolation resolution based on duration for buttery smooth movement
+        const int MIN_SLEEP_MS = 15; // Don't spam the CM730 bus faster than every 15ms
+        int steps = duration_ms / MIN_SLEEP_MS;
+        if (steps < 1) steps = 1;
+
+        std::cout << BOLDCYAN << "INFO: Interpolating Right Arm to IK Target over " << duration_ms << "ms (" << steps << " steps)..." << RESET << std::endl;
+
+        for (int i = 1; i <= steps; ++i) {
+            double progress = static_cast<double>(i) / steps;
+            
+            // Apply easing (Cosine interpolation) instead of linear for a softer start/stop
+            double ease = (1.0 - std::cos(progress * M_PI)) / 2.0;
+            
+            int curr_pitch = start_pitch + ((target.shoulder_pitch - start_pitch) * ease);
+            int curr_roll  = start_roll  + ((target.shoulder_roll - start_roll) * ease);
+            int curr_elbow = start_elbow + ((target.elbow_pitch - start_elbow) * ease);
+            
+            cm730_->WriteWord(JointData::ID_R_SHOULDER_PITCH, MX28::P_GOAL_POSITION_L, curr_pitch, 0);
+            cm730_->WriteWord(JointData::ID_R_SHOULDER_ROLL, MX28::P_GOAL_POSITION_L, curr_roll, 0);
+            cm730_->WriteWord(JointData::ID_R_ELBOW, MX28::P_GOAL_POSITION_L, curr_elbow, 0);
+            
+            std::this_thread::sleep_for(std::chrono::milliseconds(MIN_SLEEP_MS));
+        }
     }
 }

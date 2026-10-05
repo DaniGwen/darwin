@@ -76,6 +76,8 @@ namespace Robot
 
         void SetMotorCommandInterval(int interval_ms);
         int GetMotorCommandInterval() const;
+        double GetDetectedCenterX() const;
+        double GetDetectedWidth() const;
 
         // Explicitly declare the destructor
         ~HeadTracking();
